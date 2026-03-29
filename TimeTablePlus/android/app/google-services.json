@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "959032391778",
+    "project_id": "scheduler-56a76",
+    "storage_bucket": "scheduler-56a76.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:959032391778:android:58ee6a2db04794d595793b",
+        "android_client_info": {
+          "package_name": "com.attendease"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAXBvPsMnTSmthh0w81LuSYEirCXC_BL4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
