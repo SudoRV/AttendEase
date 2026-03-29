@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title></title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="">
+    </head>
+    <body>
+        <div id="attendance">
+
+        </div>
+        
+        <script async defer>
+            async function loadAttendance(){
+                const data = await fetch(`https://online.uktech.ac.in/ums/Student/User/ShowStudentAttendanceListByRollNoDOB?CollegeId=67&CourseId=1&BranchId=1&CourseBranchDurationId=8&StudentAdmissionId=11492&DateOfBirth=08%2F01%2F2005&SessionYear=2025&RollNo=221620101047&Year=2026&MonthId=3`);
+
+                return data;
+            }
+            const attendance = loadAttendance();
+            console.log(attendance)
+        </script>
+    </body>
+</html>
