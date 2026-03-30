@@ -92,7 +92,7 @@ export default function ProfileScreen() {
           Alert.alert("Success", "Password changed successfully. Please login again.", [
             { text: "OK", onPress: () => setUserData(null) }
           ]);
-          setAuthMode("");
+          closeModals();
         } else {
           Alert.alert("Failed", result.message || "Could not change password.");
         }
@@ -109,7 +109,8 @@ export default function ProfileScreen() {
             Alert.alert("OTP Sent", "Check your email for the recovery code.");
             setResetStep(2);
           } else {
-            Alert.alert("Error", "Failed to send OTP.");
+            const data = await response.json();
+            Alert.alert("Error", "Failed to send OTP.  | " + JSON.stringify(data) );
           }
         } else {
           // SUBMIT RESET WITH OTP
@@ -128,7 +129,7 @@ export default function ProfileScreen() {
             Alert.alert("Success", "Account recovered! Please login with your new password.", [
               { text: "OK", onPress: () => setUserData(null) }
             ]);
-            setAuthMode("");
+            closeModals();
           } else {
             Alert.alert("Error", "Invalid OTP or request failed.");
           }

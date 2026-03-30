@@ -36,6 +36,7 @@ const config2 = {
 
 const pool = mysql.createPool(config);
 
+// console.log(process.env.EMAIL, process.env.PASS)
 // Create a transporter with your email service credentials
 const transporter = nodemailer.createTransport({
   service: "Gmail",
