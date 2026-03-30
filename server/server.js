@@ -40,11 +40,17 @@ const pool = mysql.createPool(config);
 // Create a transporter with your email service credentials
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  port: 587,
+  secure: false,
   auth: {
     user: process.env.EMAIL,
     pass: process.env.PASS,
+  },
+  tls: {
+    // This tells Node to prioritize the connection even if the certificate 
+    // handshake is slightly delayed by the proxy
+    ciphers: 'SSLv3',
+    rejectUnauthorized: false 
   },
   connectionTimeout: 10000,
   family: 4,
@@ -55,7 +61,7 @@ transporter.verify(function (error, success) {
     console.log("❌ SMTP Connection Error:");
     console.log(JSON.stringify(error, null, 2));
   } else {
-    console.log("✅ Server is ready to take our messages");
+    console.log("✅ Transporter is ready to take our messages");
   }
 });
 
