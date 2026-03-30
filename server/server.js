@@ -211,7 +211,7 @@ app.post("/reset-password", async (req, res) => {
       transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
           console.error(error);
-          return res.status(500).json({ success: false, message: "Failed to send email" });
+          return res.status(500).json({ success: false, message: "Failed to send email  |  " + error});
         }
         res.json({ success: true, message: "OTP sent successfully, Check your email." });
       });
