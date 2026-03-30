@@ -44,15 +44,11 @@ const transporter = nodemailer.createTransport({
   secure: false,
   auth: {
     user: process.env.EMAIL,
-    pass: process.env.PASS,
+    pass: process.env.APP_PASSWORD,
   },
-  tls: {
-    // This tells Node to prioritize the connection even if the certificate 
-    // handshake is slightly delayed by the proxy
-    ciphers: 'SSLv3',
-    rejectUnauthorized: false 
-  },
-  connectionTimeout: 10000,
+  connectionTimeout: 30000, // ↑ increase
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
   family: 4,
 });
 
