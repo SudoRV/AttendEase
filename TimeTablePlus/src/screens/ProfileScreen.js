@@ -144,6 +144,7 @@ export default function ProfileScreen() {
   const closeModals = () => {
     setModalVisible(false);
     setResetStep(1);
+    setLoading(false);
     setForm({ oldPassword: "", newPassword: "", confirmPassword: "", otp: "" });
   };
 

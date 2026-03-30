@@ -40,8 +40,8 @@ const pool = mysql.createPool(config);
 const transporter = nodemailer.createTransport({
   service: "Gmail",
   auth: {
-    user: "help.sudorv@gmail.com",
-    pass: "frbu rijm dzaz qxsx",
+    user: process.env.EMAIL,
+    pass: process.env.PASS,
   },
 });
 
