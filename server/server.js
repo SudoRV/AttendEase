@@ -42,15 +42,11 @@ const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
   secure: true,
-  service: "gmail",
   auth: {
     user: process.env.EMAIL,
     pass: process.env.PASS,
   },
-  connectionTimeout: 20000,
-  greetingTimeout: 20000,
-  socketTimeout: 20000,
-  dnsTimeout: 10000,
+  connectionTimeout: 10000,
   family: 4,
 });
 
@@ -150,81 +146,95 @@ app.post("/reset-password", async (req, res) => {
 
   else if (type === "request_otp") {
     const verifiedEmail = user[0].email;
-    // generate top
-    const otp = {
-      code: generateOTP(),
+
+    const otpCode = generateOTP(); // Get the code first
+    const otpData = {
+      code: otpCode,
       request_time: Date.now(),
       ttl: 15,
     };
-    // save otp data to database
-    const response = pool.query("update users set otp = ? where email = ?", [JSON.stringify(otp), verifiedEmail]);
-
-    if (response.affectedRows <= 0) {
-      return res.json({ success: false, message: "Internal server error" });
-    }
-
-    // send otp to user via gmail smtp
-    const mailOptions = {
-      from: '"AttendEase Support" <help.sudorv@gmail.com>',
-      to: verifiedEmail,
-      subject: `${otp.code} is your AttendEase reset code`,
-      html: `
-      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; width: 100%;">
-        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-          <tr>
-            <td style="padding: 40px 40px 20px 40px; text-align: center;">
-              <h1 style="color: #4f46e5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">AttendEase</h1>
-            </td>
-          </tr>
-          
-          <tr>
-            <td style="padding: 0 20px 40px 20px; text-align: center;">
-              <h2 style="color: #1e293b; font-size: 20px; margin-bottom: 16px;">Reset Your Password</h2>
-              <p style="color: #64748b; font-size: 16px; line-height: 24px; margin-bottom: 32px;">
-                We received a request to reset your password. Use the code below to proceed. This code will expire in 10 minutes.
-              </p>
-              
-              <div style="background-color: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 32px;">
-                <span style="font-family: 'Courier New', Courier, monospace; font-size: 42px; font-weight: bold; color: #4f46e5; letter-spacing: 8px;">
-                  ${otp.code}
-                </span>
-              </div>
-
-              <p style="font-size: 16px;">This OTP is valid only for ${otp.ttl} min.</p>
-              
-              <p style="color: #94a3b8; font-size: 14px; line-height: 20px;">
-                If you didn't request this, you can safely ignore this email. Your password won't change until you use this code to create a new one.
-              </p>
-            </td>
-          </tr>
-          
-          <tr>
-            <td style="padding: 30px 40px; background-color: #f8fafc; text-align: center; border-top: 1px solid #e2e8f0;">
-              <p style="color: #94a3b8; font-size: 12px; margin: 0;">
-                &copy; 2026 AttendEase. All rights reserved.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </div>
-    `
-    };
-
-    console.log(mailOptions)
 
     try {
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          console.error(error);
-          return res.status(500).json({ success: false, message: "Failed to send email  |  " + error});
-        }
-        res.json({ success: true, message: "OTP sent successfully, Check your email." });
-      });
-    } catch (error) {
-      console.log(error)
-    }
+      // 1. MUST use await here
+      // Note the [result] destructuring - this gets the actual result object
+      const [result] = await pool.query("UPDATE users SET otp = ? WHERE email = ?", [
+        JSON.stringify(otpData),
+        verifiedEmail
+      ]);
 
-  } else if (type === "verify_reset") {
+      if (result.affectedRows <= 0) {
+        return res.json({ success: false, message: "User record not found in database" });
+      }
+
+      const mailOptions = {
+        from: '"AttendEase Support" <help.sudorv@gmail.com>',
+        to: verifiedEmail,
+        subject: `${otpData.code} is your AttendEase reset code`,
+        html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; width: 100%;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <tr>
+              <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                <h1 style="color: #4f46e5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">AttendEase</h1>
+              </td>
+            </tr>
+            
+            <tr>
+              <td style="padding: 0 20px 40px 20px; text-align: center;">
+                <h2 style="color: #1e293b; font-size: 20px; margin-bottom: 16px;">Reset Your Password</h2>
+                <p style="color: #64748b; font-size: 16px; line-height: 24px; margin-bottom: 32px;">
+                  We received a request to reset your password. Use the code below to proceed. This code will expire in 10 minutes.
+                </p>
+                
+                <div style="background-color: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 32px;">
+                  <span style="font-family: 'Courier New', Courier, monospace; font-size: 42px; font-weight: bold; color: #4f46e5; letter-spacing: 8px;">
+                    ${otpData.code}
+                  </span>
+                </div>
+  
+                <p style="font-size: 16px;">This OTP is valid only for ${otpData.ttl} min.</p>
+                
+                <p style="color: #94a3b8; font-size: 14px; line-height: 20px;">
+                  If you didn't request this, you can safely ignore this email. Your password won't change until you use this code to create a new one.
+                </p>
+              </td>
+            </tr>
+            
+            <tr>
+              <td style="padding: 30px 40px; background-color: #f8fafc; text-align: center; border-top: 1px solid #e2e8f0;">
+                <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                  &copy; 2026 AttendEase. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </div>
+      `
+      };
+
+      // 2. Use the Promise version of sendMail. 
+      // This prevents the "Hanging/Bad Gateway" issue on Render.
+      await transporter.sendMail(mailOptions);
+
+      // 3. Success response only after email is truly sent
+      return res.json({
+        success: true,
+        message: "OTP sent successfully. Check your email."
+      });
+
+    } catch (error) {
+      console.error("🔥 ERROR:", error);
+
+      // This ensures that even if SMTP times out, you return JSON, not a 502 HTML page
+      return res.status(500).json({
+        success: false,
+        message: "Mail server timeout or DB error",
+        error: error.message
+      });
+    }
+  }
+
+  else if (type === "verify_reset") {
     const otp = user[0].otp;
 
     if (!otp.code || new Date(otp.request_time).getTime() + otp.ttl * 60 * 1000 < new Date().getTime() || otp.code !== userOtp) {
