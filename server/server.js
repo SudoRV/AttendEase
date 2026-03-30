@@ -194,13 +194,19 @@ app.post("/reset-password", async (req, res) => {
     `
     };
 
-    transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.error(error);
-        return res.status(500).json({ success: false, message: "Failed to send email" });
-      }
-      res.json({ success: true, message: "OTP sent successfully, Check your email." });
-    });
+    console.log(mailOptions)
+
+    try{
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error(error);
+          return res.status(500).json({ success: false, message: "Failed to send email" });
+        }
+        res.json({ success: true, message: "OTP sent successfully, Check your email." });
+      });
+    } catch (error) {
+      console.log(error)
+    }
 
   } else if (type === "verify_reset") {
     const otp = user[0].otp;
