@@ -19,7 +19,6 @@ import PopupNotification from "./src/components/ui/PopupNotification";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 
 import "./global.css";
-import "./app.css";
 
 export default function App() {
   const [notification, setNotification] = useState(null);

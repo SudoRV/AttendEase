@@ -19,10 +19,10 @@ app.use(cors());
 
 // ✅ Create MySQL connection pool
 const config = {
-  user: "ugbmvz1mq3rgrg6y",
-  host: "bs1ylicpyexxhxy0nlri-mysql.services.clever-cloud.com",
-  password: "cQCQzjgJ4QWOEM7Nh8qX",
-  database: "bs1ylicpyexxhxy0nlri",
+  user: "uvjrd469tio0mrjz",
+  host: "bw29rwejnmb7a0ihv8ip-mysql.services.clever-cloud.com",
+  password: "A6q9yQI2tphgxS9bxWN0",
+  database: "bw29rwejnmb7a0ihv8ip",
   waitForConnections: true,
 }
 
@@ -34,7 +34,7 @@ const config2 = {
   waitForConnections: true,
 }
 
-const pool = mysql.createPool(config2);
+const pool = mysql.createPool(config);
 
 // Create a transporter with your email service credentials
 const transporter = nodemailer.createTransport({
@@ -910,6 +910,8 @@ app.get(/.*/, (req, res) => {
 // ✅ Start server
 const PORT = 8000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+
+
 
 
 // helpers

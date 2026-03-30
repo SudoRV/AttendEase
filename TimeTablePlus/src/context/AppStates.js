@@ -6,13 +6,13 @@ import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 /* =====================
    ENV CONFIG
 ===================== */
-const isProduction = false;
+const isProduction = true;
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP
 // Example: http://192.168.1.5:8000
 const BASE_URL = isProduction
-  ? ""
+  ? "https://attendease-nivr.onrender.com"
   : "http://10.230.85.34:8000";
 
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
