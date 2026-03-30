@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   ActivityIndicator // 🔹 Added this
 } from "react-native";
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import Clipboard from '@react-native-clipboard/clipboard';
 import AttendanceRing from "./ui/AttendanceRing";
 import AttendanceTable from "./ui/AttendanceTable";
@@ -24,7 +25,7 @@ const injectionCode = `javascript:(()=>{
 })();`;
 
 export default function AttendanceDashboard() {
-  const { userData, buildUrl } = AppStates();
+  const { userData, buildUrl, classes, loadTimetable } = AppStates();
   const [hasConfig, setHasConfig] = useState(false);
   const [showSemesterPicker, setShowSemesterPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -32,6 +33,7 @@ export default function AttendanceDashboard() {
   const [loading, setLoading] = useState(false); // 🔹 Added loading state
 
   const [attendance, setAttendance] = useState({});
+  const [skipReport, setSkipReport] = useState({});
 
   const [form, setForm] = useState({
     name: "",
@@ -104,6 +106,47 @@ export default function AttendanceDashboard() {
     }
   };
 
+  function calculatSkipImpact(attendance, classes) {
+    return parseInt(attendance?.report?.total_classes_attended) / (parseInt(attendance?.report?.total_classes_held) + classes.length) * 100;
+  }
+
+  async function skipClass(attendance) {
+    if (!classes.classes || !attendance.attendance) return;
+
+    // todays classes skip impact
+    const todayClasses = classes?.classes?.filter(c => c.subject_id?.trim() !== "" && c.cancelled === 0);
+    const todayDrop = calculatSkipImpact(attendance, todayClasses);
+
+    // next day classes skip impact
+    const nextDayClasses = await loadTimetable(userData, new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1).toLocaleString("en-Gb", { weekday: "long" }));
+    const activeNextDayClasses = nextDayClasses?.classes?.filter(c => c.subject_id?.trim() !== "" && c.cancelled === 0)
+
+    const nextDayDrop = calculatSkipImpact(attendance, activeNextDayClasses);
+
+    const report = {
+      gloabl: {
+        message: parseFloat(attendance?.report?.attended) < 75.0 ? "You can't skip further classes" : "You are in safe zone",
+        balanceFactor: Math.ceil((parseInt(attendance?.report?.total_classes_held) * 75) / 100 - parseInt(attendance?.report?.total_classes_attended))
+      },
+      today_skip: {
+        drop: todayDrop,
+        message: `Your attendance will drop to ${todayDrop.toFixed(2)}%`,
+        suggestion: todayDrop < 75 ? "You can't skip today's classes" : "You are safe to skip classes for today"
+      },
+      nextday_skip: {
+        drop: nextDayDrop,
+        message: `Your attendance will drop to ${nextDayDrop.toFixed(2)}%`,
+        suggestion: nextDayDrop < 75 ? "You can't skip classes" : "You are safe to skip classes"
+      }
+    }
+
+    setSkipReport(report)
+  }
+
+  useEffect(() => {
+    skipClass(attendance);
+  }, [attendance.attendance, classes.classes])
+
   async function loadAttendance(form) {
     setLoading(true); // 🔹 Start Loading
     try {
@@ -142,12 +185,14 @@ export default function AttendanceDashboard() {
 
           <AttendanceRing attendancePercent={attendance?.report?.attended || 0} />
 
+          <RiskReport skipReport={skipReport} />
+
           {/* Stats Grid */}
           <View className="flex-row flex-wrap justify-between">
             <StatCard title="Conducted" value={attendance?.report?.total_classes_held} width="w-[48%]" color="text-slate-700" />
             <StatCard title="Attended" value={attendance?.report?.total_classes_attended} width="w-[48%]" color="text-emerald-600" />
-            <StatCard title="Missed" value={attendance?.report?.total_classes_held - attendance?.report?.total_classes_attended} width="w-[48%] mt-4" color="text-orange-500" />
-            <StatCard title="Leaves" value="0" width="w-[48%] mt-4" color="text-blue-500" />
+            <StatCard title="Missed" value={attendance?.report?.total_classes_held - attendance?.report?.total_classes_attended - attendance?.report?.leaves} width="w-[48%] mt-4" color="text-orange-500" />
+            <StatCard title="Leaves" value={attendance?.report?.leaves} width="w-[48%] mt-4" color="text-blue-500" />
           </View>
 
           {/* Filter Section */}
@@ -156,7 +201,7 @@ export default function AttendanceDashboard() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
               {(attendance?.attendance || [])?.map(m => (
                 <TouchableOpacity
-                  key={m.month_id}
+                  key={"filter-" + m.month_id}
                   onPress={() => setSelectedMonth(m)}
                   className={`px-6 py-2.5 rounded-full mr-2 ${selectedMonth?.month_id === m.month_id ? "bg-indigo-600" : "bg-white border border-slate-200"}`}
                 >
@@ -280,7 +325,7 @@ export default function AttendanceDashboard() {
               <View className="flex-row flex-wrap justify-center">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
                   <TouchableOpacity
-                    key={num}
+                    key={"sem-" + num}
                     onPress={() => {
                       setForm({ ...form, durationId: num.toString() });
                       setShowSemesterPicker(false);
@@ -306,7 +351,7 @@ export default function AttendanceDashboard() {
               <View className="flex-row flex-wrap justify-center">
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(num => (
                   <TouchableOpacity
-                    key={num}
+                    key={"month-" + num}
                     onPress={() => {
                       setForm({ ...form, startMonth: num.toString() });
                       setShowMonthPicker(false);
@@ -354,3 +399,80 @@ function StatCard({ title, value, color, width }) {
     </View>
   );
 }
+
+const RiskReport = ({ skipReport }) => {
+  // Check if there is a risk (balanceFactor > 0)
+  const isAtRisk = skipReport?.gloabl?.balanceFactor > 0;
+  const accentColor = isAtRisk ? "red" : "green";
+
+  return (
+    <View className="mb-8">
+      {/* HEADER */}
+      <View className="flex-row items-center justify-center mb-6 gap-2">
+        <Ionicons name="shield-checkmark-outline" size={24} color="#64748b" />
+        <Text className="text-2xl font-black text-slate-800 tracking-tight">
+          Risk Report
+        </Text>
+      </View>
+
+      {/* ⚠️ GLOBAL RISK CARD */}
+      <View 
+        className={`w-full p-5 rounded-[28px] border-b-4 mb-6 shadow-sm 
+        ${isAtRisk ? "bg-red-50 border-red-500" : "bg-emerald-50 border-emerald-500"}`}
+      >
+        <View className="flex-row items-center gap-3 mb-2">
+          <View className={`p-2 rounded-xl ${isAtRisk ? "bg-red-500" : "bg-emerald-500"}`}>
+            <Ionicons name={isAtRisk ? "warning" : "checkmark-circle"} size={20} color="white" />
+          </View>
+          <Text className={`flex-1 font-bold text-lg ${isAtRisk ? "text-red-700" : "text-emerald-700"}`}>
+            {skipReport?.gloabl?.message}
+          </Text>
+        </View>
+
+        <View className="flex-row items-baseline">
+          <Text className={`text-3xl font-black ${isAtRisk ? "text-red-600" : "text-emerald-600"}`}>
+            {skipReport?.gloabl?.balanceFactor}
+          </Text>
+          <Text className="ml-2 text-slate-500 font-medium">
+            Classes needed for safety
+          </Text>
+        </View>
+      </View>
+
+      <Text className="text-neutral-800 font-semibold text-xl  m-2">Impact of SKIPS</Text>
+
+      {/* 📅 DAILY PREDICTIONS GRID */}
+      <View className="flex-row gap-3">
+        
+        {/* TODAY TILE */}
+        <View className="flex-1 bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
+          <View className="flex-row items-center gap-2 mb-3">
+            <Ionicons name="today-outline" size={18} color="#6366f1" />
+            <Text className="text-slate-400 font-bold uppercase text-[12px] tracking-widest">Today</Text>
+          </View>
+          <Text className="text-slate-800 font-extrabold text-lg">
+            {skipReport?.today_skip?.drop.toFixed(2)}%
+          </Text>
+          <Text className={`${skipReport?.nextday_skip?.drop < 75 ? "text-red-500" : "text-green-500"} text-[12px] font-medium mt-1`}>
+            {skipReport?.today_skip?.suggestion}
+          </Text>
+        </View>
+
+        {/* NEXT DAY TILE */}
+        <View className="flex-1 bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
+          <View className="flex-row items-center gap-2 mb-3">
+            <Ionicons name="calendar-outline" size={18} color="#6366f1" />
+            <Text className="text-slate-400 font-bold uppercase text-[12px] tracking-widest">Next Day</Text>
+          </View>
+          <Text className="text-slate-800 font-extrabold text-lg">
+            {skipReport?.nextday_skip?.drop.toFixed(2)}%
+          </Text>
+          <Text className={`${skipReport?.nextday_skip?.drop < 75 ? "text-red-500" : "text-green-500"} text-[12px] font-medium mt-1`}>
+            {skipReport?.nextday_skip?.suggestion}
+          </Text>
+        </View>
+
+      </View>
+    </View>
+  );
+};

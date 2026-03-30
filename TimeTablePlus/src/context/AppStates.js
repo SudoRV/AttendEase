@@ -29,16 +29,11 @@ export const GlobalProvider = ({ children }) => {
   /* =====================
      TIMETABLE
   ===================== */
-  const loadTimetable = async (userCreds) => {
+  const loadTimetable = async (userCreds, selectedDay) => {
     if (!userCreds) return;
 
-    const days = [
-      "Sunday", "Monday", "Tuesday",
-      "Wednesday", "Thursday", "Friday", "Saturday"
-    ];
-
     const date = new Date();
-    const day = days[date.getDay()];
+    const day = selectedDay || date.toLocaleString("en-Gb", {weekday: "long"});
     const role = userCreds?.role?.toLowerCase();
     const section = userCreds?.section || "A";
 
@@ -80,7 +75,8 @@ export const GlobalProvider = ({ children }) => {
         );
       }
 
-      setClasses({ day, classes: timetable });
+      if(!selectedDay) setClasses({ day, classes: timetable });
+      else return { day, classes: timetable };
 
     } catch (err) {
       console.log("Timetable error:", err);

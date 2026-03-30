@@ -6,39 +6,78 @@ import {
 } from "react-native";
 
 import GradientWrapper from "./ui/LinearGradient";
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const Announcements = ({ announcements }) => {
 
-  const renderItem = ({ item }) => (
-    <GradientWrapper
-      colors={["#4338CA", "#8487f5"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={{marginBottom: 12}}
-    >
-      {/* Title */}
-      <Text className="text-lg font-semibold text-white">
-        {item.title}
-      </Text>
+  const renderItem = ({ item }) => {
+    // Clean up the date format (e.g., "Oct 24, 10:30 AM")
+    const formattedDate = new Date(item.created_at).toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
-      {/* Body */}
-      <Text className="text-white mt-1">
-        {item.body}
-      </Text>
+    return (
+      <GradientWrapper
+        colors={["#4F46E5", "#7C3AED"]} // Slightly more vibrant Indigo to Violet
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          marginBottom: 16,
+          borderRadius: 20,
+          padding: 16,
+          shadowColor: "#4F46E5",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          elevation: 5
+        }}
+      >
+        {/* Header Row: Title + Icon */}
+        <View className="flex-row justify-between items-start">
+          <View className="flex-1 mr-2">
+            <Text className="text-xl font-bold text-white tracking-tight">
+              {item.title}
+            </Text>
+          </View>
+          <View className="bg-white/20 p-2 rounded-lg">
+            <Ionicons name="notifications-outline" size={18} color="white" />
+          </View>
+        </View>
 
-      {/* Footer */}
-      <View className="mt-3 gap-1">
-        <Text className="text-sm text-gray-200">
-          <Text className="font-medium">By: </Text>
-          {item.created_by?.name}
+        {/* Body: Softened text for better readability */}
+        <Text className="text-indigo-50 mt-1 leading-5 text-base opacity-90">
+          {item.body}
         </Text>
 
-        <Text className="text-sm text-white">
-          {new Date(item.created_at).toLocaleString()}
-        </Text>
-      </View>
-    </GradientWrapper>
-  );
+        {/* Separator Line */}
+        <View className="h-[1px] bg-white/10 my-4" />
+
+        {/* Footer: Multi-column layout */}
+        <View className="flex-row justify-between items-center">
+          {/* Author */}
+          <View className="flex-row items-center gap-2">
+            <View className="w-6 h-6 rounded-full bg-white/30 items-center justify-center">
+              <Ionicons name="person" size={12} color="white" />
+            </View>
+            <Text className="text-sm font-medium text-white">
+              {item.created_by?.name || "Admin"}
+            </Text>
+          </View>
+
+          {/* Timestamp */}
+          <View className="flex-row items-center gap-1">
+            <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.7)" />
+            <Text className="text-sm text-indigo-100 font-light">
+              {formattedDate}
+            </Text>
+          </View>
+        </View>
+      </GradientWrapper>
+    );
+  };
 
   return (
     <View className="flex-1 bg-slate-100 px-4 py-3 pt-12">

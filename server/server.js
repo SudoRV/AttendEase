@@ -8,6 +8,8 @@ const path = require("path");
 const { error } = require("console");
 const axios = require("axios");
 require("dotenv").config();
+const nodemailer = require("nodemailer");
+const crypto = require('crypto');
 
 const parseAttendanceTable = require("./utility/parseAttendanceTable");
 
@@ -33,6 +35,15 @@ const config2 = {
 }
 
 const pool = mysql.createPool(config2);
+
+// Create a transporter with your email service credentials
+const transporter = nodemailer.createTransport({
+  service: "Gmail",
+  auth: {
+    user: "help.sudorv@gmail.com",
+    pass: "frbu rijm dzaz qxsx",
+  },
+});
 
 app.get("/wake-me-up", (req, res) => {
   res.json({ success: true, message: "i already wokeup" });
@@ -93,6 +104,119 @@ app.post("/validate-creds", async (req, res) => {
 });
 
 
+app.post("/reset-password", async (req, res) => {
+  const { email, old_password, new_password, otp: userOtp, type } = req.body;
+
+  const [user] = await pool.query("select * from users where email = ?", [email]);
+  // console.log(user);
+
+  if (user?.length === 0) {
+    return res.status(400).json({ success: false, message: "user doesn't exists" });
+  }
+
+  if (type === "change") {
+    const isMatch = await bcrypt.compare(old_password, user[0].password_hash);
+
+    if (!isMatch) return res.json({ success: false, message: "password not matched" });
+
+    const new_password_hash = await bcrypt.hash(new_password, 10);
+
+    // update the databse
+    const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
+
+    if (response.affectedRows > 0) return res.json({ success: true, message: "password changed successfully" });
+
+    res.json({ success: false, message: "Internal server error" });
+  } 
+  
+  else if (type === "request_otp") {
+    const verifiedEmail = user[0].email;
+    // generate top
+    const otp = {
+      code: generateOTP(),
+      request_time: Date.now(),
+      ttl: 15,
+    };
+    // save otp data to database
+    const response = pool.query("update users set otp = ? where email = ?", [JSON.stringify(otp), verifiedEmail]);
+    
+    if(response.affectedRows <= 0) {
+      return res.json({success: false, message: "Internal server error"});
+    }
+
+    // send otp to user via gmail smtp
+    const mailOptions = {
+      from: '"AttendEase Support" <help.sudorv@gmail.com>',
+      to: verifiedEmail,
+      subject: `${otp.code} is your AttendEase reset code`,
+      html: `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; width: 100%;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+          <tr>
+            <td style="padding: 40px 40px 20px 40px; text-align: center;">
+              <h1 style="color: #4f46e5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">AttendEase</h1>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding: 0 20px 40px 20px; text-align: center;">
+              <h2 style="color: #1e293b; font-size: 20px; margin-bottom: 16px;">Reset Your Password</h2>
+              <p style="color: #64748b; font-size: 16px; line-height: 24px; margin-bottom: 32px;">
+                We received a request to reset your password. Use the code below to proceed. This code will expire in 10 minutes.
+              </p>
+              
+              <div style="background-color: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 32px;">
+                <span style="font-family: 'Courier New', Courier, monospace; font-size: 42px; font-weight: bold; color: #4f46e5; letter-spacing: 8px;">
+                  ${otp.code}
+                </span>
+              </div>
+
+              <p style="font-size: 16px;">This OTP is valid only for ${otp.ttl} min.</p>
+              
+              <p style="color: #94a3b8; font-size: 14px; line-height: 20px;">
+                If you didn't request this, you can safely ignore this email. Your password won't change until you use this code to create a new one.
+              </p>
+            </td>
+          </tr>
+          
+          <tr>
+            <td style="padding: 30px 40px; background-color: #f8fafc; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                &copy; 2026 AttendEase. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Failed to send email" });
+      }
+      res.json({ success: true, message: "OTP sent successfully, Check your email." });
+    });
+
+  } else if (type === "verify_reset") {
+    const otp = user[0].otp;
+  
+    if(!otp.code || new Date(otp.request_time).getTime() + otp.ttl * 60 * 1000 < new Date().getTime() || otp.code !== userOtp) {
+      return res.status(400).json({success: false, message: "OTP incorrect or expired"});
+    }
+
+    // reset password
+    const new_password_hash = await bcrypt.hash(new_password, 10);
+
+    // update the databse
+    const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
+
+    if (response.affectedRows > 0) return res.json({ success: true, message: "password reset successfully" });
+
+    res.json({ success: false, message: "Internal server error" });
+  }
+})
 
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
@@ -692,11 +816,11 @@ async function fetchAttendance(creds) {
     );
 
     const parsedTable = parseAttendanceTable(i, creds, response.data, newReq);
-    if(newReq === 1) newReq = 0;
+    if (newReq === 1) newReq = 0;
 
     attendance.attendance.push({
       month_id: i,
-      month: new Date(new Date().getFullYear(), i, 1).toLocaleString("en-Gb", {month: "long"}),
+      month: new Date(new Date().getFullYear(), i, 1).toLocaleString("en-Gb", { month: "long" }),
       attendance: parsedTable.attendance,
     })
     attendance.report = parsedTable.report;
@@ -711,7 +835,7 @@ app.get("/fetch-attendance", async (req, res) => {
   const attendance = await fetchAttendance(creds);
 
   // console.log(attendance)
-  res.json({attendance})
+  res.json({ attendance })
 })
 
 
@@ -763,7 +887,6 @@ async function notifyTimetable() {
             notification: {
               title: "Next Day Classes",
               body: message,
-              sound: "notification"
             },
             android: {
               notification: {
@@ -790,6 +913,12 @@ app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
 
 
 // helpers
+
+function generateOTP() {
+  const otp = crypto.randomInt(100000, 1000000);
+  return otp.toString();
+}
+
 
 async function notifyGroup(title, body, target_year, target_branch, target_section) {
   return new Promise(async (resolve, reject) => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Vibration } from "react-native";
+import { View, Vibration, StatusBar } from "react-native";
 import Sound from 'react-native-sound';
 import AppNavigator from "./src/navigation/AppNavigator";
 import { GlobalProvider } from "./src/context/AppStates";
@@ -19,6 +19,7 @@ import PopupNotification from "./src/components/ui/PopupNotification";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 
 import "./global.css";
+import "./app.css";
 
 export default function App() {
   const [notification, setNotification] = useState(null);
@@ -48,7 +49,7 @@ export default function App() {
         title: remoteMessage.notification?.title || "New Update",
         body: remoteMessage.notification?.body || "Check your app for new info."
       });
-    }); 
+    });
 
     return () => {
       unsubscribe();
@@ -57,6 +58,12 @@ export default function App() {
 
   return (
     <View className="flex-1">
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="rgba(0,0,0,0.2)" 
+        translucent={true} 
+        animated={true}      
+      />
       {/* Your standard app tree */}
       <GlobalProvider>
         <AppNavigator />

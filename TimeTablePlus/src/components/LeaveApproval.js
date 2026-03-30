@@ -272,7 +272,9 @@ const StudentLeaveManagement = () => {
         >
           <Pressable
             className="bg-white rounded-t-3xl p-6"
-            onPress={e => e.stopPropagation()}
+            onPress={(e) => e.stopPropagation()}
+            // Ensure the card itself doesn't go off-screen
+            style={{ maxHeight: '80%' }}
           >
             {selectedLeave && (
               <>
@@ -288,11 +290,22 @@ const StudentLeaveManagement = () => {
                   {selectedLeave.subject}
                 </Text>
 
-                <ScrollView className="max-h-60 mb-6">
-                  <Text className="text-slate-700 leading-6">
-                    {selectedLeave.application}
-                  </Text>
-                </ScrollView>
+                {/* FIX STARTS HERE */}
+                <View style={{ maxHeight: 280 }}>
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled={true}
+                    contentContainerStyle={{ flexGrow: 1 }}
+                    className="mb-6"
+                  >
+                    <Pressable>
+                      <Text className="text-slate-700 leading-6">
+                        {selectedLeave.application}
+                      </Text>
+                    </Pressable>
+                  </ScrollView>
+                </View>
+                {/* FIX ENDS HERE */}
 
                 <TouchableOpacity
                   onPress={() => setSelectedLeave(null)}
