@@ -39,14 +39,19 @@ const pool = mysql.createPool(config);
 // console.log(process.env.EMAIL, process.env.PASS)
 // Create a transporter with your email service credentials
 const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
   service: "gmail",
   auth: {
     user: process.env.EMAIL,
     pass: process.env.PASS,
   },
-  connectionTimeout: 10000, // 10 seconds
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
+  connectionTimeout: 20000,
+  greetingTimeout: 20000,
+  socketTimeout: 20000,
+  dnsTimeout: 10000,
+  family: 4,
 });
 
 transporter.verify(function (error, success) {

@@ -111,7 +111,7 @@ export default function ProfileScreen() {
           } else {
             const data = await response.text();
             console.log(data)
-            Alert.alert("Error", "Failed to send OTP.  | " + data);
+            Alert.alert("Error", "Failed to send OTP.");
           }
         } else {
           // SUBMIT RESET WITH OTP
