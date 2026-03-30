@@ -39,14 +39,25 @@ const pool = mysql.createPool(config);
 // console.log(process.env.EMAIL, process.env.PASS)
 // Create a transporter with your email service credentials
 const transporter = nodemailer.createTransport({
-  service: "Gmail",
-  port: 465, 
-  secure: true,
+  service: "gmail",
   auth: {
     user: process.env.EMAIL,
     pass: process.env.PASS,
   },
+  connectionTimeout: 10000, // 10 seconds
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
 });
+
+transporter.verify(function (error, success) {
+  if (error) {
+    console.log("❌ SMTP Connection Error:");
+    console.log(JSON.stringify(error, null, 2));
+  } else {
+    console.log("✅ Server is ready to take our messages");
+  }
+});
+
 
 app.get("/wake-me-up", (req, res) => {
   res.json({ success: true, message: "i already wokeup" });
@@ -130,8 +141,8 @@ app.post("/reset-password", async (req, res) => {
     if (response.affectedRows > 0) return res.json({ success: true, message: "password changed successfully" });
 
     res.json({ success: false, message: "Internal server error" });
-  } 
-  
+  }
+
   else if (type === "request_otp") {
     const verifiedEmail = user[0].email;
     // generate top
@@ -142,9 +153,9 @@ app.post("/reset-password", async (req, res) => {
     };
     // save otp data to database
     const response = pool.query("update users set otp = ? where email = ?", [JSON.stringify(otp), verifiedEmail]);
-    
-    if(response.affectedRows <= 0) {
-      return res.json({success: false, message: "Internal server error"});
+
+    if (response.affectedRows <= 0) {
+      return res.json({ success: false, message: "Internal server error" });
     }
 
     // send otp to user via gmail smtp
@@ -196,7 +207,7 @@ app.post("/reset-password", async (req, res) => {
 
     console.log(mailOptions)
 
-    try{
+    try {
       transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
           console.error(error);
@@ -210,9 +221,9 @@ app.post("/reset-password", async (req, res) => {
 
   } else if (type === "verify_reset") {
     const otp = user[0].otp;
-  
-    if(!otp.code || new Date(otp.request_time).getTime() + otp.ttl * 60 * 1000 < new Date().getTime() || otp.code !== userOtp) {
-      return res.status(400).json({success: false, message: "OTP incorrect or expired"});
+
+    if (!otp.code || new Date(otp.request_time).getTime() + otp.ttl * 60 * 1000 < new Date().getTime() || otp.code !== userOtp) {
+      return res.status(400).json({ success: false, message: "OTP incorrect or expired" });
     }
 
     // reset password

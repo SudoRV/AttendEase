@@ -109,8 +109,9 @@ export default function ProfileScreen() {
             Alert.alert("OTP Sent", "Check your email for the recovery code.");
             setResetStep(2);
           } else {
-            const data = await response.json();
-            Alert.alert("Error", "Failed to send OTP.  | " + JSON.stringify(data) );
+            const data = await response.text();
+            console.log(data)
+            Alert.alert("Error", "Failed to send OTP.  | " + data);
           }
         } else {
           // SUBMIT RESET WITH OTP
