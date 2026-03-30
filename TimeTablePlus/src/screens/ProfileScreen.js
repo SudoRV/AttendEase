@@ -136,7 +136,7 @@ export default function ProfileScreen() {
         }
       }
     } catch (error) {
-      Alert.alert("Network Error", "Check your connection and try again.");
+      Alert.alert("Error", "Internal server error." + error);
     } finally {
       setLoading(false);
     }
@@ -221,7 +221,7 @@ export default function ProfileScreen() {
         </GlassCard>
 
         {/* 🔹 SECURITY SETTINGS (LAST) */}
-        <GlassCard title="Security Settings" icon="shield-lock-outline">
+        <GlassCard title="Security Settings" icon="shield-checkmark-outline">
           <TouchableOpacity
             onPress={() => { setAuthMode("change"); setModalVisible(true); }}
             className="flex-row justify-between items-center py-3 border-b border-slate-100"
@@ -234,7 +234,7 @@ export default function ProfileScreen() {
             onPress={() => { setAuthMode("reset"); setModalVisible(true); }}
             className="flex-row justify-between items-center py-3"
           >
-            <Text className="text-slate-600 font-medium">Reset Account Access</Text>
+            <Text className="text-slate-600 font-medium">Reset Password</Text>
             <Ionicons name="refresh-circle-outline" size={22} color="#6366F1" />
           </TouchableOpacity>
         </GlassCard>
