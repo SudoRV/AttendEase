@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/static/css/main.313c5e47.css",
+    "main.js": "/static/js/main.f2a94f22.js",
+    "static/js/453.6db6115e.chunk.js": "/static/js/453.6db6115e.chunk.js",
+    "static/media/scheduler_logo.svg": "/static/media/scheduler_logo.b364dce433083f7d62ddd54236c4cb4d.svg",
+    "index.html": "/index.html",
+    "main.313c5e47.css.map": "/static/css/main.313c5e47.css.map",
+    "main.f2a94f22.js.map": "/static/js/main.f2a94f22.js.map",
+    "453.6db6115e.chunk.js.map": "/static/js/453.6db6115e.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.313c5e47.css",
+    "static/js/main.f2a94f22.js"
+  ]
+}
