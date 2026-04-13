@@ -8,21 +8,22 @@ const path = require("path");
 const { error } = require("console");
 const axios = require("axios");
 require("dotenv").config();
-const nodemailer = require("nodemailer");
-const crypto = require('crypto');
+
+const createTableImage = require("./utility/createTableImage");
 
 const parseAttendanceTable = require("./utility/parseAttendanceTable");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
+// app.use(express.static(path.join(__dirname, "./static")));
 
 // ✅ Create MySQL connection pool
 const config = {
-  user: "uvjrd469tio0mrjz",
-  host: "bw29rwejnmb7a0ihv8ip-mysql.services.clever-cloud.com",
-  password: "A6q9yQI2tphgxS9bxWN0",
-  database: "bw29rwejnmb7a0ihv8ip",
+  user: "ugbmvz1mq3rgrg6y",
+  host: "bs1ylicpyexxhxy0nlri-mysql.services.clever-cloud.com",
+  password: "cQCQzjgJ4QWOEM7Nh8qX",
+  database: "bs1ylicpyexxhxy0nlri",
   waitForConnections: true,
 }
 
@@ -34,33 +35,7 @@ const config2 = {
   waitForConnections: true,
 }
 
-const pool = mysql.createPool(config);
-
-// console.log(process.env.EMAIL, process.env.PASS)
-// Create a transporter with your email service credentials
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL,
-    pass: process.env.APP_PASSWORD,
-  },
-  connectionTimeout: 30000, // ↑ increase
-  greetingTimeout: 30000,
-  socketTimeout: 30000,
-  family: 4,
-});
-
-transporter.verify(function (error, success) {
-  if (error) {
-    console.log("❌ SMTP Connection Error:");
-    console.log(JSON.stringify(error, null, 2));
-  } else {
-    console.log("✅ Transporter is ready to take our messages");
-  }
-});
-
+const pool = mysql.createPool(config2);
 
 app.get("/wake-me-up", (req, res) => {
   res.json({ success: true, message: "i already wokeup" });
@@ -121,139 +96,6 @@ app.post("/validate-creds", async (req, res) => {
 });
 
 
-app.post("/reset-password", async (req, res) => {
-  const { email, old_password, new_password, otp: userOtp, type } = req.body;
-
-  const [user] = await pool.query("select * from users where email = ?", [email]);
-  // console.log(user);
-
-  if (user?.length === 0) {
-    return res.status(400).json({ success: false, message: "user doesn't exists" });
-  }
-
-  if (type === "change") {
-    const isMatch = await bcrypt.compare(old_password, user[0].password_hash);
-
-    if (!isMatch) return res.json({ success: false, message: "password not matched" });
-
-    const new_password_hash = await bcrypt.hash(new_password, 10);
-
-    // update the databse
-    const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
-
-    if (response.affectedRows > 0) return res.json({ success: true, message: "password changed successfully" });
-
-    res.json({ success: false, message: "Internal server error" });
-  }
-
-  else if (type === "request_otp") {
-    const verifiedEmail = user[0].email;
-
-    const otpCode = generateOTP(); // Get the code first
-    const otpData = {
-      code: otpCode,
-      request_time: Date.now(),
-      ttl: 15,
-    };
-
-    try {
-      // 1. MUST use await here
-      // Note the [result] destructuring - this gets the actual result object
-      const [result] = await pool.query("UPDATE users SET otp = ? WHERE email = ?", [
-        JSON.stringify(otpData),
-        verifiedEmail
-      ]);
-
-      if (result.affectedRows <= 0) {
-        return res.json({ success: false, message: "User record not found in database" });
-      }
-
-      const mailOptions = {
-        from: '"AttendEase Support" <help.sudorv@gmail.com>',
-        to: verifiedEmail,
-        subject: `${otpData.code} is your AttendEase reset code`,
-        html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; width: 100%;">
-          <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-            <tr>
-              <td style="padding: 40px 40px 20px 40px; text-align: center;">
-                <h1 style="color: #4f46e5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">AttendEase</h1>
-              </td>
-            </tr>
-            
-            <tr>
-              <td style="padding: 0 20px 40px 20px; text-align: center;">
-                <h2 style="color: #1e293b; font-size: 20px; margin-bottom: 16px;">Reset Your Password</h2>
-                <p style="color: #64748b; font-size: 16px; line-height: 24px; margin-bottom: 32px;">
-                  We received a request to reset your password. Use the code below to proceed. This code will expire in 10 minutes.
-                </p>
-                
-                <div style="background-color: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 32px;">
-                  <span style="font-family: 'Courier New', Courier, monospace; font-size: 42px; font-weight: bold; color: #4f46e5; letter-spacing: 8px;">
-                    ${otpData.code}
-                  </span>
-                </div>
-  
-                <p style="font-size: 16px;">This OTP is valid only for ${otpData.ttl} min.</p>
-                
-                <p style="color: #94a3b8; font-size: 14px; line-height: 20px;">
-                  If you didn't request this, you can safely ignore this email. Your password won't change until you use this code to create a new one.
-                </p>
-              </td>
-            </tr>
-            
-            <tr>
-              <td style="padding: 30px 40px; background-color: #f8fafc; text-align: center; border-top: 1px solid #e2e8f0;">
-                <p style="color: #94a3b8; font-size: 12px; margin: 0;">
-                  &copy; 2026 AttendEase. All rights reserved.
-                </p>
-              </td>
-            </tr>
-          </table>
-        </div>
-      `
-      };
-
-      // 2. Use the Promise version of sendMail. 
-      // This prevents the "Hanging/Bad Gateway" issue on Render.
-      await transporter.sendMail(mailOptions);
-
-      // 3. Success response only after email is truly sent
-      return res.json({
-        success: true,
-        message: "OTP sent successfully. Check your email."
-      });
-
-    } catch (error) {
-      console.error("🔥 ERROR:", error);
-
-      // This ensures that even if SMTP times out, you return JSON, not a 502 HTML page
-      return res.status(500).json({
-        success: false,
-        message: "Mail server timeout or DB error",
-        error: error.message
-      });
-    }
-  }
-
-  else if (type === "verify_reset") {
-    const otp = user[0].otp;
-
-    if (!otp.code || new Date(otp.request_time).getTime() + otp.ttl * 60 * 1000 < new Date().getTime() || otp.code !== userOtp) {
-      return res.status(400).json({ success: false, message: "OTP incorrect or expired" });
-    }
-
-    // reset password
-    const new_password_hash = await bcrypt.hash(new_password, 10);
-
-    // update the databse
-    const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
-
-    if (response.affectedRows > 0) return res.json({ success: true, message: "password reset successfully" });
-
-    res.json({ success: false, message: "Internal server error" });
-  }
-})
 
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
@@ -465,8 +307,15 @@ app.post("/update-schedule", async (req, res) => {
 
 // fetch leave
 app.get("/fetch-leaves", async (req, res) => {
-  const { user_data } = req.query;
+  const { user_data, filter: leaveFilter } = req.query;
   const userData = JSON.parse((user_data));
+
+  let filter = {};
+  if(leaveFilter) {
+    filter = JSON.parse(leaveFilter);
+  } else {
+    filter = {month: new Date().getMonth()};
+  }
 
   let query = "";
   let query2 = "";
@@ -474,9 +323,10 @@ app.get("/fetch-leaves", async (req, res) => {
   let values2 = []
 
   if (userData?.role === "Student") {
-    query = "select name, year, branch, student_id, subject, application, applicable_from, applicable_to, status, created_at from leaves where student_id = ? and month(created_at) = month(current_date()) and year(created_at) = year(current_date()) order by created_at desc";
-    values = [userData?.student_id];
+    query = "select name, year, branch, student_id, subject, application, applicable_from, applicable_to, status, created_at from leaves where student_id = ? and month(created_at) = ? and year(created_at) = year(current_date()) order by created_at desc";
+    values = [userData?.student_id, filter.month + 1];
 
+    // teacher leaves
     query2 = `
       SELECT DISTINCT l.teacher_id, l.name, l.applicable_from, l.applicable_to, l.status
       FROM leaves l
@@ -558,8 +408,10 @@ app.post("/upload-leave", async (req, res) => {
       from leaves
       where student_id = ?
         and status = 'Pending'
+        and applicable_from = ?
+        and applicable_to = ?
      )`;
-    values = [applicant?.name, applicant?.year, applicant?.branch, applicant?.student_id, subject, application, applicable_from, applicable_to, affected_days, applicant?.student_id];
+    values = [applicant?.name, applicant?.year, applicant?.branch, applicant?.student_id, subject, application, applicable_from, applicable_to, affected_days, applicant?.student_id, applicable_from, applicable_to];
   }
 
   try {
@@ -853,11 +705,11 @@ async function fetchAttendance(creds) {
     );
 
     const parsedTable = parseAttendanceTable(i, creds, response.data, newReq);
-    if (newReq === 1) newReq = 0;
+    if(newReq === 1) newReq = 0;
 
     attendance.attendance.push({
       month_id: i,
-      month: new Date(new Date().getFullYear(), i, 1).toLocaleString("en-Gb", { month: "long" }),
+      month: new Date(new Date().getFullYear(), i, 1).toLocaleString("en-Gb", {month: "long"}),
       attendance: parsedTable.attendance,
     })
     attendance.report = parsedTable.report;
@@ -872,24 +724,34 @@ app.get("/fetch-attendance", async (req, res) => {
   const attendance = await fetchAttendance(creds);
 
   // console.log(attendance)
-  res.json({ attendance })
+  res.json({attendance})
 })
+
+
+app.use('/schedule_images', express.static(path.join(__dirname, 'static/schedule_images'), {
+  setHeaders: (res, path) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); // Tell phones not to cache
+  }
+}));
 
 
 // notify for next day timetable
 // Night 10:00 pm
 cron.schedule("0 22 * * *", () => {
   console.log("Running task at 10:00 PM every day");
-  notifyTimetable();
+  notifyTimetable(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1).toLocaleDateString("en-Gb", {weekday: "long"}));
 }, { timezone: "Asia/Kolkata" })
 
 // Morning 08:00 am
-cron.schedule("0 8 * * *", () => {
+cron.schedule("19 13 * * *", () => {
   console.log("Running task at 08:00 AM every day");
-  notifyTimetable();
+  notifyTimetable(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).toLocaleDateString("en-Gb", {weekday: "long"}));
 }, { timezone: "Asia/Kolkata" })
 
-async function notifyTimetable() {
+
+notifyTimetable("Monday");
+
+async function notifyTimetable(day) {
   const years = [1, 2, 3, 4];
   const branches = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
   const sections = ["A"];
@@ -907,31 +769,44 @@ async function notifyTimetable() {
         const topic = `${branch}_${year}_${section}`;
 
         // send timetable notification
-        const today = new Date();
-        const dayName = today.toLocaleString('en-US', { weekday: 'long' });
+        const dayName = day;
 
-        const [classes] = await pool.query("select period_id, subject_id, subject_name, teacher_name from schedule where year = ? and branch_id = ? and section = ? and day = ? order by period_id", [year, branch, section, dayName])
+        const [classes] = await pool.query("select period_id, subject_id, subject_name, teacher_name, cancelled from schedule where year = ? and branch_id = ? and section = ? and day = ? order by period_id", [year, branch, section, dayName])
 
         let message = "";
 
         classes.forEach((clas) => {
-          message += `${clas.period_id}) ${clas.subject_id} • ${clas.subject_name} - ${clas.teacher_name}\n`
+          message += `${clas.period_id}) ${clas.subject_id} • ${clas.subject_name.length > 26 ? clas.subject_name.slice(0,23) + "..." : clas.subject_name}\n`
         })
+
+        // create image of timetable
+        const scheduleImage = classes.length > 0 ? await createTableImage(topic, dayName, classes) : null;
 
         if (classes.length > 0) {
           await admin.messaging().send({
             topic: topic,
-            notification: {
-              title: "Next Day Classes",
+            // notification: {
+            //   title: "📚 Today's Classes",
+            //   body: message, 
+            // },
+            data: {
+              type: "MORNING_SCHEDULE",
+              title: "📚 Today's Classes",
               body: message,
+              classes: JSON.stringify(classes),
+              schedule_image: scheduleImage,
             },
             android: {
-              notification: {
-                sound: "notification",
-                channelId: "push_notification"
-              }
+              priority: "high",
+              // notification: {
+              //   sound: "notification",
+              //   channelId: "daily_class_alerts",
+              //   tag: "daily-classes"
+              // }
             }
           });
+
+          console.log("notification sent")
         }
       });
     });
@@ -949,15 +824,7 @@ const PORT = 8000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
 
 
-
-
 // helpers
-
-function generateOTP() {
-  const otp = crypto.randomInt(100000, 1000000);
-  return otp.toString();
-}
-
 
 async function notifyGroup(title, body, target_year, target_branch, target_section) {
   return new Promise(async (resolve, reject) => {

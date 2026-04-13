@@ -10,6 +10,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
+import RNRestart from 'react-native-restart';
 import messaging from '@react-native-firebase/messaging';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -49,8 +50,10 @@ export default function ProfileScreen() {
             await messaging().deleteToken();
             await AsyncStorage.clear();
             setUserData(null);
+            // RNRestart.Restart();
+
           } catch (err) {
-            Alert.alert("Error", "Failed to logout.");
+            Alert.alert("Error", "Failed to logout." + err);
           }
         }
       }

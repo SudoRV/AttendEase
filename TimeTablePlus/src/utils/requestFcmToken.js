@@ -25,7 +25,7 @@ async function requestFcmToken() {
     // 3. Fetch the FCM token for this device
     const token = await getToken(messaging);
     
-    console.log("FCM TOKEN:", token);
+    // console.log("FCM TOKEN:", token);
 
     return token;
   } catch (error) {

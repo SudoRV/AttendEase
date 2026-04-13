@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">AttendEase</string>
+    <!-- <string name="splash_note">Academics, Simplified.</string> -->
+    <!-- <string name="splash_copyright">© 2026 attendease.in</string> -->
 </resources>

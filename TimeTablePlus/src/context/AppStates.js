@@ -6,14 +6,14 @@ import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 /* =====================
    ENV CONFIG
 ===================== */
-const isProduction = true;
+const isProduction = false;
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP
 // Example: http://192.168.1.5:8000
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
-  : "http://10.230.85.34:8000";
+  : "http://10.108.224.42:8000";
 
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
@@ -33,7 +33,7 @@ export const GlobalProvider = ({ children }) => {
     if (!userCreds) return;
 
     const date = new Date();
-    const day = selectedDay || date.toLocaleString("en-Gb", {weekday: "long"});
+    const day = selectedDay || date.toLocaleString("en-Gb", { weekday: "long" });
     const role = userCreds?.role?.toLowerCase();
     const section = userCreds?.section || "A";
 
@@ -75,7 +75,7 @@ export const GlobalProvider = ({ children }) => {
         );
       }
 
-      if(!selectedDay) setClasses({ day, classes: timetable });
+      if (!selectedDay) setClasses({ day, classes: timetable });
       else return { day, classes: timetable };
 
     } catch (err) {
@@ -86,18 +86,29 @@ export const GlobalProvider = ({ children }) => {
   /* =====================
      LEAVES
   ===================== */
-  const loadLeaves = async () => {
+  const loadLeaves = async (filter) => {
     if (!userData?.email) return;
 
     try {
       const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
         JSON.stringify(userData)
-      )}`;
+      )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}`;
 
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
-      setLeaveHistory(json?.data || []);
-      setTeacherLeaveHistory(json?.teacher_leaves || []);
+
+      // console.log(json)
+
+      if (filter?.month) {
+        return {
+          month: filter?.month,
+          ...json
+        };
+      }
+      else {
+        setLeaveHistory(json?.data || []);
+        setTeacherLeaveHistory(json?.teacher_leaves || []);
+      }
     } catch (err) {
       console.log("Leaves error:", err);
     }

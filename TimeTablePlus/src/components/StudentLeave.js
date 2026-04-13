@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,10 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Platform
+  Platform,
+  Modal,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { AppStates } from "../context/AppStates";
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import CustomButton from "./ui/CustomButton";
+import Selector from "./ui/Selector";
 
 const StudentLeave = () => {
   const { userData, leaveHistory, loadLeaves, BASE_URL } = AppStates();
@@ -23,6 +27,11 @@ const StudentLeave = () => {
   const [application, setApplication] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [latestLeaveModal, setLatestLeaveModal] = useState(false);
+  const [latestLeaveCollapsed, setLatestLeaveCollapsed] = useState({ collapsed: false, index: 0 });
+  const [leavesFilter, setLeavesFilter] = useState({ month: new Date().getMonth() });
+  const [leavesByMonth, setLeavesByMonth] = useState({});
+
   const formatDate = (date) => {
     if (!date) return "Select Date";
     return new Date(date)
@@ -31,10 +40,17 @@ const StudentLeave = () => {
       .replace("T", " ");
   };
 
-  useEffect(() => {
+  async function fetchLeaves() {
     if (!userData?.email) return;
-    loadLeaves(userData?.role);
-  }, [userData]);
+    const leaves_by_month = await loadLeaves(leavesFilter);
+    if (leaves_by_month?.month) {
+      setLeavesByMonth(leaves_by_month);
+    }
+  }
+
+  useEffect(() => {
+    fetchLeaves();
+  }, [userData, leavesFilter]);
 
   async function submitLeave() {
     if (!application.trim() || !fromDate || !toDate) {
@@ -79,7 +95,7 @@ const StudentLeave = () => {
         setFromDate(null);
         setToDate(null);
 
-        loadLeaves(userData?.role);
+        loadLeaves(leavesFilter);
       } else {
         Alert.alert("Error", resdata.message || "Something went wrong.");
       }
@@ -97,6 +113,13 @@ const StudentLeave = () => {
       </Text>
     );
   }
+
+  const latestLeaveSource =
+    leavesByMonth?.data?.length > 0
+      ? leavesByMonth
+      : { data: leaveHistory };
+
+  // console.log(leavesByMonth, latestLeaveSource, leaveHistory)
 
   return (
     <View className="flex-1 bg-slate-100">
@@ -122,9 +145,17 @@ const StudentLeave = () => {
 
         {/* LEAVE SUMMARY */}
         <View className="bg-white rounded-3xl p-5 shadow-lg border border-slate-100 mb-6">
-          <Text className="text-lg font-semibold text-slate-800 mb-2">
-            Leave History
-          </Text>
+          <View className="flex-row justify-between items-center">
+            <Text className="text-xl font-semibold text-slate-800 mb-2">
+              Leave History
+            </Text>
+
+            <TouchableOpacity className="mb-3 p-1 px-4 bg-indigo-500 rounded-full"
+              onPress={() => setLatestLeaveModal(prev => !prev)}
+            >
+              <Text className="text-white text-center text-[16px]">view all</Text>
+            </TouchableOpacity>
+          </View>
 
           <Text className="text-slate-500">
             Leaves this month
@@ -157,25 +188,113 @@ const StudentLeave = () => {
                 ).toLocaleDateString("en-IN")}
               </Text>
 
-              <View
-                className={`mt-3 self-start px-4 py-1 rounded-full ${leaveHistory[0]?.status === "Approved"
+              <View className="flex-row justify-between items-center">
+                <View
+                  className={`mt-3 self-start px-4 py-1 rounded-full ${leaveHistory[0]?.status === "Approved"
                     ? "bg-green-100"
                     : leaveHistory[0]?.status === "Rejected"
                       ? "bg-red-100"
                       : "bg-yellow-100"
-                  }`}
-              >
-                <Text
-                  className={`font-semibold ${leaveHistory[0]?.status === "Approved"
+                    }`}
+                >
+                  <Text
+                    className={`font-semibold ${leaveHistory[0]?.status === "Approved"
                       ? "text-green-600"
                       : leaveHistory[0]?.status === "Rejected"
                         ? "text-red-600"
                         : "text-yellow-600"
-                    }`}
-                >
-                  {leaveHistory[0]?.status}
-                </Text>
+                      }`}
+                  >
+                    {leaveHistory[0]?.status}
+                  </Text>
+                </View>
+
+                <TouchableOpacity onPress={() => setLatestLeaveModal(prev => !prev)}
+                  className="mt-2">
+                  <Text className="text-blue-500">view details</Text>
+                </TouchableOpacity>
               </View>
+
+
+              {/* application modal */}
+              <Modal transparent={true} visible={latestLeaveModal} animationType="slide">
+                <View className="bg-white flex-1 p-5 rounded-t-3xl">
+                  <View className="flex-row justify-between">
+                    <Text className="text-xl font-semibold">Latest application details</Text>
+                    <TouchableOpacity onPress={() => setLatestLeaveModal(false)}>
+                      <Ionicons name="close" size={24} color="black" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <View className={`${latestLeaveCollapsed.collapsed ? "h-20" : "h-auto"} overflow-hidden p-4 mt-4 bg-gray-50 rounded-xl elevation-sm`}>
+
+                    <TouchableOpacity onPress={() => setLatestLeaveCollapsed(prev => ({ ...prev, collapsed: !latestLeaveCollapsed.collapsed }))}>
+                      <View className="p-2 -mr-3 -mt-3 ml-auto">
+                        <Ionicons size={16} name={`${latestLeaveCollapsed.collapsed ? "chevron-down" : "chevron-up"}`} />
+                      </View>
+                    </TouchableOpacity>
+
+                    <View className="flex-row justify-between">
+                      <Text className="bg-blue-200 p-1 px-2 mb-1 rounded-md self-start">
+                        From: {new Date(latestLeaveSource?.data[latestLeaveCollapsed.index]?.applicable_from).toLocaleDateString()}</Text>
+
+                      <Text className="bg-rose-200 p-1 px-2 mb-1 rounded-md self-start">
+                        To: {new Date(latestLeaveSource?.data[latestLeaveCollapsed.index]?.applicable_to).toLocaleDateString()}
+                      </Text>
+                    </View>
+
+                    <Text className="bg-green-200 p-1 px-2 my-1 rounded-md self-start">Subject: {latestLeaveSource?.data[latestLeaveCollapsed.index]?.subject}</Text>
+
+                    <Text className="text-lg font-bold text-neutral-700 mt-2">Application</Text>
+
+                    <Text className="bg-white border border-neutral-100 min-h-20 p-2 rounded-xl mt-2">
+                      {latestLeaveSource?.data[latestLeaveCollapsed.index]?.application}
+                    </Text>
+                  </View>
+
+                  <View className="flex-row justify-between items-center my-6 mb-4">
+                    <Text className="text-lg font-semibold">History</Text>
+
+                    {/* filter */}
+                    <Selector
+                      defaultOption={{ label: new Date().toLocaleDateString("en-Gb", { month: "long" }), value: new Date().getMonth() }}
+
+                      options={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(m => ({ label: new Date(new Date().getFullYear(), m, 1).toLocaleDateString("en-Gb", { month: "long" }), value: m }))}
+
+                      onChange={(filter) => setLeavesFilter({...filter, month: filter.value})}
+                    />
+                  </View>
+
+
+                  <View className="flex-col gap-4">
+                    {
+                      leavesByMonth?.data?.length > 0 ? (
+                        leavesByMonth?.data?.map((leave, index) => (
+                          <CustomButton
+                            key={index}
+                            onPress={() => {
+                              setLatestLeaveCollapsed(prev => ({ ...prev, collapsed: false, index: index }))
+                            }}
+                          >
+                            <View key={index} className="flex-col bg-gray-50 elevation-sm p-3 rounded-xl">
+                              <Text className="font-semibold text-[16px] mb-2">{leave?.subject}</Text>
+
+                              <View className="flex-row justify-between">
+                                <Text className="text-neutral-700">{new Date(leave?.applicable_from).toLocaleDateString()} - {new Date(leave?.applicable_to).toLocaleDateString()}</Text>
+
+                                <Text className={`p-1 rounded-full px-3 ${leave?.status.trim().toLowerCase() === "pending" ? "bg-yellow-200" : leave?.status.trim().toLowerCase() === "approved" ? "bg-green-200" : "bg-red-200"}`}>{leave?.status}</Text>
+                              </View>
+                            </View>
+                          </CustomButton>
+                        ))
+                      ) : (
+                        <Text className="text-neutral-600 font-semibold text-lg text-center py-20">No leave found for {new Date(new Date().getFullYear(), leavesByMonth?.month || new Date().getMonth(), 1).toLocaleDateString("en-Gb", { month: "long" })}</Text>
+                      )
+                    }
+                  </View>
+
+                </View>
+              </Modal>
             </>
           ) : (
             <Text className="text-slate-500">

@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Modal
 } from "react-native";
+import RNRestart from 'react-native-restart';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppStates } from "../context/AppStates";
@@ -123,13 +124,13 @@ export default function LoginPage({ onSwitch }) {
           JSON.stringify(data.user_creds)
         );
 
-        console.log(data)
+        // RNRestart.Restart();
         setUserData(data.user_creds);
       }
 
       Alert.alert("Login", data.message);
     } catch (err) {
-      Alert.alert("Error", "Something went wrong");
+      Alert.alert("Error", "Something went wrong " + err);
     }
 
     setLoading(false);

@@ -127,7 +127,7 @@ const TimeTableScreen = () => {
                       >
 
                         {/* CANCELLED BADGE */}
-                        {item?.cancelled && (
+                        {!!item?.cancelled && (
                           <View className="absolute -bottom-2.5 bg-red-500 px-2 py-0.5 rounded-full">
                             <Text className="text-white text-[10px] font-semibold">
                               CANCELLED
@@ -201,7 +201,7 @@ const TimeTableScreen = () => {
 
           {/* attendance dashboard */}
           {
-            userData.role === "Student" && (
+            userData?.role === "Student" && (
               <AttendanceDashboard />
             )
           }

@@ -10,6 +10,8 @@ import {
   SafeAreaView,
   ActivityIndicator // 🔹 Added this
 } from "react-native";
+import RNRestart from 'react-native-restart';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Clipboard from '@react-native-clipboard/clipboard';
 import AttendanceRing from "./ui/AttendanceRing";
@@ -25,7 +27,7 @@ const injectionCode = `javascript:(()=>{
 })();`;
 
 export default function AttendanceDashboard() {
-  const { userData, buildUrl, classes, loadTimetable } = AppStates();
+  const { userData, buildUrl, classes, loadTimetable, setUserData } = AppStates();
   const [hasConfig, setHasConfig] = useState(false);
   const [showSemesterPicker, setShowSemesterPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -46,21 +48,21 @@ export default function AttendanceDashboard() {
     startMonth: ""
   });
 
-  useEffect(() => {
-    if (userData) {
-      setForm(prev => ({
-        ...prev,
-        name: userData.name || "",
-        roll: userData.student_id || "",
-        collegeId: userData.collegeId?.toString() || "",
-        admissionId: userData.admissionId?.toString() || "",
-        courseId: userData.courseId?.toString() || "",
-        branchId: userData.branchId?.toString() || "",
-        durationId: userData.semester?.toString() || "",
-        startMonth: userData.start_month?.toString() || new Date().getMonth() + 1
-      }));
-    }
-  }, [userData]);
+  // useEffect(() => {
+  //   if (userData?.user_id) {
+  //     setForm(prev => ({
+  //       ...prev,
+  //       name: userData.name || "",
+  //       roll: userData.student_id || "",
+  //       collegeId: userData.collegeId?.toString() || "",
+  //       admissionId: userData.admissionId?.toString() || "",
+  //       courseId: userData.courseId?.toString() || "",
+  //       branchId: userData.branchId?.toString() || "",
+  //       durationId: userData.semester?.toString() || "",
+  //       startMonth: userData.start_month?.toString() || new Date().getMonth() + 1
+  //     }));
+  //   }
+  // }, [userData?.admissionId]);
 
   const copyCode = () => {
     Clipboard.setString(injectionCode);
@@ -92,6 +94,7 @@ export default function AttendanceDashboard() {
       return;
     }
 
+    console.log(form)
     const response = await fetch(buildUrl("/save/utu-creds"), {
       method: "POST",
       headers: {
@@ -100,11 +103,58 @@ export default function AttendanceDashboard() {
       body: JSON.stringify(form)
     })
     const data = await response?.json();
+    console.log(data)
 
     if (data.success) {
       setHasConfig(true);
+      // set userdata
+      if (!userData?.admissionId) {
+        const user_creds = { ...userData, collegeId: form?.collegeId, admissionId: form?.admissionId, courseId: form?.courseId, branchId: form?.branchId, semester: form?.durationId, start_month: form?.startMonth };
+
+        AsyncStorage.setItem("user_creds", JSON.stringify(user_creds));
+        
+        setUserData(user_creds);
+        // RNRestart.Restart();
+      }
     }
   };
+
+  async function loadAttendance(form) {
+    setLoading(true); // 🔹 Start Loading
+    try {
+      const response = await fetch(buildUrl("/fetch-attendance"), {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "creds": JSON.stringify(form)
+        }
+      })
+      const data = await response.json();
+      setAttendance(data.attendance);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false); // 🔹 Stop Loading
+    }
+  }
+
+  useEffect(() => {
+    const utu_creds = {
+      name: userData.name || "",
+      roll: userData.student_id || "",
+      collegeId: userData.collegeId?.toString() || "",
+      admissionId: userData.admissionId?.toString() || "",
+      courseId: userData.courseId?.toString() || "",
+      branchId: userData.branchId?.toString() || "",
+      durationId: userData.semester?.toString() || "",
+      startMonth: userData.start_month?.toString() || new Date().getMonth() + 1
+    };
+    setForm(prev => ({...prev, ...utu_creds}));
+    if (!userData?.admissionId) return;
+
+    setHasConfig(true);
+    loadAttendance(utu_creds);
+  }, [userData?.admissionId, selectedMonth?.month_id])
 
   function calculatSkipImpact(attendance, classes) {
     return parseInt(attendance?.report?.total_classes_attended) / (parseInt(attendance?.report?.total_classes_held) + classes.length) * 100;
@@ -147,31 +197,6 @@ export default function AttendanceDashboard() {
     skipClass(attendance);
   }, [attendance.attendance, classes.classes])
 
-  async function loadAttendance(form) {
-    setLoading(true); // 🔹 Start Loading
-    try {
-      const response = await fetch(buildUrl("/fetch-attendance"), {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "creds": JSON.stringify(form)
-        }
-      })
-      const data = await response.json();
-      setAttendance(data.attendance);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false); // 🔹 Stop Loading
-    }
-  }
-
-  useEffect(() => {
-    if (!form.admissionId) return;
-    setHasConfig(true);
-    loadAttendance(form);
-  }, [form.admissionId, selectedMonth?.month_id]) // 🔹 month_id is now a dependency for the loader
-
   // ================= DASHBOARD VIEW =================
 
   if (hasConfig) {
@@ -191,8 +216,8 @@ export default function AttendanceDashboard() {
           <View className="flex-row flex-wrap justify-between">
             <StatCard title="Conducted" value={attendance?.report?.total_classes_held} width="w-[48%]" color="text-slate-700" />
             <StatCard title="Attended" value={attendance?.report?.total_classes_attended} width="w-[48%]" color="text-emerald-600" />
-            <StatCard title="Missed" value={attendance?.report?.total_classes_held - attendance?.report?.total_classes_attended - attendance?.report?.leaves} width="w-[48%] mt-4" color="text-orange-500" />
-            <StatCard title="Leaves" value={attendance?.report?.leaves} width="w-[48%] mt-4" color="text-blue-500" />
+            <StatCard title="Missed" value={attendance?.report?.total_classes_held - attendance?.report?.total_classes_attended - attendance?.report?.leaves || 0} width="w-[48%] mt-4" color="text-orange-500" />
+            <StatCard title="Leaves" value={attendance?.report?.leaves || 0} width="w-[48%] mt-4" color="text-blue-500" />
           </View>
 
           {/* Filter Section */}
@@ -254,6 +279,13 @@ export default function AttendanceDashboard() {
           <InputField label="Roll Number" value={form.roll} editable={false} />
 
           <View className="h-[1px] bg-slate-100 my-4" />
+
+          <InputField
+            label="College ID"
+            value={form.collegeId}
+            onChange={v => setForm({ ...form, collegeId: v })}
+            placeholder="e.g. 67"
+          />
 
           <InputField
             label="Admission ID"
@@ -416,7 +448,7 @@ const RiskReport = ({ skipReport }) => {
       </View>
 
       {/* ⚠️ GLOBAL RISK CARD */}
-      <View 
+      <View
         className={`w-full p-5 rounded-[28px] border-b-4 mb-6 shadow-sm 
         ${isAtRisk ? "bg-red-50 border-red-500" : "bg-emerald-50 border-emerald-500"}`}
       >
@@ -443,7 +475,7 @@ const RiskReport = ({ skipReport }) => {
 
       {/* 📅 DAILY PREDICTIONS GRID */}
       <View className="flex-row gap-3">
-        
+
         {/* TODAY TILE */}
         <View className="flex-1 bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
           <View className="flex-row items-center gap-2 mb-3">
