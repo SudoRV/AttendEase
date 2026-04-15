@@ -1,13 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { act, useEffect, useState } from "react";
 import {
     View,
     Text,
     TouchableOpacity,
     ScrollView,
     Modal,
-    Platform
+    Platform,
+    Alert
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import dayjs from 'dayjs';
+
 import { AppStates } from "../context/AppStates";
 
 const TeacherLeave = ({ onClose }) => {
@@ -83,6 +87,7 @@ const TeacherLeave = ({ onClose }) => {
 
     const format = (d) =>
         d ? new Date(d).toLocaleDateString("en-IN") : "Select Date";
+
 
     return (
         <View className="flex-1 bg-slate-100">
@@ -345,9 +350,11 @@ const renderTeacherLeaves = (
     setFilter
 ) => {
 
+    const { buildUrl } = AppStates();
+
     const filteredLeaves = (() => {
         switch (filter) {
-            case "MY":
+            case "Mine":
                 return teacherLeaveHistory.filter(
                     (leave) => leave.teacher_id === userData?.teacher_id
                 );
@@ -360,6 +367,88 @@ const renderTeacherLeaves = (
     const formatDate = (date) =>
         new Date(date).toLocaleDateString();
 
+
+    // substitution logic
+    const [isSubstitutorVisible, setIsSubstitutorVisible] = useState({ visible: false, teacher_id: null });
+
+    const [absentTeacherClasses, setAbsentTeacherClasses] = useState(null);
+
+    useEffect(()=>{
+        console.log(absentTeacherClasses)
+    }, [absentTeacherClasses])
+
+    useEffect(() => {
+        if (isSubstitutorVisible?.visible && isSubstitutorVisible.teacher_id) {
+            fetch(buildUrl(`/get-timetable?day=${new Date().toLocaleDateString("en-Gb", { weekday: "long" })}&teacher_id=${isSubstitutorVisible.teacher_id}`))
+                .then(response => response.json())
+                .then(timetable => {
+                    console.log(timetable);
+                    setAbsentTeacherClasses(timetable?.data?.classes);
+                })
+        }
+    }, [isSubstitutorVisible])
+
+    const processSubstitution = async (clas, action) => {
+        console.log(clas)
+
+        if (action === "confirm") {
+            const response = await fetch(buildUrl("/set-substitutor"), {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ class_id: clas.id, substitutor: { teacher_name: userData?.name, teacher_id: userData?.teacher_id, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') } })
+            })
+
+            const data = await response.json();
+            if (!!data.success) {
+                setAbsentTeacherClasses(prev => ({ ...prev, substitute_teacher_id: userData?.teacher_id, substitute_teacher_name: userData?.name, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') }));
+
+                Alert.alert(`Substitution ${clas.subject_name}`, data.message);
+            } else {
+                Alert.alert(data.message);
+            }
+        } else {
+            const response = await fetch(buildUrl("/set-substitutor"), {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ class_id: clas.id, substitutor: { teacher_name: userData?.name, teacher_id: userData?.teacher_id, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') }, action: action })
+            })
+    
+            const data = await response.json();
+            if (!!data.success) {
+                setAbsentTeacherClasses(prev => ({ ...prev, substitute_teacher_id: null, substitute_teacher_name: null, substituted_till: null }));
+                Alert.alert(`Substitution ${clas.subject_name}`, data.message);
+            } else {
+                Alert.alert(data.message);
+            }
+        }
+    }
+
+    const handleSelectClass = (clas, action) => {
+        Alert.alert(
+            action === "confirm" ? "Confirm Substitution" : "Cancel Substitution", // Title
+            `Are you sure you want to ${action === "cancel" && "cancel"} substitute for ${clas?.subject_name}?`, // Message
+            [
+                {
+                    text: "No",
+                    onPress: () => console.log("Cancelled"),
+                    style: "cancel", // This gives it a 'cancel' look on iOS
+                },
+                {
+                    text: "Yes",
+                    onPress: () => {
+                        // React to the response here
+                        processSubstitution(clas, action);
+                    }
+                },
+            ],
+            { cancelable: true } // Allows tapping outside the alert to dismiss
+        );
+    }
+
     return (
         <View className="flex-1 w-full">
 
@@ -371,14 +460,14 @@ const renderTeacherLeaves = (
                         key={tab}
                         onPress={() => setFilter(tab)}
                         className={`px-5 py-2 rounded-full ${filter === tab
-                                ? "bg-indigo-600"
-                                : "bg-gray-200"
+                            ? "bg-indigo-600"
+                            : "bg-gray-200"
                             }`}
                     >
                         <Text
                             className={`font-semibold ${filter === tab
-                                    ? "text-white"
-                                    : "text-gray-700"
+                                ? "text-white"
+                                : "text-gray-700"
                                 }`}
                         >
                             {tab}
@@ -396,34 +485,148 @@ const renderTeacherLeaves = (
                 )}
 
                 {filteredLeaves.map((item, index) => (
-                    <View
+                    <TouchableOpacity
                         key={`${item.applicable_from}-${index}`}
-                        className="bg-white mb-4 p-4 rounded-2xl shadow"
+
+                        onPress={() => setIsSubstitutorVisible(prev => ({ visible: !prev?.visible, teacher_id: item?.teacher_id }))}
+
+                        activeOpacity={0.8}
                     >
-                        <Text className="text-base font-semibold text-gray-800">
-                            {item.name}
-                        </Text>
-
-                        <Text className="text-gray-500 mt-1">
-                            {formatDate(item.applicable_from)} →{" "}
-                            {formatDate(item.applicable_to)}
-                        </Text>
-
                         <View
-                            className={`mt-3 self-start px-3 py-1 rounded-full ${item.status === "Approved"
+                            className="bg-white mb-4 p-4 rounded-3xl shadow"
+                        >
+                            <Text className="text-base font-semibold text-gray-800">
+                                {item.name}
+                            </Text>
+
+                            <Text className="text-gray-500 mt-1">
+                                {formatDate(item.applicable_from)} →{" "}
+                                {formatDate(item.applicable_to)}
+                            </Text>
+
+
+                            <View className="flex-row items-end justify-between">
+                                <Text className={`mt-3 self-start px-3 py-1 rounded-full ${item.status === "Approved"
                                     ? "bg-green-600"
                                     : item.status === "Pending"
                                         ? "bg-yellow-500"
                                         : "bg-red-500"
-                                }`}
-                        >
-                            <Text className="text-white text-xs font-semibold">
-                                {item.status}
-                            </Text>
+                                    }  text-white text-xs font-semibold`} >
+                                    {item.status}
+                                </Text>
+
+                                <Text className="text-blue-700">Check substitution</Text>
+                            </View>
+
                         </View>
-                    </View>
+                    </TouchableOpacity>
                 ))}
             </ScrollView>
+
+            {/* substitute modal */}
+            <Modal visible={!!isSubstitutorVisible?.visible}
+                animationType="slide">
+                <View className="p-4">
+                    <View className="flex-row items-center justify-between">
+                        <Text className="text-2xl font-bold text-neutral-800">Substitute Class</Text>
+
+                        <TouchableOpacity onPress={() => setIsSubstitutorVisible(prev => ({ visible: false, teacher_id: null }))}>
+                            <View>
+                                <Ionicons name="close" size={22} />
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+
+                    <Text className="text-gray-500">
+                        Select a class from the list below to attend the class as substitute teacher.
+                    </Text>
+
+                    {/* classes */}
+                    {absentTeacherClasses?.length > 0 ? (
+                        <View className="flex-col space-y-4 mt-8">
+                            {absentTeacherClasses.map((clas) => {
+                                const isSubstituted = !!clas.substitute_teacher_id;
+
+                                return (
+                                    <TouchableOpacity
+                                        key={clas.id}
+                                        // Logic: Disable if a substitute is already assigned
+                                        disabled={!!clas.substitute_teacher_id}
+                                        onPress={() => handleSelectClass(clas, "confirm")}
+                                        className={`p-4 rounded-3xl elevation-md ${clas.substitute_teacher_id
+                                            ? 'bg-gray-100 opacity-80' // Muted background for substituted classes
+                                            : 'bg-white active:bg-blue-50'
+                                            }`}
+                                    >
+                                        <View className="flex-row justify-between items-center mb-2">
+                                            <View className="flex-1">
+                                                <Text className={`text-lg font-bold ${clas.substitute_teacher_id ? 'text-gray-500' : 'text-gray-800'
+                                                    }`}>
+                                                    {clas.subject_name}
+                                                </Text>
+                                                <Text className="text-gray-400 text-sm">
+                                                    Code: {clas.subject_id}
+                                                </Text>
+                                            </View>
+
+                                            {/* Dynamic Badge Color */}
+                                            <View className={`${clas.substitute_teacher_id ? 'bg-gray-200' : 'bg-blue-100'
+                                                } px-3 py-1 rounded-full`}>
+                                                <Text className={`${clas.substitute_teacher_id ? 'text-gray-600' : 'text-blue-700'
+                                                    } font-semibold text-xs`}>
+                                                    Period {clas.period_id}
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        <View className="flex-row justify-between mt-2 pt-2 border-t border-gray-100">
+                                            <Text className="text-gray-500">
+                                                📍 Room {clas.room_number}
+                                            </Text>
+                                            <Text className="text-gray-500">
+                                                👥 Sec {clas.section} ({clas.branch_id})
+                                            </Text>
+                                        </View>
+
+                                        {/* 🔥 Substitution Info Logic */}
+                                        {clas.substitute_teacher_id ? (
+                                            <View className="flex-row justify-between items-center mt-4 gap-2">
+                                                <View className="bg-gray-200 p-2 rounded-lg border border-gray-300 flex-1">
+                                                    <Text className="text-gray-600 text-center font-medium text-sm">
+                                                        ✅ Substituted by {clas.substitute_teacher_name}
+                                                    </Text>
+                                                </View>
+
+                                                {
+                                                    userData?.teacher_id === clas.substitute_teacher_id && (
+                                                        <TouchableOpacity activeOpacity={0.6}
+                                                            onPress={() => handleSelectClass(clas, "cancel")}>
+                                                            <Text className="p-2 px-3 bg-red-500 rounded-lg text-white text-sm">Cancel</Text>
+                                                        </TouchableOpacity>
+                                                    )
+                                                }
+                                            </View>
+                                        ) : (
+                                            <View className="mt-3 bg-blue-600 py-2 rounded-lg">
+                                                <Text className="text-white text-center font-medium">
+                                                    Select for Substitution
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                    ) : (
+                        <View className="p-10 items-center">
+                            <Text className="text-gray-400 italic">No classes available for substitution.</Text>
+                        </View>
+                    )}
+
+                </View>
+
+            </Modal>
+
         </View>
     );
 };

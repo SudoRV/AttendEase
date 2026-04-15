@@ -1,0 +1,631 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Inter", Arial, sans-serif;
+}
+
+#root{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+html,body{
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+}
+
+.header {
+    display: flex;
+    background-color: #312e81;
+    color: white;
+    padding: 1.5rem;
+    text-align: center;
+    align-items: center;
+    z-index: 100;
+    font-size: 2.5rem;
+}
+
+.footer {
+    margin-top: 0.25rem;
+
+}
+
+.Title {
+    /*font-size: 2rem;*/
+    font-weight: bold;
+    text-decoration: none;
+    color: white;
+    user-select: none;
+}
+
+.headings {
+    /*font-size: 2rem;*/
+    font-weight: bold;
+    margin: 20px;
+    justify-self: center;
+    padding: 10px;
+}
+
+.label {
+    font-weight: bold;
+    /*font-size: 1.2rem;*/
+    margin: 5px;
+    color: #242424;
+}
+
+.header-links {
+    position: relative;
+    /*font-size: 1.2rem;*/
+    margin-left: auto;
+}
+
+.links {
+    margin: 0 10px;
+    text-decoration: none;
+    padding: 10px;
+    color: rgb(249, 249, 249);
+}
+
+.links:last-child {
+    padding-right: 0;
+    margin-right: 0;
+}
+
+.links:hover {
+    text-decoration: underline;
+    color: #0a1a1f;
+    cursor: pointer;
+}
+
+.content {
+    border: #000000 10px solid;
+
+}
+
+.card {
+    border: 1px solid #ccc;
+    border-radius: 16px;
+    padding: 15px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.submit-row {
+    margin-top: 10px;
+}
+
+.select-box {
+    padding: 0.6rem 0.8rem;
+    border: 1px solid grey;
+    border-radius: 6px;
+}
+
+.left-coloumn {
+    flex: 1;
+    margin-right: 20px;
+}
+
+.approve-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    width: 90px;
+    margin: 5px;
+    border-radius: 15px;
+}
+
+.reject-btn {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    width: 90px;
+    border-radius: 15px;
+    margin: 5px;
+}
+
+.approve-btn:hover {
+    background-color: #207724;
+}
+
+.reject-btn:hover {
+    background-color: #730000;
+}
+
+.button {
+    background-color: #008CBA;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    margin: 10px;
+}
+
+.logout-btn {
+    color: white;
+    border: none;
+    margin: 1rem;
+    padding: 10px 40px;
+    border-radius: 6px;
+    background-color: #f34343;
+    cursor: pointer;
+    
+}
+
+.dashboard {
+    display: grid;
+    height: 100%;
+    width: 100%;
+    grid-template-areas:
+        " sidebar timetable timetable"
+        " sidebar leave announcements"
+        
+    ;
+
+    /* grid-template-columns: minmax(0, 350px) 1fr 1fr; */
+    gap: 1rem;
+}
+
+.teacher-dashboard {
+    display: grid;
+    width: 100%;
+    grid-template-areas:
+        "sidebar  timetable timetable"
+        "sidebar  teacher_leave announcements"
+        "sidebar  leave announcements"
+        "sidebar  footer footer"
+    ;
+
+    gap: 1rem;
+}
+
+.sidebar {
+    grid-area: sidebar;
+    height: 100%;
+    min-width: 320px;
+    max-width: 360px;
+    flex-direction: column;
+    background-color: #312e81;
+    color: white;
+}
+
+
+.footers {
+    /* grid-area: Footer; */
+    grid-area: footer;
+}
+
+.timetable-section {
+    grid-area: timetable;
+    
+}
+
+.teacher-availability {
+    grid-area: teacher_leave;
+    margin-left: 1.2rem;
+}
+
+.leave-management {
+    grid-area: leave;
+    margin-left: 1.2rem;
+}
+
+.leave-verifier {
+    min-height: 280px;
+    max-height: 300px;
+}
+
+.announcements {
+    grid-area: announcements;
+    margin-right: 1.2rem;
+}
+
+
+
+/* Main grid: Row 1 layout (1:4 ratio) */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 4fr;
+    grid-auto-rows: auto;
+    align-items: start;
+}
+
+/* Explicit placing of Row 1 items */
+#profile {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+#timetable {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+/* Row 2 — full width wrapper */
+.row2 {
+    grid-column: 2 / -1;
+    /* stretch across both columns */
+    grid-row: 2;
+    /* lock to second row */
+
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+/* Cards inside row 2 */
+.row2 .card {
+    min-height: 120px;
+    /* auto-scaling height */
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px black;
+
+    background: #ffffff;
+    border-radius: 10px;
+
+}
+
+.dashboard-content {
+    display: grid;
+    grid-template-columns: 1fr 4fr;
+    /* Ratio 1:4 */
+    grid-auto-rows: auto;
+    gap: 20px;
+    padding: 20px;
+}
+
+
+
+.field-sections {
+    margin: 20px;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+.announcer {
+    padding: 0 1rem;
+    width: 100%;
+}
+
+.announcer h3 {
+    margin: 0;
+    padding: 0;
+}
+
+.input-box {
+    width: 100%;
+    padding: 10px;
+    /*font-size: 1rem;*/
+    border-radius: 8px;
+}
+
+.profile-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem 0;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 40px;
+    border: 2px solid #5992fd;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.avatar p {
+    /*font-size: 2rem;*/
+    font-weight: bold;
+    color: #2e88f0;
+}
+
+.info-list {
+    width: 100%;
+    padding: 1rem 1.4rem;
+}
+
+.info-item {
+    margin: 5px 0;
+}
+
+.info-item span {
+    /*font-size: 1.2rem;*/
+    overflow: hidden;
+    word-wrap: break-word;
+}
+
+.student-leave-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+    box-shadow: 0 2px 8px black;
+}
+
+.Teacher-availability {
+    border-radius: 5px;
+    padding: 5px;
+    width: 100%;
+}
+
+.Student-leave-management {
+    padding: 20px;
+    width: 100%;
+    align-items: center;
+    align-content: center;
+    text-align: center;
+
+}
+
+/* student leave history + approval ( teacher dashboard ) */
+.leave-container .leaves {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 1rem;
+}
+
+.schedule-container {
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    background-color: rgb(255, 255, 255);
+    box-shadow: 0px 4px 6px 0px #30303033;
+    padding: 1rem;
+}
+
+.schedule-table {
+    max-width: 1400px;
+    border-collapse: separate;
+    border-spacing: 6px;
+    width: 100%;
+    padding: 10px;
+}
+
+.table-time {
+    background-color: #5964fd;
+    font-weight: bold;
+    /*font-size: 1.2rem;*/
+    min-width: 100px;
+    max-width: 100px;
+    white-space: nowrap;
+    overflow: hidden;
+    height: auto;
+    padding: 10px 4px;
+    border-radius: 10px;
+    box-shadow: 2px 2px 4px #2c2c2c36;
+    color: rgb(228, 228, 228);
+}
+
+.table-row {
+    min-width: 90px;
+    max-width: 90px;
+    height: auto;
+}
+
+.timetable-section {
+    left: 280px;
+    top: 90px;
+}
+
+.subject-cell {
+    position: relative;
+    width: 10%;
+    max-width: 100px;
+    height: 100%;
+    padding: 10px;
+    text-align: center;
+    background-color: #f5f5f5;
+    border-radius: 12px;
+    box-shadow: 2px 2px 2px #a7a7a7;
+}
+
+.table-time:first-child,
+.subject-cell:first-child {
+    display: none;
+}
+
+.subject-cell p {
+    color: #242424;
+}
+
+.Day-label {
+    font-weight: bold;
+    /*font-size: 1.8rem;*/
+}
+
+.subject-code {
+    font-weight: bold;
+    margin-bottom: 5px;
+    padding: 5px;
+    border-bottom: #adadad 2px solid;
+}
+
+.subject-name {
+    height: 5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.Teacher-name {
+    border-top: #adadad 2px solid;
+    font-style: italic;
+    margin-top: 5px;
+    padding-top: 5px;
+}
+
+.cancelled-class {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #64646454;
+    border-radius: 12px;
+    backdrop-filter: blur(1px);
+}
+
+.cancelled-class p {
+    /*font-size: 1.4rem;*/
+    font-weight: bold;
+    color: #ff0000;
+    transform: rotate(-45deg);
+}
+
+.leave-box {
+    /*font-size: 1rem;*/
+    width: 100%;
+    padding: 0 1rem;
+}
+
+.register-page {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px black;
+    width: 100%;
+    max-width: 900px;
+    margin: 40px auto;
+    text-align: center;
+}
+
+.submit-leave {
+    width: 100%;
+    border-radius: 12px;
+    padding: 1rem 2rem;
+    margin-bottom: 0.6rem;
+    text-align: center;
+    box-shadow: 2px 2px 4px #24232357;
+}
+
+.leave-history-status {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 1rem;
+}
+
+.leave-history {
+    margin-top: 10px;
+    grid-row: 1;
+    grid-column: 1;
+    text-align: left;
+}
+
+.leave-status {
+    margin-top: 10px;
+    grid-row: 1;
+    grid-column: 2;
+    text-align: left;
+}
+
+.submit-leave .row2 {
+    margin: 1rem 0;
+    gap: 2rem;
+}
+
+.submit-leave .row2 .other {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+}
+
+.submit-leave .row2 .other label {
+    /*font-size: 18px;*/
+    font-weight: bold;
+    color: #242424;
+}
+
+.submit-leave .row2 .other .select-box {
+    width: 100%;
+    margin-top: 0.8rem;
+}
+
+.submit-leave .submit-btn {
+    display: block;
+    margin-top: 1.2rem;
+    margin-left: auto;
+    padding: 0.6rem 2rem;
+    /*font-size: 20px;*/
+    color: white;
+    border: 0;
+    border-radius: 8px;
+    background-color: #2c97fa;
+}
+
+/* ⬅ makes the circle + text align on one line */
+.radio-option {
+    display: inline-flex;
+    gap: 8px;
+    margin: 10px;
+
+}
+
+/* Hide the native radio button */
+.radio-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Custom radio shape */
+.radio-custom {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #22c55e;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+/* Checked state */
+.radio-option input[type="radio"]:checked+.radio-custom {
+    border-color: #16a34a;
+    background-color: #16a34a;
+    box-shadow: 0 0 4px rgba(22, 163, 74, 0.5);
+}
+
+
+@media screen and (max-width:720px) {
+    .dashboard {
+        grid-template-areas:
+            "sidebar"
+            "timetable"
+            "teacher_leave"
+            "leave"
+            "announcements"
+            "footer"
+        ;
+    }
+        .teacher-dashboard {
+            grid-template-areas:
+                "sidebar"
+                "timetable"
+                "teacher_leave"
+                "leave"
+                "announcements"
+                "footer"
+            ;
+        }
+        .timetable-section {
+            left: 0;
+            top: 0;
+        }   
+}

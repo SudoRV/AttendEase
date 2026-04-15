@@ -20,10 +20,10 @@ app.use(cors());
 
 // ✅ Create MySQL connection pool
 const config = {
-  user: "ugbmvz1mq3rgrg6y",
-  host: "bs1ylicpyexxhxy0nlri-mysql.services.clever-cloud.com",
-  password: "cQCQzjgJ4QWOEM7Nh8qX",
-  database: "bs1ylicpyexxhxy0nlri",
+  user: "uvjrd469tio0mrjz",
+  host: "bw29rwejnmb7a0ihv8ip-mysql.services.clever-cloud.com",
+  password: "A6q9yQI2tphgxS9bxWN0",
+  database: "bw29rwejnmb7a0ihv8ip",
   waitForConnections: true,
 }
 
@@ -168,7 +168,7 @@ app.post("/register", async (req, res) => {
 // fetch timetable
 app.get("/get-timetable", async (req, res) => {
   try {
-    const { year, branch, section = "A", day, teacher_id, teacher_name } = req.query;
+    const { year, branch, section = "A", day, teacher_id } = req.query;
 
     // check if cancelled periods are expired or not
     const cancel_cancelled_class_query = `UPDATE schedule
@@ -191,7 +191,7 @@ app.get("/get-timetable", async (req, res) => {
 
     if (teacher_id && teacher_id !== "undefined") {
       if (day === "" || day === undefined) {
-        const query = `select id, day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled from schedule where teacher_id = ? order by period_id`;
+        const query = `select id, day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where teacher_id = ? order by period_id`;
         const [rows] = await pool.query(query, [
           year, branch, section,
         ]);
@@ -214,7 +214,7 @@ app.get("/get-timetable", async (req, res) => {
           data: timetable
         });
       } else {
-        const query = `select id, day, period_id, subject_id, subject_name, teacher_name, teacher_id, year, branch_id, branch_name, section, room_number, cancelled from schedule where teacher_id = ? and day = ? order by period_id`;
+        const query = `select id, day, period_id, subject_id, subject_name, teacher_name, teacher_id, year, branch_id, branch_name, section, room_number, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where teacher_id = ? and day = ? order by period_id`;
         const [classes] = await pool.query(query, [teacher_id, day
         ]);
 
@@ -228,7 +228,7 @@ app.get("/get-timetable", async (req, res) => {
 
     } else {
       if (day === "" || day === undefined) {
-        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled from schedule where year = ? and branch_id = ? and section = ? order by day, period_id`;
+        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and branch_id = ? and section = ? order by day, period_id`;
         const [rows] = await pool.query(query, [
           year, branch, section,
         ]);
@@ -252,7 +252,7 @@ app.get("/get-timetable", async (req, res) => {
         });
 
       } else {
-        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled from schedule where year = ? and branch_id = ? and section = ? and day = ? order by period_id`;
+        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and branch_id = ? and section = ? and day = ? order by period_id`;
         const [classes] = await pool.query(query, [
           year, branch, section, day
         ]);
@@ -305,16 +305,53 @@ app.post("/update-schedule", async (req, res) => {
 })
 
 
+// set substitution teacher 
+app.post("/set-substitutor", async (req, res) => {
+  const { class_id, substitutor, action } = req.body;
+
+  // check if teacher exists or not 
+  const [substitutorExists] = await pool.query("select teacher_id from users where teacher_id = ?", [substitutor.teacher_id]);
+
+  console.log(substitutorExists);
+
+  if (!!substitutorExists[0]?.teacher_id) {
+    if (action === "cancel") {
+      const [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [null, null, null, class_id]);
+
+      console.log(result)
+
+      if (result.affectedRows > 0) {
+        return res.status(200).json({ success: true, message: "Substitution cancelled." });
+      } else {
+        return res.status(400).json({ success: false, message: "Something went wrong." });
+      }
+    }
+
+    const [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [substitutor.teacher_id, substitutor.teacher_name, substitutor.substituted_till, class_id]);
+
+    console.log(result)
+
+    if (result.affectedRows > 0) {
+      res.status(200).json({ success: true, message: "Class substituted successfully" });
+    } else {
+      res.status(400).json({ success: false, message: "Something went wrong." });
+    }
+  } else {
+    res.status(400).json({ success: false, message: "Substitutor doesn't exist." });
+  }
+})
+
+
 // fetch leave
 app.get("/fetch-leaves", async (req, res) => {
   const { user_data, filter: leaveFilter } = req.query;
   const userData = JSON.parse((user_data));
 
   let filter = {};
-  if(leaveFilter) {
+  if (leaveFilter) {
     filter = JSON.parse(leaveFilter);
   } else {
-    filter = {month: new Date().getMonth()};
+    filter = { month: new Date().getMonth() };
   }
 
   let query = "";
@@ -373,6 +410,12 @@ app.get("/fetch-leaves", async (req, res) => {
 
   try {
     const [teacher_leaves] = await pool.query(query2, values2);
+
+    // teacher_leaves.forEach(async tl => {
+    //   const [substitutor] = await pool.query("select day, period_id, subject_id, subject_name, year, branch_id , branch_name, section, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where teacher_id = ? and cancelled = 1", [tl?.teacher_id]);
+    //   console.log(tl.name, substitutor)
+    // })
+
     // console.log(query2, values2, teacher_leaves)
     const [leaves] = await pool.query(query, values);
     res.json({ success: true, data: leaves, teacher_leaves, message: "leaves fetched" });
@@ -705,11 +748,11 @@ async function fetchAttendance(creds) {
     );
 
     const parsedTable = parseAttendanceTable(i, creds, response.data, newReq);
-    if(newReq === 1) newReq = 0;
+    if (newReq === 1) newReq = 0;
 
     attendance.attendance.push({
       month_id: i,
-      month: new Date(new Date().getFullYear(), i, 1).toLocaleString("en-Gb", {month: "long"}),
+      month: new Date(new Date().getFullYear(), i, 1).toLocaleString("en-Gb", { month: "long" }),
       attendance: parsedTable.attendance,
     })
     attendance.report = parsedTable.report;
@@ -724,13 +767,13 @@ app.get("/fetch-attendance", async (req, res) => {
   const attendance = await fetchAttendance(creds);
 
   // console.log(attendance)
-  res.json({attendance})
+  res.json({ attendance })
 })
 
 
 app.use('/schedule_images', express.static(path.join(__dirname, 'static/schedule_images'), {
   setHeaders: (res, path) => {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); // Tell phones not to cache
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); // Tell phones not to cache
   }
 }));
 
@@ -739,17 +782,17 @@ app.use('/schedule_images', express.static(path.join(__dirname, 'static/schedule
 // Night 10:00 pm
 cron.schedule("0 22 * * *", () => {
   console.log("Running task at 10:00 PM every day");
-  notifyTimetable(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1).toLocaleDateString("en-Gb", {weekday: "long"}));
+  notifyTimetable(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1).toLocaleDateString("en-Gb", { weekday: "long" }));
 }, { timezone: "Asia/Kolkata" })
 
 // Morning 08:00 am
 cron.schedule("19 13 * * *", () => {
   console.log("Running task at 08:00 AM every day");
-  notifyTimetable(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).toLocaleDateString("en-Gb", {weekday: "long"}));
+  notifyTimetable(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).toLocaleDateString("en-Gb", { weekday: "long" }));
 }, { timezone: "Asia/Kolkata" })
 
 
-notifyTimetable("Monday");
+// notifyTimetable("Monday");
 
 async function notifyTimetable(day) {
   const years = [1, 2, 3, 4];
@@ -776,7 +819,7 @@ async function notifyTimetable(day) {
         let message = "";
 
         classes.forEach((clas) => {
-          message += `${clas.period_id}) ${clas.subject_id} • ${clas.subject_name.length > 26 ? clas.subject_name.slice(0,23) + "..." : clas.subject_name}\n`
+          message += `${clas.period_id}) ${clas.subject_id} • ${clas.subject_name.length > 26 ? clas.subject_name.slice(0, 23) + "..." : clas.subject_name}\n`
         })
 
         // create image of timetable
@@ -805,8 +848,6 @@ async function notifyTimetable(day) {
               // }
             }
           });
-
-          console.log("notification sent")
         }
       });
     });
@@ -825,7 +866,6 @@ app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
 
 
 // helpers
-
 async function notifyGroup(title, body, target_year, target_branch, target_section) {
   return new Promise(async (resolve, reject) => {
 

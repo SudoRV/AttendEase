@@ -6,6 +6,7 @@ import { name as appName } from './app.json';
 import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebase/messaging';
 import notifee, { AndroidStyle, EventType, AndroidImportance, AndroidVisibility } from '@notifee/react-native';
 
+const isProduction = false;
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
   : "http://10.108.224.42:8000";
