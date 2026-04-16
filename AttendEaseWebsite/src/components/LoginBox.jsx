@@ -4,7 +4,7 @@ import { AppStates } from '../services/states';
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { setUserData } = AppStates();
+  const { setUserData, buildUrl } = AppStates();
 
   // 2. Update the handleSubmit function
   const handleSubmit = async (e) => {
@@ -15,7 +15,7 @@ function LoginPage() {
     const formData = Object.fromEntries(form.entries());
 
     // authenticate user login
-    const response = await fetch("/login", {
+    const response = await fetch(buildUrl("/login"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -52,7 +52,7 @@ function LoginPage() {
 
     // validate email id
     if (field.name === "email") {
-      const response = await fetch("/validate-creds", {
+      const response = await fetch(buildUrl("/validate-creds"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

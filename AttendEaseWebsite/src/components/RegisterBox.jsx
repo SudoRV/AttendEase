@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom'; // (Recommended for real React apps)
+import { AppStates } from "../services/states";
 
 function RegisterPage() {
+  const { buildUrl } = AppStates();
+
   const navigate = useNavigate();
   // 1. State to manage the selected role
   const [selectedRole, setSelectedRole] = useState('');
   const [isEmailValid, setEmailValid] = useState(null);
   const [isIDValid, setIDValid] = useState(null);
+
 
   // 2. State to manage form inputs (Recommended, though basic form is shown here)
   const [formData, setFormData] = useState({
@@ -24,7 +28,7 @@ function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const response = await fetch("/register", {
+    const response = await fetch(buildUrl("/register"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -98,7 +102,7 @@ function RegisterPage() {
 
     // validate email and techer/student id
     if (name === "email" || name === "student_id" || name === "teacher_id") {
-      const response = await fetch("/validate-creds", {
+      const response = await fetch(buildUrl("/validate-creds"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

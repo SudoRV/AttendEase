@@ -7,6 +7,18 @@ const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
 
+    const isProduction = false;
+
+    // ⚠️ IMPORTANT:
+    // Replace this with your computer’s local IP
+    // Example: http://192.168.1.5:8000
+    const BASE_URL = isProduction
+        ? "https://attendease-nivr.onrender.com"
+        : `http://${window.location.hostname}:8000`;
+
+    const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
+
+
     const [userData, setUserData] = useState({});
     const [classes, setClasses] = useState([]);
     const [leaveHistory, setLeaveHistory] = useState([]);
@@ -50,7 +62,7 @@ export const GlobalProvider = ({ children }) => {
         if (role === "Student") url = `/get-timetable?year=${year}&branch=${branch}&section=${section}&day=${day}`;
         else url = `/get-timetable?teacher_name=${encodeURIComponent(userCreds?.name)}&teacher_id=${userCreds?.teacher_id}&day=${day}`;
 
-        const response = await fetch(url);
+        const response = await fetch(buildUrl(url));
         let data = await response.json();
         data = data.data;
 
@@ -122,7 +134,7 @@ export const GlobalProvider = ({ children }) => {
             const token = await requestFCMToken();
             if (!token) return false;
 
-            const response = await fetch("/save-fcm-token", {
+            const response = await fetch(buildUrl("/save-fcm-token"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -152,7 +164,8 @@ export const GlobalProvider = ({ children }) => {
     async function loadLeaves() {
         if (!userData?.email) return;
         const url = `/fetch-leaves?user_data=${encodeURIComponent(JSON.stringify(userData))}`;
-        const response = await doFetch(url, "GET");
+        console.log(buildUrl(url))
+        const response = await doFetch(buildUrl(url), "GET");
         const leaves = await response.data.json();
 
         setLeaveHistory(leaves.data);
@@ -161,7 +174,7 @@ export const GlobalProvider = ({ children }) => {
     // functions
     async function doFetch(url, method = "GET", headers = {}, body = null) {
         try {
-            const response = await fetch(url, {
+            const response = await fetch(buildUrl(url), {
                 method,
                 headers,
                 body
@@ -219,6 +232,8 @@ export const GlobalProvider = ({ children }) => {
 
 
     const exports = {
+        BASE_URL,
+        buildUrl,
         doFetch,
         userData, setUserData,
         classes, setClasses,

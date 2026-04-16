@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { View, StyleSheet } from "react-native";
 
-import LoginPage from "../components/Login";
-import RegisterPage from "../components/Register";
+import LoginPage from "./Login";
+import RegisterPage from "./Register";
 
 export default function Auth() {
   const [mode, setMode] = useState("login");

@@ -7,7 +7,7 @@ export default function Announce() {
 
     const formRef = useRef(HTMLFormElement);
     const [loading, setLoading] = useState(false);
-    const { userData } = AppStates();
+    const { userData, buildUrl } = AppStates();
     const [targetYears, setTargetYears] = useState([]);
     const [targetBranches, setTargetBranches] = useState([]);
     const [targetSections, setTargetSections] = useState([]);
@@ -29,7 +29,7 @@ export default function Announce() {
 
         setLoading(true);
         // upload to server 
-        const response = await fetch("/announce", {
+        const response = await fetch(buildUrl("/announce"), {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"

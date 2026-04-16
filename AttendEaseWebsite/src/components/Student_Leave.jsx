@@ -7,7 +7,7 @@ const LeaveBox = () => {
   const applicable_from_ref = useRef(HTMLInputElement);
   const applicable_to_ref = useRef(HTMLInputElement);
 
-  const { userData, leaveHistory, loadLeaves } = AppStates();
+  const { userData, leaveHistory, loadLeaves, buildUrl } = AppStates();
 
   useEffect(() => {
     // fetch leave
@@ -36,7 +36,7 @@ const LeaveBox = () => {
       applicable_to: to
     }
 
-    const response = await fetch("/upload-leave", {
+    const response = await fetch(buildUrl("/upload-leave"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
