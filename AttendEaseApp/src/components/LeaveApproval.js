@@ -65,7 +65,7 @@ const StudentLeaveManagement = () => {
         method: "GET",
         headers: {
           "x-action": action,
-          "x-applicant": applicant.student_id,
+          "x-applicant": JSON.stringify(applicant),
           "x-verifier": JSON.stringify({
             role: userData.role,
             teacher_id: userData.teacher_id,

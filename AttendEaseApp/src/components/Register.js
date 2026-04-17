@@ -25,32 +25,41 @@ function RegisterPage({ onSwitch }) {
     password: "",
     student_id: "",
     teacher_id: "",
-    branch: "",
-    year: ""
+    branch_id: "",
+    year: "",
+    semester: "",
+    section: "A"
   });
 
   /* =====================
-     VALIDATION
+      VALIDATION
   ===================== */
   const validateField = async (field, value) => {
-    const response = await fetch(buildUrl("/validate-creds"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: value })
-    });
+    try {
+      const response = await fetch(buildUrl("/validate-creds"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value })
+      });
 
-    const res = await response.json();
-    const available = !res.success;
+      const res = await response.json();
+      const available = !res.success;
 
-    if (field === "email") setEmailValid(available);
-    else setIDValid(available);
+      if (field === "email") setEmailValid(available);
+      else setIDValid(available);
+    } catch (error) {
+      console.error("Validation Error:", error);
+    }
   };
 
   const handleChange = (name, value) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    // Auto-capitalize Section input
+    const finalValue = name === "section" ? value.toUpperCase() : value;
+
+    setFormData(prev => ({ ...prev, [name]: finalValue }));
 
     if (["email", "student_id", "teacher_id"].includes(name)) {
-      validateField(name, value);
+      validateField(name, finalValue);
     }
   };
 
@@ -60,27 +69,36 @@ function RegisterPage({ onSwitch }) {
       return;
     }
 
-    const response = await fetch(buildUrl("/register"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData)
-    });
+    const cleanedData = Object.entries(formData).reduce((acc, [key, value]) => {
+      acc[key] = value === "" ? null : value;
+      return acc;
+    }, {});
 
-    const res = await response.json();
-    Alert.alert("Response", res.message);
+    try {
+      const response = await fetch(buildUrl("/register"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cleanedData)
+      });
 
-    if (res.success) {
-      await AsyncStorage.setItem(
-        "user_creds",
-        JSON.stringify(formData)
-      );
-      setUserData(formData);
+      const res = await response.json();
+      console.log(res)
+      Alert.alert("User Registration", res.message);
+
+      if (res.success) {
+        await AsyncStorage.setItem(
+          "user_creds",
+          JSON.stringify(formData)
+        );
+        setUserData(formData);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Registration failed. Check your connection.");
     }
   };
 
   return (
-    <ScrollView className="flex-1 px-4">
-
+    <ScrollView className="flex-1 px-4 bg-gray-50">
       {/* TITLE */}
       <View className="items-center mt-16 mb-8">
         <Text className="text-3xl font-extrabold text-indigo-600">
@@ -92,18 +110,16 @@ function RegisterPage({ onSwitch }) {
       </View>
 
       {/* CARD */}
-      <View className="bg-white rounded-2xl shadow p-6">
-
+      <View className="bg-white rounded-2xl shadow-lg p-6 mb-10">
         <Text className="text-2xl font-bold text-center mb-1">
           Create Account
         </Text>
-
         <Text className="text-center text-gray-500 text-sm mb-6">
           Register to continue
         </Text>
 
-        {/* ROLE */}
-        <View className="border rounded-xl mb-4">
+        {/* ROLE PICKER */}
+        <View className="border border-gray-300 rounded-xl mb-4 overflow-hidden">
           <Picker
             selectedValue={selectedRole}
             onValueChange={(value) => {
@@ -120,7 +136,7 @@ function RegisterPage({ onSwitch }) {
         {/* NAME */}
         <TextInput
           placeholder="Full Name"
-          className="border rounded-xl px-4 py-3 mb-4"
+          className="border border-gray-300 rounded-xl px-4 py-3 mb-4"
           value={formData.name}
           onChangeText={(v) => handleChange("name", v)}
         />
@@ -141,23 +157,23 @@ function RegisterPage({ onSwitch }) {
           autoCapitalize="none"
         />
 
-        {/* TEACHER */}
+        {/* TEACHER SPECIFIC */}
         {selectedRole === "Teacher" && (
           <TextInput
             placeholder="Teacher ID"
-            className="border rounded-xl px-4 py-3 mb-4"
+            className="border border-gray-300 rounded-xl px-4 py-3 mb-4"
             value={formData.teacher_id}
             onChangeText={(v) => handleChange("teacher_id", v)}
           />
         )}
 
-        {/* STUDENT */}
+        {/* STUDENT SPECIFIC */}
         {selectedRole === "Student" && (
           <>
-            <View className="border rounded-xl mb-4">
+            <View className="border border-gray-300 rounded-xl mb-4 overflow-hidden">
               <Picker
-                selectedValue={formData.branch}
-                onValueChange={(v) => handleChange("branch", v)}
+                selectedValue={formData.branch_id}
+                onValueChange={(v) => handleChange("branch_id", v)}
               >
                 <Picker.Item label="Select Branch" value="" />
                 <Picker.Item label="CSE" value="CSE" />
@@ -168,22 +184,48 @@ function RegisterPage({ onSwitch }) {
               </Picker>
             </View>
 
-            <View className="border rounded-xl mb-4">
+            <View className="border border-gray-300 rounded-xl mb-4 overflow-hidden">
               <Picker
                 selectedValue={formData.year}
                 onValueChange={(v) => handleChange("year", v)}
               >
                 <Picker.Item label="Select Year" value="" />
-                <Picker.Item label="1st" value="1" />
-                <Picker.Item label="2nd" value="2" />
-                <Picker.Item label="3rd" value="3" />
-                <Picker.Item label="4th" value="4" />
+                <Picker.Item label="1st Year" value="1" />
+                <Picker.Item label="2nd Year" value="2" />
+                <Picker.Item label="3rd Year" value="3" />
+                <Picker.Item label="4th Year" value="4" />
               </Picker>
             </View>
 
+            {/* SEMESTER PICKER (1-10) */}
+            <View className="border border-gray-300 rounded-xl mb-4 overflow-hidden">
+              <Picker
+                selectedValue={formData.semester}
+                onValueChange={(v) => handleChange("semester", v)}
+              >
+                <Picker.Item label="Select Semester" value="" />
+                {Array.from({ length: 10 }, (_, i) => (
+                  <Picker.Item 
+                    key={i + 1} 
+                    label={`Semester ${i + 1}`} 
+                    value={(i + 1).toString()} 
+                  />
+                ))}
+              </Picker>
+            </View>
+
+            {/* SECTION INPUT (Auto-Capitalized) */}
+            <TextInput
+              placeholder="Section (e.g. A, B, C)"
+              className="border border-gray-300 rounded-xl px-4 py-3 mb-4"
+              value={formData.section}
+              autoCapitalize="characters"
+              onChangeText={(v) => handleChange("section", v)}
+            />
+
             <TextInput
               placeholder="Student ID"
-              className="border rounded-xl px-4 py-3 mb-4"
+              className="border border-gray-300 rounded-xl px-4 py-3 mb-4"
               value={formData.student_id}
               onChangeText={(v) => handleChange("student_id", v)}
             />
@@ -194,7 +236,7 @@ function RegisterPage({ onSwitch }) {
         <TextInput
           placeholder="Password"
           secureTextEntry
-          className="border rounded-xl px-4 py-3 mb-6"
+          className="border border-gray-300 rounded-xl px-4 py-3 mb-6"
           value={formData.password}
           onChangeText={(v) => handleChange("password", v)}
         />
@@ -214,16 +256,16 @@ function RegisterPage({ onSwitch }) {
           </Text>
         </TouchableOpacity>
 
-        {/* SWITCH */}
+        {/* SWITCH TO LOGIN */}
         <TouchableOpacity
-          onPress={onSwitch}
+          onSwitch={onSwitch}
           className="mt-4"
+          onPress={onSwitch}
         >
           <Text className="text-center text-indigo-600 underline">
             Already have an account? Login
           </Text>
         </TouchableOpacity>
-
       </View>
     </ScrollView>
   );

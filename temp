@@ -1,0 +1,85 @@
+INSERT INTO schedule 
+(branch_id, branch_name, year, section, day, period_id, subject_id, subject_name, room_number, cancelled)
+VALUES
+
+-- Monday
+('CSE','Computer Science and Engineering',4,'A','Monday',1,'CST-043','Big Data Analytics',27,0),
+('CSE','Computer Science and Engineering',4,'A','Monday',2,'CET-060','Construction Equipment & Automation',27,0),
+('CSE','Computer Science and Engineering',4,'A','Monday',3,'AHT-016','Project Management & Entrepreneurship',27,0),
+('CSE','Computer Science and Engineering',4,'A','Monday',5,'CSP-020','Major Project',27,0),
+('CSE','Computer Science and Engineering',4,'A','Monday',6,'CSP-020','Major Project',27,0),
+('CSE','Computer Science and Engineering',4,'A','Monday',7,'CSP-020','Major Project',27,0),
+
+-- Tuesday
+('CSE','Computer Science and Engineering',4,'A','Tuesday',1,'AHT-016','Project Management & Entrepreneurship',27,0),
+('CSE','Computer Science and Engineering',4,'A','Tuesday',2,'CET-060','Construction Equipment & Automation',27,0),
+('CSE','Computer Science and Engineering',4,'A','Tuesday',3,'MET-046','Project Management',27,0),
+
+-- Wednesday
+('CSE','Computer Science and Engineering',4,'A','Wednesday',1,'MET-046','Project Management',27,0),
+('CSE','Computer Science and Engineering',4,'A','Wednesday',2,'CST-043','Big Data Analytics',27,0),
+('CSE','Computer Science and Engineering',4,'A','Wednesday',6,'CSP-020','Major Project',27,0),
+('CSE','Computer Science and Engineering',4,'A','Wednesday',7,'CSP-020','Major Project',27,0),
+
+-- Thursday
+('CSE','Computer Science and Engineering',4,'A','Thursday',1,'MET-046','Project Management',27,0),
+('CSE','Computer Science and Engineering',4,'A','Thursday',2,'CST-043','Big Data Analytics',27,0),
+('CSE','Computer Science and Engineering',4,'A','Thursday',6,'CSP-020','Major Project',27,0),
+('CSE','Computer Science and Engineering',4,'A','Thursday',7,'CSP-020','Major Project',27,0),
+
+-- Friday
+('CSE','Computer Science and Engineering',4,'A','Friday',2,'CET-060','Construction Equipment & Automation',27,0),
+('CSE','Computer Science and Engineering',4,'A','Friday',3,'AHT-016','Project Management & Entrepreneurship',27,0),
+('CSE','Computer Science and Engineering',4,'A','Friday',5,'CSP-020','Major Project',27,0),
+('CSE','Computer Science and Engineering',4,'A','Friday',6,'CSP-020','Major Project',27,0),
+('CSE','Computer Science and Engineering',4,'A','Friday',7,'CSP-020','Major Project',27,0),
+
+-- Saturday
+('CSE','Computer Science and Engineering',4,'A','Saturday',6,'CSP-020','Major Project',27,0),
+('CSE','Computer Science and Engineering',4,'A','Saturday',7,'CSP-020','Major Project',27,0);
+
+
+
+
+
+
+
+
+
+
+ALTER TABLE users
+
+-- ✅ Datatype corrections
+MODIFY COLUMN id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+MODIFY COLUMN user_id VARCHAR(20) NOT NULL,
+MODIFY COLUMN student_id VARCHAR(20) NULL,
+MODIFY COLUMN teacher_id VARCHAR(32) NULL,
+MODIFY COLUMN name VARCHAR(100) NOT NULL,
+MODIFY COLUMN email VARCHAR(255) NOT NULL,
+MODIFY COLUMN password_hash CHAR(60) NOT NULL,
+MODIFY COLUMN role ENUM('Student','Teacher','Admin') NOT NULL DEFAULT 'Student',
+DROP COLUMN branch,
+ADD COLUMN branch_id VARCHAR(12) NULL,
+ADD COLUMN branch_name VARCHAR(50) NULL,
+MODIFY COLUMN semester TINYINT UNSIGNED NULL,
+MODIFY COLUMN year TINYINT UNSIGNED NULL,
+MODIFY COLUMN section CHAR(1) DEFAULT 'A',
+
+MODIFY COLUMN start_month TINYINT UNSIGNED NULL,
+MODIFY COLUMN collegeId INT UNSIGNED NULL,
+MODIFY COLUMN admissionId INT UNSIGNED NULL,
+MODIFY COLUMN courseId INT UNSIGNED NULL,
+MODIFY COLUMN branchId INT UNSIGNED NULL,
+
+MODIFY COLUMN otp JSON NULL,
+
+-- ✅ Indexes
+ADD UNIQUE KEY unique_user_id (user_id),
+ADD INDEX idx_student_id (student_id),
+ADD INDEX idx_teacher_id (teacher_id),
+ADD INDEX idx_branch_sem (branchId, semester, section),
+ADD INDEX idx_college (collegeId),
+ADD INDEX idx_course (courseId);
+
+
+

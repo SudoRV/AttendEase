@@ -161,15 +161,33 @@ export const GlobalProvider = ({ children }) => {
         }
     }
 
-    async function loadLeaves() {
+    const loadLeaves = async (filter) => {
         if (!userData?.email) return;
-        const url = `/fetch-leaves?user_data=${encodeURIComponent(JSON.stringify(userData))}`;
-        console.log(buildUrl(url))
-        const response = await doFetch(buildUrl(url), "GET");
-        const leaves = await response.data.json();
-
-        setLeaveHistory(leaves.data);
-    }
+    
+        try {
+          const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
+            JSON.stringify(userData)
+          )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}`;
+    
+          const response = await fetch(buildUrl(endpoint));
+          const json = await response.json();
+    
+          // console.log(json)
+    
+          if (filter?.month) {
+            return {
+              month: filter?.month,
+              ...json
+            };
+          }
+          else {
+            setLeaveHistory(json?.data || []);
+            // setTeacherLeaveHistory(json?.teacher_leaves || []);
+          }
+        } catch (err) {
+          console.log("Leaves error:", err);
+        }
+      };
 
     // functions
     async function doFetch(url, method = "GET", headers = {}, body = null) {

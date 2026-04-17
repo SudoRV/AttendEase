@@ -29,7 +29,7 @@ const StudentLeave = () => {
 
   const [latestLeaveModal, setLatestLeaveModal] = useState(false);
   const [latestLeaveCollapsed, setLatestLeaveCollapsed] = useState({ collapsed: false, index: 0 });
-  const [leavesFilter, setLeavesFilter] = useState({ month: new Date().getMonth() });
+  const [leavesFilter, setLeavesFilter] = useState({ month: new Date().getMonth(), set: true });
   const [leavesByMonth, setLeavesByMonth] = useState({});
 
   const formatDate = (date) => {
@@ -261,7 +261,7 @@ const StudentLeave = () => {
 
                       options={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(m => ({ label: new Date(new Date().getFullYear(), m, 1).toLocaleDateString("en-Gb", { month: "long" }), value: m }))}
 
-                      onChange={(filter) => setLeavesFilter({...filter, month: filter.value})}
+                      onChange={(filter) => setLeavesFilter({...filter, month: filter.value, set: false})}
                     />
                   </View>
 

@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt");
 const admin = require("./firebaseAdmin");
 const cron = require("node-cron");
 const path = require("path");
-const { error } = require("console");
+const crypto = require('crypto');
 const axios = require("axios");
 require("dotenv").config();
 
@@ -43,8 +43,16 @@ app.get("/wake-me-up", (req, res) => {
 
 // get fcm token from client
 app.post("/save-fcm-token", async (req, res) => {
-  const { email, token, topics } = req.body;
-  const query = "update users set fcm_token = ? where email = ?";
+  const { user_data, token, topics } = req.body;
+
+  // console.log(user_data)
+
+  const query = `INSERT INTO fcm_tokens (user_id, device_id, fcm_token, device_name, active) 
+  VALUES (?, ?, ?, ?, '1') 
+  ON DUPLICATE KEY UPDATE 
+      fcm_token = VALUES(fcm_token),
+      device_name = VALUES(device_name),
+      active = '1';`;
 
   // subscribe to topics
   topics.forEach(async (topic) => {
@@ -53,8 +61,8 @@ app.post("/save-fcm-token", async (req, res) => {
   })
 
   try {
-    const response = await pool.query(query, [token, email]);
-    // console.log("saved successfully")
+    const result = await pool.query(query, [user_data.user_id, "device-1", token, null]);
+    // console.log("token saved successfully: ", result)
     res.json({ success: true });
   } catch (err) {
     res.json({ success: false, error: err });
@@ -125,40 +133,42 @@ app.post("/login", async (req, res) => {
 })
 
 app.post("/register", async (req, res) => {
-  const { role, name, email, password, student_id, teacher_id, branch, year } = req.body;
+  const { role, name, email, password, student_id, teacher_id, branch, year, semester, section } = req.body;
 
   if (!email || !password) {
     res.json({ success: false, message: "Credentials required" })
   }
+
+  const userId = generateUserId({ role, name, email, student_id, teacher_id });
 
   const response = await validateCreds({
     email,
     [student_id === "" ? "teacher_id" : "student_id"]: student_id === "" ? teacher_id : student_id
   })
 
-  // console.log(response)
+  console.log(userId)
 
   if (response.success == false) {
     // convert password to password hash
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(password, saltRounds);
 
-    req.body.password = password_hash;
+    try {
+      const [result] = await pool.query(
+        `INSERT INTO users (role, name, email, user_id, password_hash, student_id, teacher_id, branch_id, year, semester, section)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [role, name, email, userId, password_hash, student_id, teacher_id, branch, year, semester, section]
+      );
 
-    pool.query(
-      `INSERT INTO users (role, name, email, password_hash, student_id, teacher_id, branch, year)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      Object.values(req.body).map(v => v === "" ? "NULL" : v),
-      (err, result) => {
-        if (err) {
-          console.error("Error inserting user:", err);
-        } else {
-          console.log("User inserted successfully:", result.insertId);
-        }
+      if (result.insertId) {
+        console.log("User inserted successfully # :", result);
+        res.json({ success: true, message: "Registered Successfully" });
       }
-    );
+    } catch (error) {
+      console.error("Error inserting user:", error);
+      res.json({ success: false, message: "Error registering user" });
+    }
 
-    res.json({ success: true, message: "Registered Successfully" });
   } else {
     res.json({ success: false, message: "Already Registered" })
   }
@@ -168,7 +178,7 @@ app.post("/register", async (req, res) => {
 // fetch timetable
 app.get("/get-timetable", async (req, res) => {
   try {
-    const { year, branch, section = "A", day, teacher_id } = req.query;
+    const { year, semester, branch, section = "A", day, teacher_id } = req.query;
 
     // check if cancelled periods are expired or not
     const cancel_cancelled_class_query = `UPDATE schedule
@@ -189,6 +199,7 @@ app.get("/get-timetable", async (req, res) => {
       throw error;
     }
 
+    // teacher timetable
     if (teacher_id && teacher_id !== "undefined") {
       if (day === "" || day === undefined) {
         const query = `select id, day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where teacher_id = ? order by period_id`;
@@ -224,13 +235,14 @@ app.get("/get-timetable", async (req, res) => {
         })
 
       }
+    }
 
-
-    } else {
+    // student timetable
+    else {
       if (day === "" || day === undefined) {
-        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and branch_id = ? and section = ? order by day, period_id`;
+        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and semester = ? and branch_id = ? and section = ? order by day, period_id`;
         const [rows] = await pool.query(query, [
-          year, branch, section,
+          year, semester, branch, section,
         ]);
 
         let timetable = {};
@@ -252,9 +264,9 @@ app.get("/get-timetable", async (req, res) => {
         });
 
       } else {
-        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and branch_id = ? and section = ? and day = ? order by period_id`;
+        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and semester = ? and branch_id = ? and section = ? and day = ? order by period_id`;
         const [classes] = await pool.query(query, [
-          year, branch, section, day
+          year, semester, branch, section, day
         ]);
 
         res.json({
@@ -359,6 +371,7 @@ app.get("/fetch-leaves", async (req, res) => {
   let values = [];
   let values2 = []
 
+  // student leave
   if (userData?.role === "Student") {
     query = "select name, year, branch, student_id, subject, application, applicable_from, applicable_to, status, created_at from leaves where student_id = ? and month(created_at) = ? and year(created_at) = year(current_date()) order by created_at desc";
     values = [userData?.student_id, filter.month + 1];
@@ -373,9 +386,11 @@ app.get("/fetch-leaves", async (req, res) => {
       AND s.section = ?
       AND applicable_to > CURRENT_TIMESTAMP
       `;
-    values2 = [userData.year, userData.branch, userData.section || "A"];
+    values2 = [userData.year, userData.branch_id, userData.section || "A"];
 
-  } else {
+  }
+  // teacher leave
+  else {
     query = `SELECT
       l.name,
       l.year,
@@ -485,11 +500,18 @@ app.post("/upload-leave", async (req, res) => {
 app.get("/verify-leave", async (req, res) => {
   const {
     "x-action": action,
-    "x-applicant": applicant,
+    "x-applicant": applicantt,
     "x-verifier": verifierr,
   } = req.headers;
 
+  const applicant = JSON.parse(applicantt);
   const verifier = JSON.parse(verifierr);
+  console.log(applicant)
+
+  const [tokens] = await pool.query("select f.fcm_tokens, f.active from fcm_tokens f join users u on f.user_id = u?.user_id where u.student_id = ?", [applicant?.student_id])
+
+  console.log(applicant, tokens)
+  return
 
   const query = `update leaves l set l.status = ? where l.student_id = ? 
   and exists (
@@ -500,19 +522,21 @@ app.get("/verify-leave", async (req, res) => {
   )`
 
   try {
-    const [response] = await pool.query(query, [action, applicant, verifier.teacher_id])
+    const [response] = await pool.query(query, [action, applicant?.student_id, verifier.teacher_id])
 
     if (response.affectedRows > 0) {
       res.json({ success: true, message: "successfully " + action });
 
       // notify user
       // fetch user fcm token
-      const [tokens] = await pool.query("select fcm_token from users where student_id = ?", [applicant]);
-      const token = tokens.length > 0 ? tokens[0].fcm_token : null;
 
-      console.log(token)
+      const [tokens] = await pool.query("select f.fcm_tokens, f.active from fcm_tokens f join users u on f.user_id = u?.user_id where u.student_id = ?", [applicant?.user_id])
 
-      await notify(token, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier.teacher_name}`);
+      console.log(tokens)
+
+      // tokens.forEach(async (token) => {
+      //   await notify(token, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier.teacher_name}`);
+      // })
     }
 
   } catch (error) {
@@ -969,4 +993,16 @@ const formatDate = (date) => {
     .replace("T", " ");
 };
 
-// update schedule set cancelled = 0, cancelled_from = NULL, cancelled_to = NULL;
+
+function generateUserId({ role, name, email, student_id, teacher_id }) {
+  const input = `${role}|${name}|${email}|${student_id || ''}|${teacher_id || ''}`;
+
+  const hash = crypto
+    .createHash('sha256')
+    .update(input)
+    .digest('base64')       // compact encoding
+    .replace(/[^a-zA-Z0-9]/g, '') // remove symbols
+    .slice(0, 16);          // take first 12 chars
+
+  return hash;
+}

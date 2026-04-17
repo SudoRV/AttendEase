@@ -206,14 +206,14 @@ export default function ProfileScreen() {
           {userData?.role === "Student" ? (
             <>
               <InfoRow label="Year" value={userData?.year} />
-              <InfoRow label="Branch" value={userData?.branch} />
+              <InfoRow label="Branch" value={userData?.branch_id} />
               <InfoRow label="Section" value={userData?.section} />
               <InfoRow label="Student ID" value={userData?.student_id} />
             </>
           ) : (
             <>
               <InfoRow label="Teacher ID" value={userData?.teacher_id} />
-              <InfoRow label="Department" value={userData?.branch} />
+              <InfoRow label="Department" value={userData?.branch_id} />
             </>
           )}
         </GlassCard>

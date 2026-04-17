@@ -33,7 +33,7 @@ const AlertsScreen = () => {
     if (!userData?.year) return;
 
     try {
-      const endpoint = `/announcements?year=${userData.year}&branch=${userData.branch}&section=${userData.section}`;
+      const endpoint = `/announcements?year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}`;
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
       if (json?.data) setAnnouncements(json.data);

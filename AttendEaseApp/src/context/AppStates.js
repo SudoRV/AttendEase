@@ -13,7 +13,7 @@ const isProduction = false;
 // Example: http://192.168.1.5:8000
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
-  : "http://10.108.224.42:8000";
+  : "http://10.135.93.131:8000";
 
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
@@ -40,7 +40,7 @@ export const GlobalProvider = ({ children }) => {
     let endpoint = "";
 
     if (role === "student") {
-      endpoint = `/get-timetable?year=${userCreds.year}&branch=${userCreds.branch}&section=${section}&day=${day}`;
+      endpoint = `/get-timetable?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
     } else if (role === "teacher") {
       endpoint = `/get-timetable?teacher_name=${encodeURIComponent(
         userCreds?.name || ""
@@ -53,6 +53,15 @@ export const GlobalProvider = ({ children }) => {
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
       const data = json?.data;
+
+      data.classes = data.classes?.map(d => {
+        if(d?.period_id > 4) {
+          return {
+            ...d, 
+            period_id: d.period_id + 1
+          }
+        } else return d;
+      })
 
       if (!data?.classes) return;
 
@@ -74,6 +83,7 @@ export const GlobalProvider = ({ children }) => {
           }
         );
       }
+
 
       if (!selectedDay) setClasses({ day, classes: timetable });
       else return { day, classes: timetable };
@@ -97,9 +107,7 @@ export const GlobalProvider = ({ children }) => {
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
 
-      // console.log(json)
-
-      if (filter?.month) {
+      if (!filter?.set) {
         return {
           month: filter?.month,
           ...json
@@ -155,7 +163,7 @@ export const GlobalProvider = ({ children }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: userCreds.email,
+          user_data: {...userData, device_info: {}},
           token: token,
           topics: topics
         })
