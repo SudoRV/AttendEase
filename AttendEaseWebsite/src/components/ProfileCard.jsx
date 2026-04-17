@@ -27,7 +27,7 @@ const Sidebar = () => {
       </div>
       <div className="w-full h-[1px] bg-gray-100/30"></div>
 
-      <div className="flex gap-3 bg-slate-800 p-4 mt-4 rounded-md">
+      <div className="flex gap-3 bg-indigo-500 p-4 mt-4 rounded-md">
         <div className="avatar">
           {
             userData?.avatar ? (
@@ -48,7 +48,7 @@ const Sidebar = () => {
         </div>
       </div>
 
-      <div className="flex flex-col bg-slate-800 p-4 mt-4 rounded-md overflow-hidden break-all text-slate-300">
+      <div className="flex flex-col bg-indigo-500 p-4 mt-4 rounded-md overflow-hidden break-all text-slate-300">
         {
           userData?.role === "Student" && (
             <>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // <-- IMPORT useNavigate
 import { AppStates } from '../services/states';
+import Header from './Header';
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -67,11 +68,11 @@ function LoginPage() {
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center my-16 gap-24">
-
+    
       <div className="w-full max-w-lg bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8">
-
+        
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">
-          Welcome Back 👋
+          AttendEase
         </h2>
         <p className="text-center text-gray-500 mb-6">
           Login to continue to your dashboard
