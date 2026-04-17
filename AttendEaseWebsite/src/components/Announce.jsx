@@ -129,9 +129,9 @@ export default function Announce() {
                 </div>
 
                 {/* expiry of announcement */}
-                <div className="w-full mt-4 flex items-center">
-                    <label className="label">Expires At: </label>
-                    <input className="select-box flex-1" name="expires_at" type="datetime-local" />
+                <div className="w-full mt-4 items-center">
+                    <label className="label">Deadline: </label> <br />
+                    <input className="input-box flex-1" name="expires_at" type="datetime-local" />
                 </div>
 
                 <button

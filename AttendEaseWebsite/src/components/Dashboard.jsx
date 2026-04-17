@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { FiX, FiMenu, FiLogOut, FiUser } from 'react-icons/fi';
 import { useNavigate } from "react-router-dom";
 import { AppStates } from "../services/states";
+import logo from "../images/scheduler_logo.svg";
 import Announcements from "../components/Announcements";
 import LeaveBox from "../components/Student_Leave";
 import TimeTable from "../components/TimeTable";
-import Footer from "../components/Footer";
-import attendease_logo from "../images/scheduler_logo.svg";
-const StudentDashboard = () => {
+
+const Dashboard = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleDrawer = () => setIsOpen(!isOpen);
@@ -28,7 +28,6 @@ const StudentDashboard = () => {
       <header className="header">
         <FiMenu onClick={toggleDrawer} />
         <h3>AttendEase</h3>
-        
       </header>
 
       {/* Sidebar Overlay */}
@@ -54,7 +53,7 @@ const StudentDashboard = () => {
 
                 <div>
                 <p className="font-medium">{userData?.name}</p>
-                <p className="text-xs">{userData?.email}</p>
+                <p className="text-slate-400">{userData?.email}</p>
                 </div>
             </div>
         
@@ -89,11 +88,12 @@ const StudentDashboard = () => {
       {isOpen && <div className="backdrop" onClick={toggleDrawer} />}
 
       {/* Main Content (Remains stationary) */}
-      <main className="main-content overflow-y-auto">
-        <div className="timetable-section card other">
+      <main className="main-content">
+        <div className="dashboard">
+                <div className="timetable-section">
                     <TimeTable />
                 </div>
-        <div className="dashboard">
+
                 <div className="leave-management card other">
                     <LeaveBox />
                 </div>
@@ -101,14 +101,10 @@ const StudentDashboard = () => {
                 <div className="announcements card other">
                     <Announcements />
                 </div>
-                <div className="footer">
-                          <Footer />
-                        </div>
         </div>
-        
       </main>
     </div>
   );
 };
 
-export default StudentDashboard;
+export default Dashboard;

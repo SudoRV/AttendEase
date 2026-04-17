@@ -138,7 +138,7 @@ const TimeTable = () => {
       <h2>
         <span className="Day-label">{classes.day}</span>
       </h2>
-
+      <div className="overflow-auto">
       <table className="schedule-table">
         <thead>
           <tr>
@@ -168,7 +168,7 @@ const TimeTable = () => {
           </tr>
         </tbody>
       </table>
-
+      
       {/* popup for rightclick */}
       {
         currentEditCell.toglled === true && (
@@ -356,6 +356,7 @@ const TimeTable = () => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

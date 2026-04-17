@@ -8,6 +8,7 @@ import Header from "./components/Header";
 import RequestNotification from "./components/RequestNotification";
 import Footer from "./components/Footer";
 import StudentDashboard from "./pages/Student_Dashboard";
+import Dashboard from "./components/Dashboard";
 import TeacherDashboard from "./pages/Teacher_Dashboard";
 import { GlobalProvider } from "./services/states";
 
@@ -19,7 +20,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Default Route */}
-          <Route path="/" element={<ProtectedDashboard />} />
+          <Route path="/" element={<TeacherDashboard />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
@@ -27,10 +28,6 @@ function App() {
           <Route path="/dashboard" element={<ProtectedDashboard />} />
         </Routes>
       </BrowserRouter>
-      <div className="footers">
-                  <Footer />
-                </div>
-      {/* <Footer /> */}
     </GlobalProvider>
   );
 }
