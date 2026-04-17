@@ -103,7 +103,7 @@ export default function Footer() {
 
       {/* Bottom Bar */}
       <div className="text-center text-xs text-gray-500 py-4 border-t bg-gray-50">
-        © {new Date().getFullYear()} Academic Project • Built with ❤️ by Team
+        © {new Date().getFullYear()} Academic Project 2026 • Built with ❤️ by Team
       </div>
     </footer>
   );

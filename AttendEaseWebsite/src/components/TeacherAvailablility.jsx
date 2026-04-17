@@ -29,19 +29,20 @@ const TeacherAvailability1 = ({ onSubmit }) => {
       <h4 className="headings !m-0 !pt-0">Teacher Availability</h4>
 
       <div className="w-full">
-        <form className="flex flex-col w-full" onSubmit={handleTeacherAvailability}>
+        <form className="flex flex-col" onSubmit={handleTeacherAvailability}>
 
-          <div className="flex w-full gap-3 items-end">
+          <div className="flex flex-col">
             <select className="select-box !h-fit" name="leave_type" value={leaveType} onChange={(e) => setLeaveType(e.target.value)} >
               <option >Select Leave Type</option>
               <option value="period">Period</option>
               <option value="day">Entire Day</option>
               <option value="duration">DateTime Specific</option>
             </select>
+            <br />
 
             {
               leaveType === "period" ? (
-                <>
+                <><br />
                   <Select
                     className="w-full"
                     name="classes"
@@ -70,19 +71,20 @@ const TeacherAvailability1 = ({ onSubmit }) => {
               ) : leaveType === "duration" ? (
                 <>
                   <div className="flex flex-col">
-                    <label>From</label>
+                    <label className="label">From</label>
                     <input className="p-2 rounded-md" name="from" type="date" min={new Date().toISOString().split("T")[0]} />
                   </div>
 
                   <div className="flex flex-col">
-                    <label>To</label>
+                    <label className="label">To</label>
                     <input className="p-2 rounded-md" name="to" type="date" min={new Date().toISOString().split("T")[0]} />
                   </div>
                 </>
               ) : leaveType === "day" ? (
+                
                 <div className="flex flex-col">
                   <label>Select Day</label>
-                  <input className="p-2 rounded-md" name="on" type="date" />
+                  <input className="input-box" name="on" type="date" />
                 </div>
               ) : (
                 ""

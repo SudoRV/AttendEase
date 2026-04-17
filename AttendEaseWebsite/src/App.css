@@ -19,17 +19,26 @@ html,body{
 
 .header {
     display: flex;
-    background-color: #312e81;
-    color: white;
+    background-color: #4f46e5;
+    color: #f8fafc;
     padding: 1.5rem;
     text-align: center;
     align-items: center;
     z-index: 100;
-    font-size: 2.5rem;
+    font-size: 2rem;
+}
+.header h3 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-left: 2%;
+}
+.header svg {
+    height: 2.5rem;
+    margin-left: 0.5rem;
 }
 
 .footer {
-    margin-top: 0.25rem;
+    grid-area: footer;
 
 }
 
@@ -52,7 +61,7 @@ html,body{
 .label {
     font-weight: bold;
     /*font-size: 1.2rem;*/
-    margin: 5px;
+    margin-top: 15px;
     color: #242424;
 }
 
@@ -102,6 +111,8 @@ html,body{
     padding: 0.6rem 0.8rem;
     border: 1px solid grey;
     border-radius: 6px;
+    align-items: center;
+    text-align: center;
 }
 
 .left-coloumn {
@@ -159,16 +170,22 @@ html,body{
     
 }
 
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+}
+
 .dashboard {
     display: grid;
     height: 100%;
     width: 100%;
     grid-template-areas:
-        " sidebar timetable timetable"
-        " sidebar leave announcements"
+        "leave announcements"
+        "footer footer"
         
     ;
-
     /* grid-template-columns: minmax(0, 350px) 1fr 1fr; */
     gap: 1rem;
     padding-bottom: 10px;
@@ -179,40 +196,59 @@ html,body{
     display: grid;
     width: 100%;
     grid-template-areas:
-        "sidebar  timetable timetable"
-        "sidebar  teacher_leave announcements"
-        "sidebar  leave announcements"
-        "sidebar  footer footer"
+        "teacher_leave announcements"
+        "leave announcements"
+        "footer footer"   
     ;
-
     gap: 1rem;
+    padding-bottom: 10px;
+    padding-top: 10px;
+
 }
 
 .sidebar {
-    grid-area: sidebar;
-    height: 100%;
-    min-width: 320px;
-    max-width: 360px;
-    flex-direction: column;
-    background-color: #f8fafc;
-    box-shadow: #8e8e8e 0px 4px 6px -1px;
-    color: #262626;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width:max-content;
+  height: 100%;
+  background-color: #f8fafc;
+  color: #262626;
+  z-index: 100; /* Higher than content */
+  transform: translateX(-100%); /* Hidden by default */
+  transition: transform 0.3s ease-in-out;
+  padding: 20px;
 }
 
-
-.footers {
-    /* grid-area: Footer; */
-    grid-area: footer;
+.sidebar.open {
+  transform: translateX(0); /* Slide in */
 }
 
-.timetable-section {
-    grid-area: timetable;
-    
+.backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 50; /* Between content and sidebar */
+}
+
+.main-content {
+  padding: 20px;
+  background: #f4f4f4;
+  height: 100%;
+}
+
+.hamburger {
+  font-size: 24px;
+  cursor: pointer;
+  background: none;
+  border: none;
 }
 
 .teacher-availability {
     grid-area: teacher_leave;
-    margin-left: 1.2rem;
 }
 
 .leave-management {
@@ -384,9 +420,6 @@ html,body{
     width: 100%;
     flex-direction: column;
     align-items: center;
-    background-color: rgb(255, 255, 255);
-    box-shadow: 0px 4px 6px 0px #30303033;
-    padding: 1rem;
 }
 
 .schedule-table {
@@ -419,6 +452,7 @@ html,body{
 }
 
 .timetable-section {
+    grid-area: timetable;
     left: 280px;
     top: 90px;
 }
@@ -611,17 +645,16 @@ html,body{
 @media screen and (max-width:720px) {
     .dashboard {
         grid-template-areas:
-            "sidebar"
             "timetable"
             "teacher_leave"
             "leave"
             "announcements"
             "footer"
+            
         ;
     }
         .teacher-dashboard {
             grid-template-areas:
-                "sidebar"
                 "timetable"
                 "teacher_leave"
                 "leave"
@@ -629,8 +662,14 @@ html,body{
                 "footer"
             ;
         }
-        .timetable-section {
-            left: 0;
-            top: 0;
-        }   
+    .leave-management {
+        margin: 0;
+        width: 90vw;
+        position: relative;
+    }
+     .announcements {
+        margin: 0;
+        width: 90vw;
+        position: relative;
+    }
 }
