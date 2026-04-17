@@ -54,6 +54,9 @@ export default function ProfileScreen() {
 
           } catch (err) {
             Alert.alert("Error", "Failed to logout." + err);
+          } finally {
+            await AsyncStorage.clear();
+            setUserData(null);
           }
         }
       }

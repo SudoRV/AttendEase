@@ -13,7 +13,7 @@ const isProduction = false;
 // Example: http://192.168.1.5:8000
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
-  : "http://10.135.93.131:8000";
+  : "http://10.73.202.96:8000";
 
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
@@ -107,7 +107,7 @@ export const GlobalProvider = ({ children }) => {
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
 
-      if (!filter?.set) {
+      if (!!filter && !filter?.set) {
         return {
           month: filter?.month,
           ...json
@@ -153,10 +153,12 @@ export const GlobalProvider = ({ children }) => {
       const topics = userCreds.role?.toLowerCase() === "student"
         ? [
           `year_${userCreds.year}`,
-          `branch_${userCreds.branch}`,
-          `${userCreds.branch}_${userCreds.year}_${userCreds.section}`
+          `branch_${userCreds.branch_id}`,
+          `${userCreds.branch_id}_${userCreds.year}_${userCreds.section}`
         ]
-        : ["teachers"];
+        : ["teachers"];     
+
+        console.log(topics)
 
       // 3. Save to your database
       const response = await fetch(buildUrl("/save-fcm-token"), {

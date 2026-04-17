@@ -54,7 +54,7 @@ const StudentLeaveManagement = () => {
 
       return (
         l.year === currentClass.year &&
-        l.branch === currentClass.branch &&
+        l.branch === currentClass.branch_id &&
         l.section === currentClass.section
       );
     });
@@ -62,16 +62,21 @@ const StudentLeaveManagement = () => {
   async function verifyLeave(action, applicant) {
     try {
       const response = await fetch(`${BASE_URL}/verify-leave`, {
-        method: "GET",
+        method: "POST",
         headers: {
-          "x-action": action,
-          "x-applicant": JSON.stringify(applicant),
-          "x-verifier": JSON.stringify({
-            role: userData.role,
-            teacher_id: userData.teacher_id,
-            teacher_name: userData.name
-          })
-        }
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(
+          {
+            action: action,
+            applicant: applicant,
+            verifier: {
+              role: userData.role,
+              teacher_id: userData.teacher_id,
+              teacher_name: userData.name
+            }, 
+          }
+        )
       });
 
       const res_data = await response.json();
@@ -89,10 +94,11 @@ const StudentLeaveManagement = () => {
   }
 
   useEffect(() => {
-    loadLeaves("Teacher");
+    loadLeaves();
   }, [userData]);
 
   useEffect(() => {
+    console.log(classes)
     setCurrentClass(classes.classes?.find(c => c.isCurrentPeriod));
   }, [classes]);
 
@@ -178,7 +184,6 @@ const StudentLeaveManagement = () => {
           <TouchableOpacity
             key={mode}
             onPress={() => setFilterMode(mode)}
-            disabled={mode === "period" && !currentClass}
             className={`px-4 py-2 rounded-full ${filterMode === mode
               ? "bg-indigo-600"
               : "bg-white border border-slate-300"

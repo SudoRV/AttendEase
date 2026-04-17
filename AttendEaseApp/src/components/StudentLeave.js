@@ -43,8 +43,11 @@ const StudentLeave = () => {
   async function fetchLeaves() {
     if (!userData?.email) return;
     const leaves_by_month = await loadLeaves(leavesFilter);
-    if (leaves_by_month?.month) {
+    
+    if (leaves_by_month?.data?.length > 0) {
       setLeavesByMonth(leaves_by_month);
+    } else {
+      setLeavesByMonth([]);
     }
   }
 
@@ -95,7 +98,7 @@ const StudentLeave = () => {
         setFromDate(null);
         setToDate(null);
 
-        loadLeaves(leavesFilter);
+        loadLeaves();
       } else {
         Alert.alert("Error", resdata.message || "Something went wrong.");
       }
@@ -216,7 +219,7 @@ const StudentLeave = () => {
               </View>
 
 
-              {/* application modal */}
+              {/* application details modal */}
               <Modal transparent={true} visible={latestLeaveModal} animationType="slide">
                 <View className="bg-white flex-1 p-5 rounded-t-3xl">
                   <View className="flex-row justify-between">

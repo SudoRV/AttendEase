@@ -35,7 +35,7 @@ const config2 = {
   waitForConnections: true,
 }
 
-const pool = mysql.createPool(config);
+const pool = mysql.createPool(config2);
 
 app.get("/wake-me-up", (req, res) => {
   res.json({ success: true, message: "i already wokeup" });
@@ -133,7 +133,7 @@ app.post("/login", async (req, res) => {
 })
 
 app.post("/register", async (req, res) => {
-  const { role, name, email, password, student_id, teacher_id, branch, year, semester, section } = req.body;
+  const { role, name, email, password, student_id, teacher_id, branch_id, year, semester, section } = req.body;
 
   if (!email || !password) {
     res.json({ success: false, message: "Credentials required" })
@@ -146,8 +146,6 @@ app.post("/register", async (req, res) => {
     [student_id === "" ? "teacher_id" : "student_id"]: student_id === "" ? teacher_id : student_id
   })
 
-  console.log(userId)
-
   if (response.success == false) {
     // convert password to password hash
     const saltRounds = 10;
@@ -157,7 +155,7 @@ app.post("/register", async (req, res) => {
       const [result] = await pool.query(
         `INSERT INTO users (role, name, email, user_id, password_hash, student_id, teacher_id, branch_id, year, semester, section)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [role, name, email, userId, password_hash, student_id, teacher_id, branch, year, semester, section]
+        [role, name, email, userId, password_hash, student_id, teacher_id, branch_id, year, semester, section]
       );
 
       if (result.insertId) {
@@ -324,13 +322,9 @@ app.post("/set-substitutor", async (req, res) => {
   // check if teacher exists or not 
   const [substitutorExists] = await pool.query("select teacher_id from users where teacher_id = ?", [substitutor.teacher_id]);
 
-  console.log(substitutorExists);
-
   if (!!substitutorExists[0]?.teacher_id) {
     if (action === "cancel") {
       const [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [null, null, null, class_id]);
-
-      console.log(result)
 
       if (result.affectedRows > 0) {
         return res.status(200).json({ success: true, message: "Substitution cancelled." });
@@ -339,12 +333,20 @@ app.post("/set-substitutor", async (req, res) => {
       }
     }
 
+    // update database
     const [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [substitutor.teacher_id, substitutor.teacher_name, substitutor.substituted_till, class_id]);
-
-    console.log(result)
 
     if (result.affectedRows > 0) {
       res.status(200).json({ success: true, message: "Class substituted successfully" });
+
+      //notify students
+      const [substitutedClass] = await pool.query("select subject_id, subject_name, teacher_id, teacher_name, year, branch_id, section from schedule where id = ?", [class_id]);
+      console.log(substitutedClass)
+
+      if(substitutedClass[0]?.teacher_id) {
+        notifyGroup("Class substitution", `Class ${substitutedClass[0].subject_name} of ${substitutedClass[0].teacher_name} is substituted by ${substitutor.teacher_name}`, [substitutedClass[0].year], [substitutedClass[0].branch_id], [substitutedClass[0].section]);
+      }
+      
     } else {
       res.status(400).json({ success: false, message: "Something went wrong." });
     }
@@ -371,14 +373,14 @@ app.get("/fetch-leaves", async (req, res) => {
   let values = [];
   let values2 = []
 
-  // student leave
+  // student fetching leave
   if (userData?.role === "Student") {
-    query = "select name, year, branch, student_id, subject, application, applicable_from, applicable_to, status, created_at from leaves where student_id = ? and month(created_at) = ? and year(created_at) = year(current_date()) order by created_at desc";
+    query = "select id, name, year, branch, student_id, subject, application, applicable_from, applicable_to, status, created_at from leaves where student_id = ? and month(created_at) = ? and year(created_at) = year(current_date()) order by created_at desc";
     values = [userData?.student_id, filter.month + 1];
 
     // teacher leaves
     query2 = `
-      SELECT DISTINCT l.teacher_id, l.name, l.applicable_from, l.applicable_to, l.status
+      SELECT DISTINCT l.id, l.teacher_id, l.name, l.applicable_from, l.applicable_to, l.status
       FROM leaves l
       JOIN schedule s ON l.teacher_id = s.teacher_id
       WHERE s.year = ? 
@@ -389,9 +391,10 @@ app.get("/fetch-leaves", async (req, res) => {
     values2 = [userData.year, userData.branch_id, userData.section || "A"];
 
   }
-  // teacher leave
+  // teacher fetching leave
   else {
     query = `SELECT
+      l.id, 
       l.name,
       l.year,
       l.branch,
@@ -404,6 +407,7 @@ app.get("/fetch-leaves", async (req, res) => {
       l.created_at,
       COUNT(*) OVER (PARTITION BY l.student_id) AS total_leaves
     FROM leaves l
+
     WHERE
       l.applicable_to > CURRENT_DATE
       AND EXISTS (
@@ -415,12 +419,14 @@ app.get("/fetch-leaves", async (req, res) => {
           AND s.section = l.section
           AND FIND_IN_SET(s.day, l.affected_days)
       )
+    
     ORDER BY l.created_at DESC;
     `;
+
     values = [userData?.teacher_id]
 
     // teacher leaves
-    query2 = `select teacher_id, name, applicable_from, applicable_to, status from leaves where teacher_id != 'not a teacher' and applicable_to > current_timestamp`;
+    query2 = `select teacher_id, id, name, applicable_from, applicable_to, status from leaves where teacher_id != 'not a teacher' and applicable_to > current_timestamp`;
   }
 
   try {
@@ -469,7 +475,7 @@ app.post("/upload-leave", async (req, res) => {
         and applicable_from = ?
         and applicable_to = ?
      )`;
-    values = [applicant?.name, applicant?.year, applicant?.branch, applicant?.student_id, subject, application, applicable_from, applicable_to, affected_days, applicant?.student_id, applicable_from, applicable_to];
+    values = [applicant?.name, applicant?.year, applicant?.branch_id, applicant?.student_id, subject, application, applicable_from, applicable_to, affected_days, applicant?.student_id, applicable_from, applicable_to];
   }
 
   try {
@@ -487,31 +493,18 @@ app.post("/upload-leave", async (req, res) => {
     }
   } catch (err) {
     if (err.code === "ER_DUP_ENTRY") {
-      res.json({ success: false, message: "Duplicate application found" })
+      res.json({ success: false, message: "Duplicate application found" });
       return;
     }
-    console.log(err)
+    console.log(err);
     res.json({ success: false, message: "error while submitting" })
   }
 })
 
 
 // verify leave ( reject approve )
-app.get("/verify-leave", async (req, res) => {
-  const {
-    "x-action": action,
-    "x-applicant": applicantt,
-    "x-verifier": verifierr,
-  } = req.headers;
-
-  const applicant = JSON.parse(applicantt);
-  const verifier = JSON.parse(verifierr);
-  console.log(applicant)
-
-  const [tokens] = await pool.query("select f.fcm_tokens, f.active from fcm_tokens f join users u on f.user_id = u?.user_id where u.student_id = ?", [applicant?.student_id])
-
-  console.log(applicant, tokens)
-  return
+app.post("/verify-leave", async (req, res) => {
+  const { action, applicant, verifier } = req.body;
 
   const query = `update leaves l set l.status = ? where l.student_id = ? 
   and exists (
@@ -530,13 +523,13 @@ app.get("/verify-leave", async (req, res) => {
       // notify user
       // fetch user fcm token
 
-      const [tokens] = await pool.query("select f.fcm_tokens, f.active from fcm_tokens f join users u on f.user_id = u?.user_id where u.student_id = ?", [applicant?.user_id])
+      const [tokens] = await pool.query(`select f.fcm_token, f.active from fcm_tokens f join users u on f.user_id = u.user_id where u.student_id = ?`, [applicant.student_id]);
 
-      console.log(tokens)
-
-      // tokens.forEach(async (token) => {
-      //   await notify(token, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier.teacher_name}`);
-      // })
+      tokens.forEach(async (token) => {
+        if(token.active) {
+          await notify(token.fcm_token, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier.teacher_name}`);
+        }
+      })
     }
 
   } catch (error) {

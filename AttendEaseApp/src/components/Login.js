@@ -167,7 +167,7 @@ export default function LoginPage({ onSwitch }) {
       style={styles.container}
     >
       <View style={styles.card}>
-        <Text style={styles.title}>Scheduler</Text>
+        <Text style={styles.title}>AttendEase</Text>
         <Text style={styles.subtitle}>Smart academic communication</Text>
 
         <Text style={styles.header}>Welcome Back 👋</Text>

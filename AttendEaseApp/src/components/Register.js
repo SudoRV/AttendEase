@@ -102,7 +102,7 @@ function RegisterPage({ onSwitch }) {
       {/* TITLE */}
       <View className="items-center mt-16 mb-8">
         <Text className="text-3xl font-extrabold text-indigo-600">
-          Scheduler
+          AttendEase
         </Text>
         <Text className="text-sm text-gray-600 mt-1">
           Smart academic communication
@@ -144,13 +144,12 @@ function RegisterPage({ onSwitch }) {
         {/* EMAIL */}
         <TextInput
           placeholder="Email"
-          className={`border rounded-xl px-4 py-3 mb-4 ${
-            isEmailValid === false
+          className={`border rounded-xl px-4 py-3 mb-4 ${isEmailValid === false
               ? "border-red-500"
               : isEmailValid === true
-              ? "border-green-500"
-              : "border-gray-300"
-          }`}
+                ? "border-green-500"
+                : "border-gray-300"
+            }`}
           value={formData.email}
           onChangeText={(v) => handleChange("email", v)}
           keyboardType="email-address"
@@ -205,10 +204,10 @@ function RegisterPage({ onSwitch }) {
               >
                 <Picker.Item label="Select Semester" value="" />
                 {Array.from({ length: 10 }, (_, i) => (
-                  <Picker.Item 
-                    key={i + 1} 
-                    label={`Semester ${i + 1}`} 
-                    value={(i + 1).toString()} 
+                  <Picker.Item
+                    key={i + 1}
+                    label={`Semester ${i + 1}`}
+                    value={(i + 1).toString()}
                   />
                 ))}
               </Picker>
@@ -245,11 +244,10 @@ function RegisterPage({ onSwitch }) {
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={!(isEmailValid && isIDValid)}
-          className={`py-3 rounded-xl ${
-            isEmailValid && isIDValid
+          className={`py-3 rounded-xl ${isEmailValid && isIDValid
               ? "bg-indigo-600"
               : "bg-gray-400"
-          }`}
+            }`}
         >
           <Text className="text-white text-center font-semibold">
             Register
@@ -262,9 +260,12 @@ function RegisterPage({ onSwitch }) {
           className="mt-4"
           onPress={onSwitch}
         >
-          <Text className="text-center text-indigo-600 underline">
-            Already have an account? Login
-          </Text>
+          <View className="flex-row text-center justify-center">
+            <Text>Already have an account? </Text>
+            <Text className="text-center font-semibold text-indigo-500 underline">
+              Login
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
     </ScrollView>

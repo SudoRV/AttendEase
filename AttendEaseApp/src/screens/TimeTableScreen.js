@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AttendanceDashboard from "../components/AttendanceDashbboard";
+import NotSignedIn from "../components/NotSignedIn";
 import { AppStates } from "../context/AppStates";
 
 const { width, height } = Dimensions.get("window");
@@ -45,6 +46,12 @@ const TimeTableScreen = () => {
     setSelectedSlot(item);
     setLeaveModalVisible(true);
   };
+
+  // if(!userData?.user_id) {
+  //   return (
+  //     <NotSignedIn />
+  //   )
+  // }
 
   return (
     <>

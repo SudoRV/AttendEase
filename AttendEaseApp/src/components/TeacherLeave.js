@@ -584,7 +584,7 @@ const renderTeacherLeaves = (
                                                 📍 Room {clas.room_number}
                                             </Text>
                                             <Text className="text-gray-500">
-                                                👥 Sec {clas.section} ({clas.branch_id})
+                                                {clas.branch_id} - Year {clas.year} - Sec {clas.section} 
                                             </Text>
                                         </View>
 

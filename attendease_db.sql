@@ -19,7 +19,7 @@
 -- Table structure for table `announcements`
 --
 
-use bw29rwejnmb7a0ihv8ip;
+USE bw29rwejnmb7a0ihv8ip;
 
 DROP TABLE IF EXISTS `announcements`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -37,7 +37,7 @@ CREATE TABLE `announcements` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `delete_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=117 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=119 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -46,8 +46,38 @@ CREATE TABLE `announcements` (
 
 LOCK TABLES `announcements` WRITE;
 /*!40000 ALTER TABLE `announcements` DISABLE KEYS */;
-INSERT INTO `announcements` VALUES (115,'hi','hey','{\"id\": \"44a1091acf2eb87937042d3fbda5124f\", \"name\": \"Prof. Hardwari Lal Mandoria\"}','{\"years\": [\"4\"]}','{\"branches\": [\"CSE\"]}','{\"sections\": [\"A\"]}','Expired','2026-03-30 07:48:47','2026-03-30 10:45:59','2026-03-30 13:24:00'),(116,'hi','gello','{\"id\": \"44a1091acf2eb87937042d3fbda5124f\", \"name\": \"Prof. Hardwari Lal Mandoria\"}','{\"years\": [\"4\"]}','{\"branches\": [\"CSE\"]}','{\"sections\": [\"A\"]}','Expired','2026-03-30 07:49:17','2026-03-30 10:45:59','2026-03-30 13:25:00');
+INSERT INTO `announcements` VALUES (118,'Hello','Hi','{\"id\": \"T_RISHABH\", \"name\": \"Rishabh Kushwaha \"}','{\"years\": [\"4\"]}','{\"branches\": [\"CSE\"]}','{\"sections\": [\"A\"]}','Active','2026-04-17 14:41:11','2026-04-17 14:41:11','2026-04-17 21:15:00');
 /*!40000 ALTER TABLE `announcements` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `fcm_tokens`
+--
+
+DROP TABLE IF EXISTS `fcm_tokens`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `fcm_tokens` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(20) NOT NULL,
+  `device_name` varchar(50) DEFAULT NULL,
+  `device_id` varchar(50) DEFAULT NULL,
+  `fcm_token` varchar(255) NOT NULL,
+  `active` enum('0','1') DEFAULT '1',
+  `last_updated` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_user_device` (`user_id`,`device_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=103 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `fcm_tokens`
+--
+
+LOCK TABLES `fcm_tokens` WRITE;
+/*!40000 ALTER TABLE `fcm_tokens` DISABLE KEYS */;
+INSERT INTO `fcm_tokens` VALUES (19,'Gz4xcW1P9vYFnLHk',NULL,'device-1','dtKNDS8YTfaMz0QwkDJIob:APA91bGvNrrMlz38JMkVisBg6OITTB4bV2Kh2gxPuhBydFKlOgVbbfetrTSGr-P1h0-Gwv7g5YH37RcprcUhKRdxrSpTcQGq2EVfK1JJDYoaI8rYVuhBBdc','1','2026-04-17 14:40:51'),(22,'hgY0XIWirbeWcIdo',NULL,'device-1','dtKNDS8YTfaMz0QwkDJIob:APA91bEKl9K8Lk4BNxGjsuGUeykaarwtg0PTzVxnSOrhc0bwKC78dJ7c42_fnaxc2NPAaJfGlSo6AeybpmBdEQNU-3cxBdKDZbz-Bmeyh-0FWS4MZ0JzTjs','1','2026-04-17 14:49:49'),(25,'cKCu4uJ8HD0nBe4g',NULL,'device-1','dtKNDS8YTfaMz0QwkDJIob:APA91bGysJg7nuHRlhr9GTfzbjVBBH2kWDlRf5_d1cgQy8lZm2Y6J4If1DmgdZSAmNI6H8MlAcadMhOHmUo1LzipMu0OpSfZx9bF3knAlkW_zzKeU71zMLg','1','2026-04-17 13:13:00');
+/*!40000 ALTER TABLE `fcm_tokens` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -71,8 +101,10 @@ CREATE TABLE `leaves` (
   `status` varchar(12) NOT NULL,
   `section` char(1) NOT NULL DEFAULT 'A',
   `affected_days` set('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday') DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`),
   UNIQUE KEY `unique_leave` (`student_id`,`teacher_id`,`applicable_from`,`applicable_to`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -81,7 +113,7 @@ CREATE TABLE `leaves` (
 
 LOCK TABLES `leaves` WRITE;
 /*!40000 ALTER TABLE `leaves` DISABLE KEYS */;
-INSERT INTO `leaves` VALUES ('Rahul Verma',4,'CSE','221620101047','not a teacher','Leave Application','Leave application ','2026-04-10 19:53:42','2026-04-10 14:23:00','2026-04-13 14:23:00','Approved','A','Monday,Friday,Saturday,Sunday'),('Rahul Verma',4,'CSE','221620101047','not a teacher','Leave Application','Sik leave ','2026-04-10 19:57:22','2026-04-13 14:27:00','2026-04-14 14:27:00','Approved','A','Monday,Tuesday'),('Prof. Hardwari Lal Mandoria',NULL,NULL,'not a student','44a1091acf2eb87937042d3fbda5124f','Priviliged','Priviliged','2026-04-13 14:13:11','2026-04-13 08:43:00','2026-04-16 08:43:00','Approved','A','Monday,Tuesday,Wednesday');
+INSERT INTO `leaves` VALUES ('Rahul Verma ',4,'CSE','221620101047','not a teacher','Leave Application','Sick leave ','2026-04-17 14:17:36','2026-04-17 08:47:00','2026-04-22 08:47:00','Approved','A','Monday,Tuesday,Wednesday,Friday,Saturday,Sunday',7),('Rishabh Kushwaha ',NULL,NULL,'not a student','T_RISHABH','Priviliged','Priviliged','2026-04-17 14:40:13','2026-04-17 09:10:00','2026-04-22 09:10:00','Approved','A','Monday,Tuesday,Wednesday,Friday,Saturday,Sunday',8);
 /*!40000 ALTER TABLE `leaves` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -97,6 +129,7 @@ CREATE TABLE `schedule` (
   `branch_id` varchar(8) NOT NULL,
   `branch_name` varchar(50) NOT NULL,
   `year` int NOT NULL,
+  `semester` tinyint NOT NULL,
   `section` char(1) NOT NULL DEFAULT 'A',
   `day` enum('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday') NOT NULL,
   `period_id` int NOT NULL,
@@ -112,7 +145,7 @@ CREATE TABLE `schedule` (
   `substitute_teacher_name` varchar(64) DEFAULT NULL,
   `substituted_till` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -121,7 +154,7 @@ CREATE TABLE `schedule` (
 
 LOCK TABLES `schedule` WRITE;
 /*!40000 ALTER TABLE `schedule` DISABLE KEYS */;
-INSERT INTO `schedule` VALUES (1,'CSE','Computer Science and Engineering',4,'A','Monday',1,'CST-030','Machine Learning',27,'1ec4c7e33832d30025c7fbf27f74762f','Mrs. Komal Gahtori',0,NULL,NULL,NULL,NULL,NULL),(2,'CSE','Computer Science and Engineering',4,'A','Monday',2,'CST-035','Cryptography & Network Security',27,'44a1091acf2eb87937042d3fbda5124f','Prof. Hardwari Lal Mandoria ',1,'2026-04-13 14:13:00','2026-04-15 14:13:00',NULL,NULL,NULL),(3,'CSE','Computer Science and Engineering',4,'A','Monday',7,'CET-055','Renewable Energy',27,'cdf9328e8a974060b50de5cc670632a2','Dr. Anjali Singh ',0,NULL,NULL,NULL,NULL,NULL),(13,'CSE','Computer Science and Engineering',4,'A','Wednesday',2,'CST-035','Cryptography & Network Security',27,'44a1091acf2eb87937042d3fbda5124f','Prof. Hardwari Lal Mandoria',1,'2026-04-13 14:13:00','2026-04-15 14:13:00','1234567891','Rishabh Kushwaha ','2026-04-15 23:59:59'),(14,'CSE','Computer Science and Engineering',4,'A','Wednesday',3,'CSP-018','Project Seminar',27,'f13c2d5fd0c18f368f5b44c5ff9418f0','Mr. Naresh Kumar',0,NULL,NULL,NULL,NULL,NULL),(15,'CSE','Computer Science and Engineering',4,'A','Wednesday',4,'CSP-018','Project Seminar',27,'f13c2d5fd0c18f368f5b44c5ff9418f0','Mr. Naresh Kumar',0,NULL,NULL,NULL,NULL,NULL),(16,'CSE','Computer Science and Engineering',4,'A','Wednesday',6,'AHT-015','Rural Development Administration and Planning',27,'53910456cc218427a3a04db2ccf344b1','Mr. Ambikesh Yadav',0,NULL,NULL,NULL,NULL,NULL),(17,'CSE','Computer Science and Engineering',4,'A','Wednesday',7,'AHT-018','Innovation & Problem Solving',27,'be5ee2ced8a2777463d6effffd971220','Dr. Abhishek Pathak',0,NULL,NULL,NULL,NULL,NULL),(18,'CSE','Computer Science and Engineering',4,'A','Thursday',1,'AHT-018','Innovations and Problem Solving',27,'be5ee2ced8a2777463d6effffd971220','Dr. Abhishek Pathak',0,NULL,NULL,NULL,NULL,NULL),(19,'CSE','Computer Science and Engineering',4,'A','Thursday',2,'CST-030','Machine Learning',27,'1ec4c7e33832d30025c7fbf27f74762f','Mrs. Komal Gahtori',0,NULL,NULL,NULL,NULL,NULL),(20,'CSE','Computer Science and Engineering',4,'A','Thursday',3,'AHT-015','Rural Development Administration and Planning',27,'53910456cc218427a3a04db2ccf344b1','Mr. Ambikesh Yadav',0,NULL,NULL,NULL,NULL,NULL),(21,'CSE','Computer Science and Engineering',4,'A','Thursday',6,'CSP-020','Mini Project-III / Internship-III',27,'43f1a7b9df7669168f46e8d6567635f9','Mrs. Snehlata Singh',0,NULL,NULL,NULL,NULL,NULL),(22,'CSE','Computer Science and Engineering',4,'A','Thursday',7,'CSP-020','Mini Project-III / Internship-III',27,'43f1a7b9df7669168f46e8d6567635f9','Mrs. Snehlata Singh',0,NULL,NULL,NULL,NULL,NULL),(23,'CSE','Computer Science and Engineering',4,'A','Friday',1,'CST-030','Machine Learning',27,'1ec4c7e33832d30025c7fbf27f74762f','Mrs. Komal Gahtori',0,NULL,NULL,NULL,NULL,NULL),(24,'CSE','Computer Science and Engineering',4,'A','Friday',3,'AHT-017','Disaster Management',27,'2593d6ee63844ac4dc1c6a6f019c8936','Mr. Lovejeet Singh',0,NULL,NULL,NULL,NULL,NULL),(25,'CSE','Computer Science and Engineering',4,'A','Friday',4,'CSP-019','Design Project',27,'b097cb0332f7ceef9a96be77eefbcf22','Mr. Divish Jaiswal',0,NULL,NULL,NULL,NULL,NULL),(26,'CSE','Computer Science and Engineering',4,'A','Friday',6,'CSP-019','Design Project',27,'b097cb0332f7ceef9a96be77eefbcf22','Mr. Divish Jaiswal',0,NULL,NULL,NULL,NULL,NULL),(27,'CSE','Computer Science and Engineering',4,'A','Friday',8,'CSP-019','Design Project',27,'b097cb0332f7ceef9a96be77eefbcf22','Mr. Divish Jaiswal',0,NULL,NULL,NULL,NULL,NULL),(28,'CSE','Computer Science and Engineering',4,'A','Saturday',1,'CET-055','Renewable Energy',27,'cdf9328e8a974060b50de5cc670632a2','Dr. Anjali Singh',0,NULL,NULL,NULL,NULL,NULL),(29,'CSE','Computer Science and Engineering',4,'A','Saturday',2,'AHT-017','Disaster Management',27,'2593d6ee63844ac4dc1c6a6f019c8936','Mr. Lovejeet Singh',0,NULL,NULL,NULL,NULL,NULL),(30,'CSE','Computer Science and Engineering',4,'A','Saturday',6,'AHT-015','Rural Development Administration and Planning',27,'1f6ad618ffe57b509be4d9244ba24903','Mr. Anubhav Yadav',0,NULL,NULL,NULL,NULL,NULL),(31,'CSE','Computer Science and Engineering',4,'A','Saturday',8,'CSP-019','Design Project',27,'b097cb0332f7ceef9a96be77eefbcf22','Mr. Divish Jaiswal',0,NULL,NULL,NULL,NULL,NULL),(32,'CSE','Computer Science and Engineering',4,'A','Tuesday',2,'CST-035','Cryptography & Network Security',28,'44a1091acf2eb87937042d3fbda5124f','Prof. Hardwari Lal Mandoria',1,'2026-04-13 14:13:00','2026-04-15 14:13:00','1234567891','Rishabh Kushwaha ','2026-04-14 21:48:49'),(33,'CSE','Computer Science and Engineering',4,'A','Tuesday',3,'AHT-018','Innovations and Problem Solving',27,'be5ee2ced8a2777463d6effffd971220','Dr. Abhishek Pathak',0,NULL,NULL,NULL,NULL,NULL),(34,'CSE','Computer Science and Engineering',4,'A','Tuesday',4,'CET-055','Renewable Energy',27,'cdf9328e8a974060b50de5cc670632a2','Dr. Anjali Singh',0,NULL,NULL,NULL,NULL,NULL),(35,'CSE','Computer Science and Engineering',4,'A','Tuesday',6,'AHT-015','Rural Development Administration and Planning',27,'53910456cc218427a3a04db2ccf344b1','Mr. Ambikesh Yadav',0,NULL,NULL,NULL,NULL,NULL),(36,'CSE','Computer Science and Engineering',4,'A','Tuesday',7,'AHT-017','Disaster Management',27,'2593d6ee63844ac4dc1c6a6f019c8936','Mr. Lovejeet Singh',0,NULL,NULL,NULL,NULL,NULL);
+INSERT INTO `schedule` VALUES (1,'CSE','Computer Science and Engineering',4,8,'A','Monday',1,'CST-043','Big Data Analytics',27,'T_CST043','Mrs. Komal Gahtori',0,NULL,NULL,NULL,NULL,NULL),(2,'CSE','Computer Science and Engineering',4,8,'A','Monday',2,'CET-060','Construction Equipment & Automation',27,'T_CET060','Mr. Ambikesh Yadav',0,NULL,NULL,NULL,NULL,NULL),(3,'CSE','Computer Science and Engineering',4,8,'A','Monday',3,'AHT-016','Project Management & Entrepreneurship',27,'T_AHT016','Dr. Jagat Pal Singh',0,NULL,NULL,NULL,NULL,NULL),(4,'CSE','Computer Science and Engineering',4,8,'A','Monday',5,'CSP-020','Major Project',27,'T_DIVISHT','Mr. Divisht Jaiswal',0,NULL,NULL,NULL,NULL,NULL),(5,'CSE','Computer Science and Engineering',4,8,'A','Monday',6,'CSP-020','Major Project',27,'T_NARESH','Mr. Naresh Tamta',0,NULL,NULL,NULL,NULL,NULL),(6,'CSE','Computer Science and Engineering',4,8,'A','Monday',7,'CSP-020','Major Project',27,'T_NARESH','Mr. Naresh Tamta',0,NULL,NULL,NULL,NULL,NULL),(7,'CSE','Computer Science and Engineering',4,8,'A','Tuesday',1,'AHT-016','Project Management & Entrepreneurship',27,'T_AHT016','Dr. Jagat Pal Singh',0,NULL,NULL,NULL,NULL,NULL),(8,'CSE','Computer Science and Engineering',4,8,'A','Tuesday',2,'CET-060','Construction Equipment & Automation',27,'T_CET060','Mr. Ambikesh Yadav',0,NULL,NULL,NULL,NULL,NULL),(9,'CSE','Computer Science and Engineering',4,8,'A','Tuesday',3,'MET-046','Project Management',27,'T_MET046','Guest Faculty (ME)',0,NULL,NULL,NULL,NULL,NULL),(10,'CSE','Computer Science and Engineering',4,8,'A','Wednesday',1,'MET-046','Project Management',27,'T_MET046','Guest Faculty (ME)',0,NULL,NULL,NULL,NULL,NULL),(11,'CSE','Computer Science and Engineering',4,8,'A','Wednesday',2,'CST-043','Big Data Analytics',27,'T_CST043','Mrs. Komal Gahtori',0,NULL,NULL,NULL,NULL,NULL),(12,'CSE','Computer Science and Engineering',4,8,'A','Wednesday',6,'CSP-020','Major Project',27,'T_RISHABH','Mr. Rishabh Kushwaha',1,'2026-04-17 14:40:00','2026-04-22 14:40:00',NULL,NULL,NULL),(13,'CSE','Computer Science and Engineering',4,8,'A','Wednesday',7,'CSP-020','Major Project',27,'T_RISHABH','Mr. Rishabh Kushwaha',1,'2026-04-17 14:40:00','2026-04-22 14:40:00',NULL,NULL,NULL),(14,'CSE','Computer Science and Engineering',4,8,'A','Thursday',1,'MET-046','Project Management',27,'T_MET046','Guest Faculty (ME)',0,NULL,NULL,NULL,NULL,NULL),(15,'CSE','Computer Science and Engineering',4,8,'A','Thursday',2,'CST-043','Big Data Analytics',27,'T_CST043','Mrs. Komal Gahtori',0,NULL,NULL,NULL,NULL,NULL),(16,'CSE','Computer Science and Engineering',4,8,'A','Thursday',6,'CSP-020','Major Project',27,'T_DIVISHT','Mr. Divisht Jaiswal',0,NULL,NULL,NULL,NULL,NULL),(17,'CSE','Computer Science and Engineering',4,8,'A','Thursday',7,'CSP-020','Major Project',27,'T_DIVISHT','Mr. Divisht Jaiswal',0,NULL,NULL,NULL,NULL,NULL),(18,'CSE','Computer Science and Engineering',4,8,'A','Friday',2,'CET-060','Construction Equipment & Automation',27,'T_CET060','Mr. Ambikesh Yadav',0,NULL,NULL,NULL,NULL,NULL),(19,'CSE','Computer Science and Engineering',4,8,'A','Friday',3,'AHT-016','Project Management & Entrepreneurship',27,'T_AHT016','Dr. Jagat Pal Singh',0,NULL,NULL,NULL,NULL,NULL),(20,'CSE','Computer Science and Engineering',4,8,'A','Friday',5,'CSP-020','Major Project',27,'T_DIVISHT','Mr. Divisht Jaiswal',0,NULL,NULL,NULL,NULL,NULL),(21,'CSE','Computer Science and Engineering',4,8,'A','Friday',6,'CSP-020','Major Project',27,'T_NARESH','Mr. Naresh Tamta',0,NULL,NULL,NULL,NULL,NULL),(22,'CSE','Computer Science and Engineering',4,8,'A','Friday',7,'CSP-020','Major Project',27,'T_NARESH','Mr. Naresh Tamta',0,NULL,NULL,NULL,NULL,NULL),(23,'CSE','Computer Science and Engineering',4,8,'A','Saturday',6,'CSP-020','Major Project',27,'T_RISHABH','Mr. Rishabh Kushwaha',1,'2026-04-17 14:40:00','2026-04-22 14:40:00',NULL,NULL,NULL),(24,'CSE','Computer Science and Engineering',4,8,'A','Saturday',7,'CSP-020','Major Project',27,'T_RISHABH','Mr. Rishabh Kushwaha',1,'2026-04-17 14:40:00','2026-04-22 14:40:00',NULL,NULL,NULL);
 /*!40000 ALTER TABLE `schedule` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -133,27 +166,36 @@ DROP TABLE IF EXISTS `users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `users` (
-  `user_id` int NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` varchar(20) NOT NULL,
   `student_id` varchar(20) DEFAULT NULL,
   `teacher_id` varchar(32) DEFAULT NULL,
   `name` varchar(100) NOT NULL,
-  `email` varchar(100) NOT NULL,
+  `email` varchar(255) NOT NULL,
   `password_hash` char(60) NOT NULL,
   `role` enum('Student','Teacher','Admin') NOT NULL DEFAULT 'Student',
-  `branch` varchar(100) DEFAULT NULL,
-  `semester` int DEFAULT NULL,
-  `year` varchar(10) DEFAULT NULL,
-  `start_month` int DEFAULT NULL,
-  `fcm_token` varchar(512) DEFAULT NULL,
+  `semester` tinyint unsigned DEFAULT NULL,
+  `year` tinyint unsigned DEFAULT NULL,
+  `start_month` tinyint unsigned DEFAULT NULL,
   `otp` json DEFAULT NULL,
   `section` char(1) DEFAULT 'A',
-  `collegeId` int DEFAULT NULL,
-  `admissionId` int DEFAULT NULL,
-  `courseId` int DEFAULT NULL,
-  `branchId` int DEFAULT NULL,
-  PRIMARY KEY (`user_id`),
-  UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `collegeId` int unsigned DEFAULT NULL,
+  `admissionId` int unsigned DEFAULT NULL,
+  `courseId` int unsigned DEFAULT NULL,
+  `branchId` int unsigned DEFAULT NULL,
+  `branch_id` varchar(12) DEFAULT NULL,
+  `branch_name` varchar(50) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`),
+  UNIQUE KEY `unique_user_id` (`user_id`),
+  KEY `idx_student_id` (`student_id`),
+  KEY `idx_teacher_id` (`teacher_id`),
+  KEY `idx_branch_sem` (`branchId`,`semester`,`section`),
+  KEY `idx_college` (`collegeId`),
+  KEY `idx_course` (`courseId`)
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -162,7 +204,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (7,'221620101047','NULL','Rahul Verma','rahulverma.1.2005@gmail.com','$2b$10$BBg23FdwQfV1B7uLuIMUlu6dEDCAO3v52NP4PBb2DgDNXyu5K2afq','Student','CSE',8,'4',1,'dtKNDS8YTfaMz0QwkDJIob:APA91bE52uC4d2yUEqZnVSZhl_nLVqAyck0YUxAmpDCxF0hNJzFQgp4oRiXPbuURZ5Wsm12CUlpodSiQvM_1HG26xZbL88dlLnxZzrT5rOgpigmXzMhKVtI','{\"ttl\": 15, \"code\": \"674201\", \"request_time\": 1774887773526}','A',67,11492,1,1),(9,'NULL','44a1091acf2eb87937042d3fbda5124f','Prof. Hardwari Lal Mandoria','hardwarilal@gmail.com','$2b$10$YlPhaHTTxCQAraMAwSO/vOpqyPkNBd.Y7gSMXDy5eCKNcfro40GJi','Teacher','NULL',NULL,'NULL',NULL,'dtKNDS8YTfaMz0QwkDJIob:APA91bHDVpMD916_t8quNofYN8IRnjQxmXf4wY-yZs6Kncvtux4bvMrLO0pqLWKSjSdTJkG8lFoxbuYsc9GsYIZDTrd01geymnhKBxNqtr_rDGg3aXn4tSg',NULL,'A',NULL,NULL,NULL,NULL),(14,'NULL','1234567891','Rishabh Kushwaha ','rishabh.1988@gmail.com','$2b$10$gua.yU.wCoEAfD3qScz1e.yYwK.vaIHi1Um0dP/6OMxqSMuXdQSzC','Teacher','NULL',NULL,'NULL',NULL,'dtKNDS8YTfaMz0QwkDJIob:APA91bHZb6ted4niIUN7GpYBGiBbo-FanuTX5id-iLvF9NFIVxFeNIg0eazpaWxggaJ1PsXX-p5mRA9rh3tweEDWKPeZgsjdIxxNRrMmZqhPaIDBkn_-aKQ',NULL,'A',NULL,NULL,NULL,NULL);
+INSERT INTO `users` VALUES (13,'Gz4xcW1P9vYFnLHk',NULL,'T_RISHABH','Rishabh Kushwaha ','rishabh.1988@gmail.com','$2b$10$KGR0Lp12nCD2ONMEAVRzSulxwBMG3grRTZjNSv9YWtY/U4hEQRrkq','Teacher',NULL,NULL,NULL,NULL,'A',NULL,NULL,NULL,NULL,NULL,NULL,'2026-04-16 22:07:02','2026-04-17 10:47:00'),(15,'cKCu4uJ8HD0nBe4g',NULL,'T_CST043','Komal Gahtori','komal@gmail.com','$2b$10$jsJ4xFwxLkIYfYYrT6i/xeXNwBH8DN89ka5VjUS/Mh67XqyGBAImG','Teacher',NULL,NULL,NULL,NULL,'A',NULL,NULL,NULL,NULL,NULL,NULL,'2026-04-17 10:55:25','2026-04-17 10:55:25'),(16,'hgY0XIWirbeWcIdo','221620101047',NULL,'Rahul Verma ','rahulverma.1.2005@gmail.com','$2b$10$9rUfNNmmSQfYgMIwHl45xeipXi/W3nDiRz2VzJ1zURKjcOHXRCVAm','Student',8,4,1,NULL,'A',67,11492,1,1,'CSE',NULL,'2026-04-17 14:14:45','2026-04-17 14:15:55');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -175,4 +217,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-15 17:41:39
+-- Dump completed on 2026-04-17 20:25:58
