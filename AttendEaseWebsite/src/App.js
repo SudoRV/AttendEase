@@ -17,7 +17,6 @@ function App() {
       <RequestNotification />
       {/* <Header /> */}
       <BrowserRouter>
-      <Header />
         <Routes>
           {/* Default Route */}
           <Route path="/" element={<ProtectedDashboard />} />
