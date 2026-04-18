@@ -211,9 +211,12 @@ export const GlobalProvider = ({ children }) => {
     }
 
     async function loadAnnouncements() {
-        const response = await doFetch(`/announcements?year=${userData?.year}&branch=${userData?.branch}&section=${userData?.section}`, "GET");
-
+        const response = await doFetch(`/announcements?year=${userData?.year}&branch=${userData?.branch_id}&section=${userData?.section}`, "GET");
+        
         const res_data = await response.data.json();
+
+        console.log(res_data)
+
         const announcements = res_data.data;
         if (announcements.length > 0) {
             setAnnouncements(announcements);
@@ -225,8 +228,10 @@ export const GlobalProvider = ({ children }) => {
     onMessage(messaging, (payload) => {
         console.log("Foreground push received", payload);
         if (!userData?.email) return;
+
         // load timetable
         loadTimetable(userData);
+        // load leaves
         loadLeaves(userData?.role)
 
         // load announcement

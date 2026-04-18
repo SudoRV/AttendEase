@@ -26,7 +26,7 @@ const StudentDashboard = () => {
     return (
         <div className="dashboard-container">
             {/* Header */}
-            <header className="header">
+            <header className="header bg-gradient-to-br from-indigo-500 to-indigo-600">
                 <div className='logo'>
                     <img src={attendease_logo} onClick={toggleDrawer} />
                 </div>
@@ -107,7 +107,7 @@ const StudentDashboard = () => {
             {isOpen && <div className="backdrop" onClick={toggleDrawer} />}
 
             {/* Main Content (Remains stationary) */}
-            <main className="main-content overflow-y-auto">
+            <main className="main-content">
                 <div className="timetable-section card other">
                     <TimeTable />
                 </div>
@@ -119,12 +119,11 @@ const StudentDashboard = () => {
                     <div className="announcements card other">
                         <Announcements />
                     </div>
-                    <div className="footer">
-                        <Footer />
-                    </div>
                 </div>
 
             </main>
+
+            <Footer />
         </div>
     );
 };

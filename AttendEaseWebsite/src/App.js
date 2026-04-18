@@ -15,9 +15,8 @@ import { GlobalProvider } from "./services/states";
 function App() {
   return (
     <GlobalProvider>
-      <RequestNotification />
-      {/* <Header /> */}
       <BrowserRouter>
+        <RequestNotification />
         <Routes>
           {/* Default Route */}
           <Route path="/" element={<ProtectedDashboard />} />

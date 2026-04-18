@@ -40,7 +40,7 @@ export default function Footer() {
   return (
     <footer className="footer text-gray-700">
       {/* Credits*/}
-      <div className="bg-gradient-to-br from-[#0a1120] to-[#5964fd]">
+      <div className="bg-gradient-to-br from-indigo-500 to-indigo-700">
 
         <div className="max-w-7xl mx-auto px-6 py-10">
           <h3 className="text-center text-gray-100 text-lg font-semibold mb-8">

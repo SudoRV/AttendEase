@@ -18,6 +18,7 @@ const StudentLeaveManagement = () => {
   const {
     userData,
     BASE_URL,
+    buildUrl,
     loadLeaves,
     leaveHistory,
     setLeaveHistory,
@@ -61,7 +62,7 @@ const StudentLeaveManagement = () => {
 
   async function verifyLeave(action, applicant) {
     try {
-      const response = await fetch(`${BASE_URL}/verify-leave`, {
+      const response = await fetch(buildUrl("/verify-leave"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

@@ -238,7 +238,7 @@ app.get("/get-timetable", async (req, res) => {
     // student timetable
     else {
       if (day === "" || day === undefined) {
-        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and semester = ? and branch_id = ? and section = ? order by day, period_id`;
+        const query = `select id, day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and semester = ? and branch_id = ? and section = ? order by day, period_id`;
         const [rows] = await pool.query(query, [
           year, semester, branch, section,
         ]);
@@ -262,7 +262,7 @@ app.get("/get-timetable", async (req, res) => {
         });
 
       } else {
-        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and semester = ? and branch_id = ? and section = ? and day = ? order by period_id`;
+        const query = `select id, day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and semester = ? and branch_id = ? and section = ? and day = ? order by period_id`;
         const [classes] = await pool.query(query, [
           year, semester, branch, section, day
         ]);
@@ -289,6 +289,8 @@ app.post("/update-schedule", async (req, res) => {
 
   let query = "";
   let values = Object.values(subject_data?.changes);
+
+  console.log(action, subject_data)
 
   if (action === "Update") {
     query = `update schedule set ${Object.keys(subject_data?.changes).map(key => `${key} = ? where id = ?`).join(", ")}`;

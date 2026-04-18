@@ -125,7 +125,7 @@ const TimeTableScreen = () => {
                   >
                     {item?.subject_id ? (
                       <View
-                        className={`w-full flex-1 justify-center items-center rounded-xl px-3 py-3 shadow-md ${item?.cancelled
+                        className={`w-full flex-1 justify-center items-center rounded-xl px-3 py-3 shadow-md ${item?.cancelled && !item?.substitute_teacher_id
                           ? "bg-red-50 border border-red-200"
                           : item?.isCurrentPeriod
                             ? "bg-indigo-500"
@@ -135,15 +135,15 @@ const TimeTableScreen = () => {
 
                         {/* CANCELLED BADGE */}
                         {!!item?.cancelled && (
-                          <View className="absolute -bottom-2.5 bg-red-500 px-2 py-0.5 rounded-full">
-                            <Text className="text-white text-[10px] font-semibold">
-                              CANCELLED
+                          <View className={`absolute -bottom-2.5 px-2 py-0.5 rounded-full ${item?.substitute_teacher_id ? "bg-teal-500" : "bg-red-500 "}`}>
+                            <Text className="text-white text-[12px] font-semibold">
+                              {item?.substitute_teacher_id ? "Substituted" : "Cancelled"}
                             </Text>
                           </View>
                         )}
 
                         <Text
-                          className={`font-bold text-lg ${item?.cancelled
+                          className={`font-bold text-lg ${item?.cancelled && !item?.substitute_teacher_id
                             ? "text-red-600"
                             : item?.isCurrentPeriod
                               ? "text-white"
@@ -157,7 +157,7 @@ const TimeTableScreen = () => {
                           <Text
                             numberOfLines={3}
                             ellipsizeMode="tail"
-                            className={`text-center ${item?.cancelled
+                            className={`text-center ${item?.cancelled && !item?.substitute_teacher_id
                               ? "text-red-500 line-through"
                               : item?.isCurrentPeriod
                                 ? "text-white"
@@ -171,7 +171,7 @@ const TimeTableScreen = () => {
                         <Text
                           numberOfLines={1}
                           ellipsizeMode="tail"
-                          className={`text-sm italic text-center ${item?.cancelled
+                          className={`text-sm italic text-center ${item?.cancelled && !item?.substitute_teacher_id
                             ? "text-red-400"
                             : item?.isCurrentPeriod
                               ? "text-white"
@@ -180,7 +180,7 @@ const TimeTableScreen = () => {
                         >
                           {userData?.role === "Teacher"
                             ? `${item.branch_id || ""}-${item.year || ""}-${item.section || ""}`
-                            : item.teacher_name}
+                            : item.substitute_teacher_name || item.teacher_name}
                         </Text>
 
                       </View>

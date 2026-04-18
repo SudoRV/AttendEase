@@ -34,8 +34,10 @@ const AlertsScreen = () => {
 
     try {
       const endpoint = `/announcements?year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}`;
+      
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
+      
       if (json?.data) setAnnouncements(json.data);
     } catch (err) {
       console.log("Announcements error:", err);
