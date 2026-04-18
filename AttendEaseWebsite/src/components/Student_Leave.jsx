@@ -13,7 +13,7 @@ const LeaveBox = () => {
     // fetch leave
     if (!userData?.email) return;
     loadLeaves(userData?.role);
-  }, [userData, loadLeaves])
+  }, [userData])
 
   async function submitLeave() {
     const application = applicationRef.current.value;
@@ -25,7 +25,10 @@ const LeaveBox = () => {
       return;
     }
 
-    const subject = application?.match(/[Ss]ubject\s*:\s*(.*)\n/)[1];
+    const subjectMatch = application.match(/[Ss]ubject\s*:\s*(.*)\n*/);
+    const subject = subjectMatch
+      ? subjectMatch[1]
+      : "Leave Application";
 
     // upload to database
     const leave = {
@@ -43,8 +46,16 @@ const LeaveBox = () => {
       },
       body: JSON.stringify(leave)
     })
+
     const resdata = await response.json();
-    alert(resdata.message);
+    if(resdata.success){
+      alert(resdata.message);
+      applicable_from_ref.value = "";
+      applicable_to_ref.value = "";
+      applicationRef.value = "";
+    } else {
+      alert(resdata.message);
+    }
   }
 
   return (

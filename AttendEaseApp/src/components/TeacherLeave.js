@@ -556,7 +556,7 @@ const renderTeacherLeaves = (
                                         className={`p-4 rounded-3xl elevation-md ${clas.substitute_teacher_id
                                             ? 'bg-gray-100 opacity-80' // Muted background for substituted classes
                                             : 'bg-white active:bg-blue-50'
-                                            }`}
+                                            } mb-6`}
                                     >
                                         <View className="flex-row justify-between items-center mb-2">
                                             <View className="flex-1">

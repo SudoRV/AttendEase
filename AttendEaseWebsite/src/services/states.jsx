@@ -7,7 +7,7 @@ const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
 
-    const isProduction = true;
+    const isProduction = false;
 
     // ⚠️ IMPORTANT:
     // Replace this with your computer’s local IP
@@ -44,64 +44,70 @@ export const GlobalProvider = ({ children }) => {
         loadTimetable(userData);
     });
 
+    const loadTimetable = async (userCreds, selectedDay) => {
+        if (!userCreds) return;
 
-    const loadTimetable = async (userCreds) => {
-        const days = [
-            "Sunday", "Monday", "Tuesday",
-            "Wednesday", "Thursday", "Friday", "Saturday"
-        ];
         const date = new Date();
-        const int_day = date.getDay();
-        const day = days[int_day];
-        const year = userCreds?.year;
-        const branch = userCreds?.branch;
-        const section = "A";
-        const role = userCreds?.role;
+        const day = selectedDay || date.toLocaleString("en-Gb", { weekday: "long" });
+        const section = userCreds?.section || "A";
+        const role = userCreds?.role?.toLowerCase();
 
-        let url = "";
-        if (role === "Student") url = `/get-timetable?year=${year}&branch=${branch}&section=${section}&day=${day}`;
-        else url = `/get-timetable?teacher_name=${encodeURIComponent(userCreds?.name)}&teacher_id=${userCreds?.teacher_id}&day=${day}`;
+        let endpoint = "";
 
-        const response = await fetch(buildUrl(url));
-        let data = await response.json();
-        data = data.data;
-
-        // pushing lunch
-        const lunch = {
-            period_id: 5,
-            subject_id: ' ',
-            subject_name: 'LUNCH',
-            teacher_name: ' '
+        if (role === "student") {
+            endpoint = `/get-timetable?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
+        } else if (role === "teacher") {
+            endpoint = `/get-timetable?teacher_name=${encodeURIComponent(
+                userCreds?.name || ""
+            )}&teacher_id=${userCreds?.teacher_id}&day=${day}`;
+        } else {
+            return;
         }
-        data?.classes?.push(lunch);
 
-        const timetable = [];
+        try {
+            const response = await fetch(buildUrl(endpoint));
+            const json = await response.json();
+            const data = json?.data;
 
-        for (let p = 0; p < 10; p++) {
-            const period = data?.classes.find(f => f.period_id === p);
+            console.log(data)
 
-            if (period) {
-                const period_data = {
-                    id: period.id,
-                    day: period.day,
-                    period_id: period.period_id,
-                    subject_id: period.subject_id,
-                    subject_name: period.subject_name,
-                    teacher_name: period.teacher_name,
-                    year: period.year,
-                    branch_id: period.branch_id,
-                    branch_name: period.branch_name,
-                    section: period.section,
-                    room_number: period.room_number,
-                    cancelled: period.cancelled,
-                    isCurrentPeriod: p === new Date().getHours() - 8 ? true : false
-                }
-                timetable.push(period_data);
-            } else {
-                timetable.push({ code: "", name: "", teacher: "", isCurrentPeriod: p === new Date().getHours() - 8 ? true : false })
+            data.classes = data.classes?.map(d => {
+                if (d?.period_id > 4) {
+                    return {
+                        ...d,
+                        period_id: d.period_id + 1
+                    }
+                } else return d;
+            })
+
+            if (!data?.classes) return;
+
+            data.classes.push({
+                subject_id: " ",
+                period_id: 5,
+                subject_name: "LUNCH",
+                teacher_name: " "
+            });
+
+            const timetable = [];
+
+            for (let p = 0; p < 10; p++) {
+                const period = data.classes.find((c) => c.period_id === p);
+                timetable.push(
+                    {
+                        ...period,
+                        isCurrentPeriod: p === new Date().getHours() - 8
+                    }
+                );
             }
+
+
+            if (!selectedDay) setClasses({ day, classes: timetable });
+            else return { day, classes: timetable };
+
+        } catch (err) {
+            console.log("Timetable error:", err);
         }
-        setClasses({ day: day, classes: timetable });
     }
 
     async function requestNotification() {
@@ -163,31 +169,31 @@ export const GlobalProvider = ({ children }) => {
 
     const loadLeaves = async (filter) => {
         if (!userData?.email) return;
-    
+
         try {
-          const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
-            JSON.stringify(userData)
-          )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}`;
-    
-          const response = await fetch(buildUrl(endpoint));
-          const json = await response.json();
-    
-          // console.log(json)
-    
-          if (filter?.month) {
-            return {
-              month: filter?.month,
-              ...json
-            };
-          }
-          else {
-            setLeaveHistory(json?.data || []);
-            // setTeacherLeaveHistory(json?.teacher_leaves || []);
-          }
+            const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
+                JSON.stringify(userData)
+            )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}`;
+
+            const response = await fetch(buildUrl(endpoint));
+            const json = await response.json();
+
+            // console.log(json)
+
+            if (filter?.month) {
+                return {
+                    month: filter?.month,
+                    ...json
+                };
+            }
+            else {
+                setLeaveHistory(json?.data || []);
+                // setTeacherLeaveHistory(json?.teacher_leaves || []);
+            }
         } catch (err) {
-          console.log("Leaves error:", err);
+            console.log("Leaves error:", err);
         }
-      };
+    };
 
     // functions
     async function doFetch(url, method = "GET", headers = {}, body = null) {

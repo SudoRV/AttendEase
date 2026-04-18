@@ -19,27 +19,34 @@ html,body{
 
 .header {
     display: flex;
-    background-color: #4f46e5;
+    background-color: #6366F1;
     color: #f8fafc;
-    padding: 1.5rem;
+    padding: 1rem 0.6rem;
     text-align: center;
     align-items: center;
     z-index: 100;
-    font-size: 2rem;
 }
 .header h3 {
-    font-size: 2rem;
+    font-size: 1.8rem;
     font-weight: bold;
     margin-left: 2%;
 }
-.header svg {
-    height: 2.5rem;
-    margin-left: 0.5rem;
+
+.header .logo {
+    height: 1.8rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-left: 0.4rem;
+}
+
+.header .logo img {
+    width: 100%;
+    height: 100%;
 }
 
 .footer {
     grid-area: footer;
-
 }
 
 .Title {
@@ -359,7 +366,6 @@ html,body{
     width: 40px;
     height: 40px;
     border-radius: 40px;
-    border: 2px solid #5992fd;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -491,7 +497,7 @@ html,body{
 }
 
 .subject-name {
-    height: 5rem;
+    height: 4rem;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -502,27 +508,27 @@ html,body{
     font-style: italic;
     margin-top: 5px;
     padding-top: 5px;
+
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: inherit;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .cancelled-class {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: #64646454;
+    padding: 0.4rem;
+    background-color: #ebe9e9b7;
     border-radius: 12px;
     backdrop-filter: blur(1px);
-}
-
-.cancelled-class p {
-    /*font-size: 1.4rem;*/
-    font-weight: bold;
-    color: #ff0000;
-    transform: rotate(-45deg);
 }
 
 .leave-box {
