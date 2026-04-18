@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { AppStates } from "../services/states";
 import { FiLogOut, FiUser } from "react-icons/fi";
 import logo from "../images/scheduler_logo.svg";
+import messaging from '@react-native-firebase/messaging';
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -9,8 +10,10 @@ const Sidebar = () => {
 
   async function logout() {
     // simulate logout like buffering or loading 
-    localStorage.removeItem("user_creds");
+    localStorage.clear();
     navigate("/login");
+
+    await messaging().deleteToken();
   }
 
   return (

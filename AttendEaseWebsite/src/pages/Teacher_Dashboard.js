@@ -34,14 +34,13 @@ const TeacherDashboard = () => {
   return (
     <div className="dashboard-container">
       {/* Header */}
-      <header className="header">
+      <header className="header bg-gradient-to-br from-indigo-500 to-indigo-600">
         <div className='logo'>
           <img src={attendease_logo} onClick={toggleDrawer} />
         </div>
         <h3>AttendEase</h3>
       </header>
 
-      {/* Sidebar Overlay */}
       {/* Sidebar Overlay */}
       <div className={`sidebar h-full flex flex-col p-6 bg-white border-r border-gray-100 ${isOpen ? 'open' : ''}`}>
 
@@ -118,25 +117,29 @@ const TeacherDashboard = () => {
 
       {/* Main Content (Remains stationary) */}
       <main className="main-content overflow-y-auto">
-        <div className="timetable-section card other">
+
+        <div className="timetable-section card other !shadow-none !bg-transparent !p-0">
           <TimeTable />
         </div>
+
         <div className="dashboard teacher-dashboard">
           <div className="card other announcements">
             <Announce announcements={announcements} />
           </div>
+
           <div className="card teacher-availability">
             <TeacherAvailability />
           </div>
+
           <div className="card other leave-management leave-verifier">
             <StudentLeaveManagement />
           </div>
-          <div className="footer">
-            <Footer />
-          </div>
+
         </div>
 
       </main>
+
+      <Footer />
     </div>
   );
 };

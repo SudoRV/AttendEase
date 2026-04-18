@@ -26,7 +26,7 @@ const StudentDashboard = () => {
     return (
         <div className="dashboard-container">
             {/* Header */}
-            <header className="header">
+            <header className="header bg-gradient-to-br from-indigo-500 to-indigo-600">
                 <div className='logo'>
                     <img src={attendease_logo} onClick={toggleDrawer} />
                 </div>
@@ -39,7 +39,7 @@ const StudentDashboard = () => {
                 {/* Header: Title & Close */}
                 <div className="flex flex-row justify-between items-center mb-8">
                     <div className='flex-col'>
-                        <p className="text-xs uppercase tracking-widest text-indigo-500 font-bold">Dashboard</p>
+                        <p className="text-xs uppercase tracking-widest text-indigo-500 font-bold">Portal</p>
                         <p className="text-xl font-extrabold text-slate-800 font-sans tracking-tight">
                             {userData?.role} <span className="text-indigo-600">.</span>
                         </p>
@@ -94,12 +94,12 @@ const StudentDashboard = () => {
 
                 {/* Logout Button */}
                 <button
-                    className="logout-btn group mt-auto flex items-center justify-center gap-3 w-full py-4 rounded-xl
+                    className="group mt-auto flex items-center justify-center gap-3 w-full py-4 rounded-xl
                     border-none bg-slate-50 text-slate-600 font-semibold hover:bg-red-50 hover:text-red-600 hover:shadow-md transition-all duration-200 active:scale-95"
                     onClick={logout}
                 >
                     <FiLogOut size={18} className="transition-transform group-hover:translate-x-0.5" />
-                    <span >Logout System</span>
+                    <span>Logout System</span>
                 </button>
             </div>
 
@@ -107,10 +107,12 @@ const StudentDashboard = () => {
             {isOpen && <div className="backdrop" onClick={toggleDrawer} />}
 
             {/* Main Content (Remains stationary) */}
-            <main className="main-content overflow-y-auto">
-                <div className="timetable-section card other">
+            <main className="main-content">
+
+                <div className="timetable-section card other !shadow-none !bg-transparent !p-0">
                     <TimeTable />
                 </div>
+
                 <div className="dashboard">
                     <div className="leave-management card other">
                         <LeaveBox />
@@ -119,12 +121,11 @@ const StudentDashboard = () => {
                     <div className="announcements card other">
                         <Announcements />
                     </div>
-                    <div className="footer">
-                        <Footer />
-                    </div>
                 </div>
 
             </main>
+
+            <Footer />
         </div>
     );
 };

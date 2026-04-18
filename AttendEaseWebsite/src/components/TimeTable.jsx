@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AppStates } from "../services/states";
+import { FiCalendar } from "react-icons/fi";
 
 /**
  * Student Timetable Component
@@ -27,18 +28,13 @@ const TimeTable = () => {
 
   const SubjectCell = ({ item, period_no, code, name, teacher, year, branch, section, room_number, cancelled, current }) => (
     <td className={
-      `subject-cell ${current ? "!bg-indigo-400" : ""}`
+      `subject-cell  bg-gradient-to-br via-indigo-500 from-indigo-500 to-indigo-600 
+      ${current ? "!bg-indigo-500" : ""}`
     } onContextMenu={(e) => SubjectEditMenu(e, period_no)}>
       {
         cancelled ? (
           <div className="cancelled-class flex-col">
-            <p className={`w-full !text-white p-1 px-2.5 rounded-full text-sm ${item?.substitute_teacher_id ? "bg-teal-500": "bg-red-500"}`}>{item?.substitute_teacher_id ? "Substituted" : "Cancelled"}</p>
-
-            { item.substitute_teacher_id && (
-              <p className="mt-2 !text-neutral-800 font-bold text-sm">
-                {item?.substitute_teacher_name}</p>
-              )
-            }
+            <p className={`w-full !text-white p-1 px-2.5 rounded-full text-sm ${item?.substitute_teacher_id ? "bg-teal-500" : "bg-red-500"}`}>{item?.substitute_teacher_id ? "Substituted" : "Cancelled"}</p>           
           </div>
         ) : (
           ""
@@ -49,16 +45,16 @@ const TimeTable = () => {
           code ? (
             <>
               <p className={`subject-code ${current ? "!text-gray-100 !font-light" : ""} ${item?.subject_name === "LUNCH" ? "!border-none" : ""}`}>{code}</p>
-              
+
               <p className={`subject-name ${current ? "!text-gray-100 !font-light" : ""}`}>{name}</p>
-              
+
               <p className={`Teacher-name 
               ${current ? "!text-gray-100 !font-light" : ""}
               ${item?.subject_name === "LUNCH" ? "!border-none" : ""}`}
-              
-              >{userData?.role === "Teacher" ? `${branch || ""}-${year || ""}-${section || ""}-${room_number || ""}` : teacher}</p></>
+
+              >{userData?.role === "Teacher" ? `${branch || ""}-${year || ""}-${section || ""}-${room_number || ""}` : item?.substitute_teacher_name || teacher}</p></>
           ) : (
-            "Free"
+            <p className="text-[#ececec]">Free</p>
           )
         }
       </div>
@@ -147,15 +143,17 @@ const TimeTable = () => {
 
   return (
     <div className="schedule-container">
-      <h2>
-        <span className="Day-label">{classes.day}</span>
-      </h2>
-      <div className="overflow-auto">
-        <table className="schedule-table">
+      <div className="flex flex-row items-start gap-4">
+        <FiCalendar size={28} color="" />
+        <h2 className="Day-label text-2xl">{classes.day}</h2>
+      </div>
+
+      <div className="schedule-classes overflow-auto">
+        <table className="schedule-table !px-0">
           <thead>
             <tr>
               {slots.map((time) => (
-                <th className="table-time" key={time}>{time}</th>
+                <th className="table-time !bg-neutral-700 !text-neutral-50" key={time}>{time}</th>
               ))}
             </tr>
           </thead>
@@ -297,7 +295,7 @@ const TimeTable = () => {
                       />
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-3">
                       {/* YEAR */}
                       <input
                         name="year"
@@ -305,7 +303,19 @@ const TimeTable = () => {
                         placeholder="Year"
                         value={formData.year}
                         min={1}
-                        max={4}
+                        max={5}
+                        onChange={handleChange}
+                        className="input input-box"
+                      />
+
+                      {/* SEMESTER */}
+                      <input
+                        name="semester"
+                        type="number"
+                        placeholder="Sem"
+                        value={formData.semester}
+                        min={1}
+                        max={10}
                         onChange={handleChange}
                         className="input input-box"
                       />
