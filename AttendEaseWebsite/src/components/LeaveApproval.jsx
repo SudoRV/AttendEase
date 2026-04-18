@@ -102,7 +102,7 @@ const StudentLeaveManagement = () => {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`capitalize transition w-[6rem] p-2 px-4 rounded-md border-none  ${activeTab === tab
-                ? " bg-blue-600 text-white font-semibold"
+                ? " bg-indigo-500 text-white font-semibold"
                 : "text-gray-500 hover:text-gray-700"
                 } ${tab === "leaves" ? "rounded-r-none" : "rounded-l-none"}`}
             >
@@ -119,7 +119,7 @@ const StudentLeaveManagement = () => {
               onClick={() => setFilterMode(mode)}
               disabled={mode === "period" && !currentClass}
               className={`p-2 px-4 border-0 rounded-md text-sm transition ${filterMode === mode
-                ? "bg-blue-600 text-white"
+                ? "bg-indigo-500 text-white"
                 : "bg-gray-200 hover:bg-gray-300"
                 } ${mode === "period" && !currentClass ? "opacity-50 cursor-not-allowed" : ""}`}
             >

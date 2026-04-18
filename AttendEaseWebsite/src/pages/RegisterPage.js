@@ -45,6 +45,7 @@ function RegisterPage() {
 
   return (
     <>
+    <div className="bg-neutral-100 flex items-center justify-center width-full min-h-screen overflow-auto">
       <RegisterBox
         selectedRole={selectedRole}
         formData={formData}
@@ -52,6 +53,7 @@ function RegisterPage() {
         handleRoleChange={handleRoleChange}
         handleInputChange={handleInputChange}
       />
+      </div>
     </>
   );
 }

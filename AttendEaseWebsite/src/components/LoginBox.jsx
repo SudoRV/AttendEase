@@ -67,11 +67,11 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center my-16 gap-24">
+    <div className="flex flex-1 flex-col items-center justify-center px-4">
     
-      <div className="w-full max-w-lg bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8">
+      <div className="w-full max-w-lg bg-white/90 card other">
         
-        <h2 className="text-3xl font-bold text-center text-gray-800 mb-2">
+        <h2 className="headings">
           AttendEase
         </h2>
         <p className="text-center text-gray-500 mb-6">

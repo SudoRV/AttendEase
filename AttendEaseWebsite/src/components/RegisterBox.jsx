@@ -122,12 +122,12 @@ function RegisterPage() {
   };
 
   const input =
-    "w-full px-4 py-3 rounded-xl border focus:outline-none transition";
+    "w-full rounded-xl border focus:outline-none transition";
 
   return (
-    <div className="flex flex-1 flex-col gap-24 items-center justify-center px-4 my-16">
+    <div className="flex flex-1 flex-col gap-24 items-center justify-center px-4 mt-16 mb-10">
 
-      <div className="w-full max-w-xl bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8">
+      <div className="w-full max-w-xl bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-4">
 
         <h1 className="text-3xl font-bold text-center text-gray-800">
           Create Account
@@ -145,7 +145,7 @@ function RegisterPage() {
                 Role
               </label>
               <select
-                className={`${input} border-gray-300 focus:ring-indigo-300`}
+                className={`${input} select-box`}
                 value={selectedRole}
                 onChange={handleRoleChange}
                 required
@@ -161,7 +161,7 @@ function RegisterPage() {
                 Name
               </label>
               <input
-                className={`${input} border-gray-300 focus:ring-indigo-300`}
+                className={`${input} input-box`}
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
@@ -176,7 +176,7 @@ function RegisterPage() {
               Email
             </label>
             <input
-              className={`${input}
+              className={`${input}  select-box
                 ${isEmailValid === true
                   ? "border-green-500 focus:ring-green-300"
                   : isEmailValid === false
@@ -203,7 +203,7 @@ function RegisterPage() {
                 Teacher ID
               </label>
               <input
-                className={`${input}
+                className={`${input}  input-box
                   ${isIDValid === true
                     ? "border-green-500 focus:ring-green-300"
                     : isIDValid === false
@@ -223,7 +223,7 @@ function RegisterPage() {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <select
-                  className={`${input} border-gray-300 focus:ring-indigo-300`}
+                  className={`${input} border-gray-300 focus:ring-indigo-300  select-box`}
                   name="branch"
                   value={formData.branch}
                   onChange={handleInputChange}
@@ -239,7 +239,7 @@ function RegisterPage() {
                 </select>
 
                 <select
-                  className={`${input} border-gray-300 focus:ring-indigo-300`}
+                  className={`${input} border-gray-300 focus:ring-indigo-300  select-box`}
                   name="year"
                   value={formData.year}
                   onChange={handleInputChange}
@@ -258,7 +258,7 @@ function RegisterPage() {
                   Student ID
                 </label>
                 <input
-                  className={`${input}
+                  className={`${input}  select-box
                     ${isIDValid === true
                       ? "border-green-500 focus:ring-green-300"
                       : isIDValid === false
@@ -281,7 +281,7 @@ function RegisterPage() {
             </label>
             <input
               type="password"
-              className={`${input} border-gray-300 focus:ring-indigo-300`}
+              className={`${input} border-gray-300 focus:ring-indigo-300  select-box`}
               name="password"
               value={formData.password}
               onChange={handleInputChange}

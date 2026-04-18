@@ -135,7 +135,7 @@ export default function Announce() {
                 </div>
 
                 <button
-                    className="block button rounded-md !ml-auto !mt-6"
+                    className="block button rounded-md !ml-auto !mt-6 submit-btn"
                     type="submit"
                     disabled={loading}
                 >

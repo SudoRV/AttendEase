@@ -92,7 +92,7 @@ const TeacherAvailability1 = ({ onSubmit }) => {
             }
           </div>
 
-          <button className="w-fit px-12 py-3 rounded-md ml-auto mt-3 bg-blue-500 border-none text-white" type="submit">Submit</button>
+          <button className="w-fit px-12 py-3 rounded-md ml-auto mt-3 bg-indigo-500 border-none text-white" type="submit">Submit</button>
         </form>
       </div>
     </div>
