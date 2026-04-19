@@ -10,7 +10,17 @@ module.exports = {
   
   presets: [require("nativewind/preset")],
   theme: {
-    extend: {},
+    extend: {
+      keyframes: {
+        pulsate: {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.1)' },
+        },
+      },
+      animation: {
+        pulsate: 'pulsate 2s ease-in-out infinite',
+      },
+    },
   },
   plugins: [],
 };

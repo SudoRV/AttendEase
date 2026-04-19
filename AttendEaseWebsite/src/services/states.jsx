@@ -48,7 +48,7 @@ export const GlobalProvider = ({ children }) => {
         if (!userCreds) return;
 
         const date = new Date();
-        const day = selectedDay || date.toLocaleString("en-Gb", { weekday: "long" });
+        const day = "Monday" //selectedDay || date.toLocaleString("en-Gb", { weekday: "long" });
         const section = userCreds?.section || "A";
         const role = userCreds?.role?.toLowerCase();
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,13 @@ import {
   TouchableOpacity,
   Modal
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  Easing
+} from 'react-native-reanimated';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AttendanceDashboard from "../components/AttendanceDashbboard";
 import NotSignedIn from "../components/NotSignedIn";
@@ -52,6 +59,33 @@ const TimeTableScreen = () => {
   //     <NotSignedIn />
   //   )
   // }
+
+  const opacity = useSharedValue(1);
+  const scale = useSharedValue(1);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }]
+  }));
+
+  useEffect(() => {
+    const config = {
+      duration: 600,
+      easing: Easing.inOut(Easing.ease),
+    };
+  
+    opacity.value = withRepeat(
+      withTiming(0.8, config),
+      -1,
+      true
+    );
+  
+    scale.value = withRepeat(
+      withTiming(1.05, config),
+      -1,
+      true
+    );
+  }, []);
 
   return (
     <>
@@ -106,102 +140,110 @@ const TimeTableScreen = () => {
               return (
                 <View
                   key={index}
-                  className="w-[110px] items-center gap-2 mr-3 mt-3 pb-3"
+                  className="w-[120px] items-center gap-2 mr-3 mt-3 pb-3"
                 >
 
                   {/* TIME SLOT */}
-                  <View className="bg-indigo-500 w-full p-2.5 rounded-xl shadow-lg">
+                  <View className="bg-neutral-700 w-full p-2.5 rounded-xl shadow-lg">
                     <Text className="text-white text-sm font-semibold text-center">
                       {time}
                     </Text>
                   </View>
 
                   {/* SLOT CONTENT */}
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    delayLongPress={300}
-                    onLongPress={() => handleLongPress(item)}
-                    className="w-full flex-1"
-                  >
-                    {item?.subject_id ? (
-                      <View
-                        className={`w-full flex-1 justify-center items-center rounded-xl px-3 py-3 shadow-md ${item?.cancelled && !item?.substitute_teacher_id
-                          ? "bg-red-50 border border-red-200"
-                          : item?.isCurrentPeriod
-                            ? "bg-indigo-500"
-                            : "bg-white"
-                          }`}
-                      >
+                  <Animated.View 
+                    style={[item?.isCurrentPeriod && style]}
+                   className="w-full flex-1">
 
-                        {/* CANCELLED BADGE */}
-                        {!!item?.cancelled && (
-                          <View className={`absolute -bottom-2.5 bg-red-500 px-2 py-0.5 rounded-full ${item?.substitute_teacher_id ? "bg-teal-500" : "bg-red-500"}`}>
-                            <Text className="text-white text-[10px] font-semibold">
-                              {
-                                item?.substitute_teacher_id ? "Substituted" : "Cancelled"
-                              }
-                            </Text>
-                          </View>
-                        )}
-
-                        <Text
-                          className={`font-bold text-lg ${item?.cancelled && !item?.substitute_teacher_id
-                            ? "text-red-600"
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      delayLongPress={300}
+                      onLongPress={() => handleLongPress(item)}
+                      className="w-full flex-1"
+                    >
+                      {item?.subject_id ? (
+                        <View
+                          className={`w-full flex-1 justify-center items-center rounded-xl px-3 py-3 shadow-md ${item?.cancelled && !item?.substitute_teacher_id
+                            ? "bg-red-50 border border-red-200"
                             : item?.isCurrentPeriod
-                              ? "text-white"
-                              : "text-slate-900"
+
+                              ? "bg-indigo-500"
+
+                              : "bg-indigo-500 text-white"
                             }`}
                         >
-                          {item.subject_id}
-                        </Text>
 
-                        <View className="flex-1 justify-center items-center my-2 py-2 border-y border-slate-200">
+                          {/* CANCELLED BADGE */}
+                          {!!item?.cancelled && (
+                            <View className={`absolute -bottom-2.5 bg-red-500 px-2 py-0.5 rounded-full ${item?.substitute_teacher_id ? "bg-teal-500" : "bg-red-500"}`}>
+                              <Text className="text-white text-[10px] font-semibold">
+                                {
+                                  item?.substitute_teacher_id ? "Substituted" : "Cancelled"
+                                }
+                              </Text>
+                            </View>
+                          )}
+
                           <Text
-                            numberOfLines={3}
-                            ellipsizeMode="tail"
-                            className={`text-center ${item?.cancelled && !item?.substitute_teacher_id
-                              ? "text-red-500 line-through"
+                            className={`font-bold text-lg ${item?.cancelled && !item?.substitute_teacher_id
+                              ? "text-red-600"
                               : item?.isCurrentPeriod
                                 ? "text-white"
-                                : "text-slate-700"
+                                : "text-neutral-50"
                               }`}
                           >
-                            {item.subject_name}
+                            {item.subject_id}
+                          </Text>
+
+                          <View className={`flex-1 justify-center items-center my-3 py-3 border-slate-200 ${item?.subject_name === "LUNCH" ? "" : "border-y !border-neutral-200"}`}>
+                            <Text
+                              numberOfLines={3}
+                              ellipsizeMode="tail"
+                              className={`text-center ${item?.cancelled && !item?.substitute_teacher_id
+                                ? "text-red-500 line-through"
+                                : item?.isCurrentPeriod
+                                  ? "text-white"
+                                  : "text-neutral-50"
+                                } 
+                              ${item?.subject_name === "LUNCH" ? "font-bold text-yellow-300" : ""}`}
+                            >
+                              {item.subject_name}
+                            </Text>
+                          </View>
+
+                          <Text
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                            className={`text-sm italic text-center ${item?.cancelled && !item?.substitute_teacher_id
+                              ? "text-red-400"
+                              : item?.isCurrentPeriod
+                                ? "text-white"
+                                : "text-neutral-200"
+                              }`}
+                          >
+                            {userData?.role === "Teacher"
+                              ? `${item.branch_id || ""}-${item.year || ""}-${item.section || ""}`
+                              : item?.substitute_teacher_name || item.teacher_name}
+                          </Text>
+
+                        </View>
+                      ) : (
+                        <View
+                          className={`w-full flex-1 justify-center items-center rounded-xl px-2.5 py-2 shadow-md ${item?.isCurrentPeriod ? "" : "bg-neutral-100 "
+                            }`}
+                        >
+                          <Text
+                            className={`font-bold ${item?.isCurrentPeriod
+                              ? "text-white"
+                              : "text-neutral-700"
+                              }`}
+                          >
+                            Free
                           </Text>
                         </View>
-
-                        <Text
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                          className={`text-sm italic text-center ${item?.cancelled && !item?.substitute_teacher_id
-                            ? "text-red-400"
-                            : item?.isCurrentPeriod
-                              ? "text-white"
-                              : "text-slate-500"
-                            }`}
-                        >
-                          {userData?.role === "Teacher"
-                            ? `${item.branch_id || ""}-${item.year || ""}-${item.section || ""}`
-                            : item?.substitute_teacher_name || item.teacher_name}
-                        </Text>
-
-                      </View>
-                    ) : (
-                      <View
-                        className={`w-full flex-1 justify-center items-center rounded-xl px-2.5 py-2 shadow-md ${item?.isCurrentPeriod ? "bg-indigo-500" : "bg-white"
-                          }`}
-                      >
-                        <Text
-                          className={`font-bold ${item?.isCurrentPeriod
-                            ? "text-white"
-                            : "text-green-500"
-                            }`}
-                        >
-                          Free
-                        </Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
+                      )}
+                    </TouchableOpacity>
+                  </Animated.View>
 
                 </View>
               );

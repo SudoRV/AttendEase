@@ -195,7 +195,7 @@ export default function AttendanceDashboard() {
 
   useEffect(() => {
     skipClass(attendance);
-  }, [attendance.attendance, classes.classes])
+  }, [attendance.attendance])
 
   // ================= DASHBOARD VIEW =================
 

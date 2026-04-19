@@ -6,7 +6,7 @@ import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 /* =====================
    ENV CONFIG
 ===================== */
-const isProduction = false;
+const isProduction = true;
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP
@@ -30,10 +30,16 @@ export const GlobalProvider = ({ children }) => {
      TIMETABLE
   ===================== */
   const loadTimetable = async (userCreds, selectedDay) => {
+    // set saved classes
+    const savedClasses = await AsyncStorage.getItem("classes");
+    if(!!savedClasses){
+      setClasses(JSON.parse(savedClasses));
+    }
+    
     if (!userCreds) return;
 
     const date = new Date();
-    const day = selectedDay || date.toLocaleString("en-Gb", { weekday: "long" });
+    const day = "Monday" //selectedDay || date.toLocaleString("en-Gb", { weekday: "long" });
     const role = userCreds?.role?.toLowerCase();
     const section = userCreds?.section || "A";
 
@@ -79,14 +85,19 @@ export const GlobalProvider = ({ children }) => {
         timetable.push(
           {
             ...period,
-            isCurrentPeriod: p === new Date().getHours() - 8
+            isCurrentPeriod: p === new Date().getHours() - 8 //p === 1 ? true : false 
           }
         );
       }
 
+      if (!!selectedDay) {
+        return { day, classes: timetable }
+      }
+      else {
+        setClasses({ day, classes: timetable })
+      };
 
-      if (!selectedDay) setClasses({ day, classes: timetable });
-      else return { day, classes: timetable };
+      AsyncStorage.setItem("classes", JSON.stringify({ day, classes: timetable }));
 
     } catch (err) {
       console.log("Timetable error:", err);
@@ -158,8 +169,6 @@ export const GlobalProvider = ({ children }) => {
         ]
         : ["teachers"];     
 
-        console.log(topics)
-
       // 3. Save to your database
       const response = await fetch(buildUrl("/save-fcm-token"), {
         method: "POST",
@@ -187,7 +196,7 @@ export const GlobalProvider = ({ children }) => {
 
   useEffect(() => {
     if (!userData?.email) return;
-
+    
     loadTimetable(userData);
     loadLeaves();
 
