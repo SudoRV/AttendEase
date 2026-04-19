@@ -89,7 +89,7 @@ const TeacherAvailability1 = ({ onSubmit }) => {
                     styles={selectStyles}
                     placeholder="Search periods..."
                     options={classes.classes
-                      ?.filter(c => c.code.trim() !== "")
+                      ?.filter(c => !!c?.code?.trim())
                       .map(c => ({
                         value: JSON.stringify(c),
                         label: `${c.period}: ${c.code} (${c.section})`

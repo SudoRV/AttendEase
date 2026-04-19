@@ -81,7 +81,7 @@ const StudentLeaveManagement = () => {
 
   useEffect(() => {
     loadLeaves("Teacher");
-  }, [userData, loadLeaves]);
+  }, [userData]);
 
   useEffect(() => {
     setCurrentClass(classes.classes?.find(c => c.isCurrentPeriod));
@@ -99,14 +99,14 @@ const StudentLeaveManagement = () => {
     <div className="w-full flex flex-col h-full">
 
       {/* Tabs */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 gap-4 mb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 gap-4 mb-6">
 
         {/* Tabs Wrapper with Track */}
-        <div className="relative flex items-center bg-slate-100 p-1 rounded-xl w-fit gap-2">
+        <div className="relative flex items-center bg-slate-100 rounded-xl w-fit gap-2">
           {/* Badge - LOGIC & STYLES UNCHANGED */}
           {leavesCount > 0 && (
             <div
-              className={`absolute p-2 w-6 h-6 flex justify-center items-center rounded-full bg-red-500 text-white text-sm 
+              className={`absolute p-2 w-5 h-5 flex justify-center items-center rounded-full bg-red-500 text-white text-xs 
           -top-2 transition-transform duration-300 delay-500
           ${activeTab === "leaves" ? "-right-2" : "-left-2"}`}
             >

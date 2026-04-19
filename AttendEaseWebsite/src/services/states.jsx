@@ -101,7 +101,6 @@ export const GlobalProvider = ({ children }) => {
                 );
             }
 
-
             if (!selectedDay) setClasses({ day, classes: timetable });
             else return { day, classes: timetable };
 
@@ -169,6 +168,7 @@ export const GlobalProvider = ({ children }) => {
 
     const loadLeaves = async (filter) => {
         if (!userData?.email) return;
+        console.log("fick")
 
         try {
             const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
