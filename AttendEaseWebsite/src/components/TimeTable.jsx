@@ -26,15 +26,20 @@ const TimeTable = () => {
     setCurrentEditCell({ toglled: true, pos: { x: e.clientY, y: e.clientX }, period_no: period_no });
   }
 
-  const SubjectCell = ({ item, period_no, code, name, teacher, year, branch, section, room_number, cancelled, current }) => (
-    <td className={
-      `subject-cell  bg-gradient-to-br via-indigo-500 from-indigo-500 to-indigo-600 
-      ${current ? "!bg-indigo-500" : ""}`
-    } onContextMenu={(e) => SubjectEditMenu(e, period_no)}>
+  const SubjectCell = ({ item, period_no, code, name, teacher, year, branch, section, room_number, cancelled, current }) =>{
+    const cellBackground = !code 
+    ? "bg-gradient-to-br via-slate-200 from-slate-400 to-slate-400" // Color for "Free" periods
+    : current 
+      ? "animate-current !bg-indigo-500" // Color for active period
+      : "bg-gradient-to-br via-indigo-500 from-indigo-600 to-indigo-600"; // Default class color
+    return (
+    <td 
+      className={`subject-cell ${cellBackground}`}
+      onContextMenu={(e) => SubjectEditMenu(e, period_no)}>
       {
         cancelled ? (
           <div className="cancelled-class flex-col">
-            <p className={`w-full !text-white p-1 px-2.5 rounded-full text-sm ${item?.substitute_teacher_id ? "bg-teal-500" : "bg-red-500"}`}>{item?.substitute_teacher_id ? "Substituted" : "Cancelled"}</p>           
+            <p className={`w-full !text-white p-1 px-2.5 rounded-full text-sm ${item?.substitute_teacher_id ? "bg-gradient-to-br via-teal-500 from-teal-600 to-teal-600" : "bg-gradient-to-br via-red-500 from-red-600 to-red-600"}`}>{item?.substitute_teacher_id ? "Substituted" : "Cancelled"}</p>           
           </div>
         ) : (
           ""
@@ -44,22 +49,22 @@ const TimeTable = () => {
         {
           code ? (
             <>
-              <p className={`subject-code ${current ? "!text-gray-100 !font-light" : ""} ${item?.subject_name === "LUNCH" ? "!border-none" : ""}`}>{code}</p>
+              <p className={`subject-code ${current ? "!text-gray-100 !font-light" : ""} ${item?.subject_name === "LUNCH" ? "!border-none !text-yellow-400" : ""}`}>{code}</p>
 
-              <p className={`subject-name ${current ? "!text-gray-100 !font-light" : ""}`}>{name}</p>
+              <p className={`subject-name ${current ? "!text-gray-100 !font-light" : ""} ${item?.subject_name === "LUNCH" ? "!text-lg !font-bold !text-yellow-400" : ""}`}>{name}</p>
 
               <p className={`Teacher-name 
               ${current ? "!text-gray-100 !font-light" : ""}
-              ${item?.subject_name === "LUNCH" ? "!border-none" : ""}`}
+              ${item?.subject_name === "LUNCH" ? "!border-none !text-yellow-400" : ""}`}
 
               >{userData?.role === "Teacher" ? `${branch || ""}-${year || ""}-${section || ""}-${room_number || ""}` : item?.substitute_teacher_name || teacher}</p></>
           ) : (
-            <p className="text-[#ececec]">Free</p>
+            <p className="!text-black !text-lg !font-bold">Free</p>
           )
         }
       </div>
     </td>
-  );
+  );};
 
   useEffect(() => {
     if (currentEditCell.option === "edit") {
