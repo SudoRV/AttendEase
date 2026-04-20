@@ -33,7 +33,7 @@ const Announcements = () => {
               </div>
 
               {/* Body: Softened text for better readability */}
-              <p className="text-indigo-50 mt-2 leading-relaxed text-base opacity-90 font-light">
+              <p className="text-indigo-50 mt-2 pt-2 pb-2 leading-relaxed text-base opacity-90 font-light flex flex-wrap overflow-scroll custom-scrollbar">
                 {announcement.body}
               </p>
 
