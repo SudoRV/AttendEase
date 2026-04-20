@@ -100,7 +100,7 @@ html,body{
     /* border: 1px solid #ccc; */
     background-color: #f7f7f7;
     border-radius: 16px;
-    padding: 16px;
+    padding: 6px;
     box-shadow: #8e8e8e 0px 4px 6px -1px;
 
 }
@@ -172,12 +172,10 @@ html,body{
     
 }
 
-/* .dashboard-container {
+.dashboard-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow-y: auto;
-} */
+}
 
 .dashboard {
     display: grid;
@@ -188,8 +186,8 @@ html,body{
         "footer footer"  
     ;
     /* grid-template-columns: minmax(0, 350px) 1fr 1fr; */
-    gap: 2rem;
-    margin-top: 2rem;
+    gap: 1rem;
+    margin-top: 1rem;
 }
 
 .teacher-dashboard {
@@ -233,7 +231,7 @@ html,body{
 }
 
 .main-content {
-  padding: 20px;
+  padding: 15px;
   background: #ffffff;
   height: 100%;
 }
@@ -251,15 +249,17 @@ html,body{
 
 .leave-management {
     grid-area: leave;
+    padding:20px;
 }
 
 .leave-verifier {
-    min-height: 280px;
+    min-height: 240px;
     max-height: 300px;
 }
 
 .announcements {
     grid-area: announcements;
+    overflow-y: auto;
 }
 
 
@@ -283,31 +283,6 @@ html,body{
     grid-row: 1;
 }
 
-/* Row 2 — full width wrapper */
-.row2 {
-    grid-column: 2 / -1;
-    /* stretch across both columns */
-    grid-row: 2;
-    /* lock to second row */
-
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
-/* Cards inside row 2 */
-.row2 .card {
-    min-height: 120px;
-    /* auto-scaling height */
-    padding: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px black;
-
-    background: #ffffff;
-    border-radius: 10px;
-
-}
 
 .dashboard-content {
     display: grid;
@@ -493,7 +468,8 @@ html,body{
 .subject-cell {
     position: relative;
     width: 10%;
-    max-width: 100px;
+    min-width: 120px;
+    max-width: 120px;
     height: 100%;
     padding: 10px;
     text-align: center;
@@ -501,6 +477,7 @@ html,body{
     /* background: linear-gradient(); */
     border-radius: 12px;
     box-shadow: 2px 2px 2px #a7a7a7;
+    overflow: auto;
 }
 
 .table-time:first-child,
@@ -527,6 +504,7 @@ html,body{
 .subject-name {
     height: 4rem;
     display: flex;
+    
     justify-content: center;
     align-items: center;
 }
@@ -605,28 +583,6 @@ html,body{
     grid-row: 1;
     grid-column: 2;
     text-align: left;
-}
-
-.submit-leave .row2 {
-    margin: 1rem 0;
-    gap: 2rem;
-}
-
-.submit-leave .row2 .other {
-    display: flex;
-    flex-direction: column;
-    align-items: start;
-}
-
-.submit-leave .row2 .other label {
-    /*font-size: 18px;*/
-    font-weight: bold;
-    color: #242424;
-}
-
-.submit-leave .row2 .other .select-box {
-    width: 100%;
-    margin-top: 0.8rem;
 }
 
 .submit-leave .submit-btn {
@@ -709,13 +665,7 @@ html,body{
             ;
         }
     .leave-management {
-        margin: 0;
-        width: 90vw;
-        position: relative;
-    }
-     .announcements {
-        margin: 0;
-        width: 90vw;
+        padding: 5px;
         position: relative;
     }
 }

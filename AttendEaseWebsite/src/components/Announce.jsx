@@ -81,8 +81,8 @@ export default function Announce() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white shadow-sm rounded-xl border border-gray-100">
-      <h3 className="text-2xl font-bold text-gray-800 mb-6">Create Announcement</h3>
+    <div className="max-w-2xl mx-auto p-2 bg-white shadow-sm rounded-xl border border-gray-100 h-full">
+      <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">Create Announcement</h3>
       
       <form onSubmit={handleAnnounce} className="space-y-5">
         {/* Basic Info */}

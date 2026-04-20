@@ -59,13 +59,13 @@ const LeaveBox = () => {
   }
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
   
   {/* Top Section: History & Latest Status */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
     
     {/* Leave History Card */}
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm">
       <h2 className="text-lg font-bold text-slate-800 mb-4">Leave History</h2>
       <div className="flex items-center justify-between bg-indigo-50 p-4 rounded-xl">
         <p className="text-slate-600 font-medium">Leaves this month</p>
@@ -76,7 +76,7 @@ const LeaveBox = () => {
     </div>
 
     {/* Latest Leave Status Card */}
-    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm">
       <h2 className="text-lg font-bold text-slate-800 mb-4">Latest Status</h2>
       {leaveHistory && leaveHistory.length > 0 ? (
         <div className="space-y-1 overflow-hidden">
@@ -112,7 +112,7 @@ const LeaveBox = () => {
   </div>
 
   {/* Submit Leave Form */}
-  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+  <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm">
     <h2 className="text-xl font-bold text-slate-800 mb-6">Submit New Leave</h2>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
