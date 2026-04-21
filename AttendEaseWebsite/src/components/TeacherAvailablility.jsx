@@ -46,7 +46,7 @@ const TeacherAvailability1 = ({ onSubmit }) => {
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm max-w-2xl mx-auto">
+    <div className="bg-white border border-slate-200 rounded-3xl p-2 shadow-sm mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
           <FiClock size={20} />

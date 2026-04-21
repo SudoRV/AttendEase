@@ -20,8 +20,10 @@ function RegisterPage() {
     password: '',
     student_id: '',
     teacher_id: '',
-    branch: '',
+    branch_id: '',
     year: '',
+    semester: '',
+    section: 'A'
   });
 
   // 3. Handle form submission
@@ -48,8 +50,10 @@ function RegisterPage() {
         password: "",
         student_id: "",
         teacher_id: "",
-        branch: "",
-        year: ""
+        branch_id: "",
+        year: "",
+        semester: "",
+        section: "A"
       });
 
       alert(responseJSON.message);
@@ -74,7 +78,7 @@ function RegisterPage() {
       ...prevData,
       role: role,
       teacher_id: '',
-      branch: '',
+      branch_id: '',
       year: '',
       student_id: '',
     }));
@@ -224,8 +228,8 @@ function RegisterPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <select
                   className={`${input} border-gray-300 focus:ring-indigo-300  select-box`}
-                  name="branch"
-                  value={formData.branch}
+                  name="branch_id"
+                  value={formData.branch_id}
                   onChange={handleInputChange}
                   required
                 >
@@ -246,13 +250,45 @@ function RegisterPage() {
                   required
                 >
                   <option value="">Year</option>
-                  <option value="1">1st</option>
-                  <option value="2">2nd</option>
-                  <option value="3">3rd</option>
-                  <option value="4">4th</option>
+                  <option value="1">1st Year</option>
+                  <option value="2">2nd Year</option>
+                  <option value="3">3rd Year</option>
+                  <option value="4">4th Year</option>
                 </select>
               </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <select
+                  className={`${input} border-gray-300 focus:ring-indigo-300  select-box`}
+                  name="semester"
+                  value={formData.semester}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">Semester</option>
+                  <option value="1">1st Semester</option>
+                  <option value="2">2nd Semester</option>
+                  <option value="3">3rd Semester</option>
+                  <option value="4">4th Semester</option>
+                  <option value="5">5th Semester</option>
+                  <option value="6">6th Semester</option>
+                  <option value="7">7th Semester</option>
+                  <option value="8">8th Semester</option>
+                  <option value="9">9th Semester</option>
+                  <option value="10">10th Semester</option>
+                </select>
+                <select
+                  className={`${input} border-gray-300 focus:ring-indigo-300  select-box`}
+                  name="section"
+                  value={formData.section}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">Section</option>
+                  <option value="A">Section A</option>
+                  <option value="B">Section B</option>
+                  <option value="C">Section C</option>
+                </select>
+              </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">
                   Student ID
@@ -270,6 +306,7 @@ function RegisterPage() {
                   onChange={handleInputChange}
                   required
                 />
+
               </div>
             </>
           )}

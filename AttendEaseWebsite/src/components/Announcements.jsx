@@ -6,7 +6,7 @@ const Announcements = () => {
   const { announcements } = AppStates();
 
   return (
-    <div className="announcements h-full flex flex-col items-center">
+    <div className="h-full flex flex-col items-center">
       <h2 className="headings !m-0 !p-0">Announcements</h2><br />
       <div className="announcements-container w-full flex-1 flex flex-col gap-3">
         {announcements && announcements.length > 0 ? (
@@ -33,7 +33,7 @@ const Announcements = () => {
               </div>
 
               {/* Body: Softened text for better readability */}
-              <p className="text-indigo-50 mt-2 leading-relaxed text-base opacity-90 font-light">
+              <p className="text-indigo-50 mt-2 pt-2 pb-2 leading-relaxed text-base opacity-90 font-light flex flex-wrap overflow-scroll custom-scrollbar">
                 {announcement.body}
               </p>
 
