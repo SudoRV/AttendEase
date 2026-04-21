@@ -96,18 +96,26 @@ android {
             keyPassword 'android'
         }
 
-        release {
-            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE') &&
-                project.hasProperty('MYAPP_UPLOAD_STORE_PASSWORD') &&
-                project.hasProperty('MYAPP_UPLOAD_KEY_ALIAS') &&
-                project.hasProperty('MYAPP_UPLOAD_KEY_PASSWORD')) {
+        // release {
+        //     if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE') &&
+        //         project.hasProperty('MYAPP_UPLOAD_STORE_PASSWORD') &&
+        //         project.hasProperty('MYAPP_UPLOAD_KEY_ALIAS') &&
+        //         project.hasProperty('MYAPP_UPLOAD_KEY_PASSWORD')) {
 
-                storeFile file(MYAPP_UPLOAD_STORE_FILE)
-                storePassword MYAPP_UPLOAD_STORE_PASSWORD
-                keyAlias MYAPP_UPLOAD_KEY_ALIAS
-                keyPassword MYAPP_UPLOAD_KEY_PASSWORD
-            }
+        //         storeFile file(MYAPP_UPLOAD_STORE_FILE)
+        //         storePassword MYAPP_UPLOAD_STORE_PASSWORD
+        //         keyAlias MYAPP_UPLOAD_KEY_ALIAS
+        //         keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+        //     }
+        // }
+
+        release {
+            storeFile file(MYAPP_UPLOAD_STORE_FILE)
+            storePassword MYAPP_UPLOAD_STORE_PASSWORD
+            keyAlias MYAPP_UPLOAD_KEY_ALIAS
+            keyPassword MYAPP_UPLOAD_KEY_PASSWORD
         }
+
     }
 
     buildTypes {
@@ -115,16 +123,21 @@ android {
             signingConfig signingConfigs.debug
         }
 
-        release {
-            signingConfig project.hasProperty('MYAPP_UPLOAD_STORE_FILE')
-                ? signingConfigs.release
-                : signingConfigs.debug
+        // release {
+        //     signingConfig project.hasProperty('MYAPP_UPLOAD_STORE_FILE')
+        //         ? signingConfigs.release
+        //         : signingConfigs.debug
 
-            minifyEnabled enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        //     minifyEnabled enableProguardInReleaseBuilds
+        //     proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        // }
+
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
         }
     }
-
 }
 
 dependencies {
