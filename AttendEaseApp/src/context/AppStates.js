@@ -6,7 +6,7 @@ import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 /* =====================
    ENV CONFIG
 ===================== */
-const isProduction = false;
+const isProduction = true;
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP

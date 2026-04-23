@@ -40,7 +40,7 @@ const config2 = {
   timezone: 'Z'
 }
 
-const pool = mysql.createPool(config2);
+const pool = mysql.createPool(config);
 
 // nodemailer transporter
 // console.log(process.env.EMAIL, process.env.PASS)
