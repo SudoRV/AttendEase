@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -139,8 +139,8 @@ export default function LoginPage({ onSwitch }) {
   /* =====================
      EMAIL VALIDATION
   ===================== */
+  
   const validateEmail = async (value) => {
-    setEmail(value);
 
     if (!value) {
       setEmailValid(null);
@@ -156,10 +156,23 @@ export default function LoginPage({ onSwitch }) {
 
       const result = await response.json();
       setEmailValid(result.success === true);
-    } catch {
+    } catch (err) {
+      console.error(err)
       setEmailValid(null);
     }
   };
+
+
+  useEffect(() => {
+    if(!email) return;
+
+    const timeout = setTimeout(() => {
+      validateEmail(email);
+      clearTimeout(timeout);
+    }, 800);
+
+    return () => clearTimeout(timeout);
+  }, [email])
 
   return (
     <KeyboardAvoidingView
@@ -179,7 +192,7 @@ export default function LoginPage({ onSwitch }) {
           keyboardType="email-address"
           autoCapitalize="none"
           value={email}
-          onChangeText={validateEmail}
+          onChangeText={(v) => setEmail(v)}
           style={[
             styles.input,
             isEmailValid === true && styles.valid,

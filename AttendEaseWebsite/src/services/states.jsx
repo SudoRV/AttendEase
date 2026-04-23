@@ -7,7 +7,7 @@ const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
 
-    const isProduction = true;
+    const isProduction = false;
 
     // ⚠️ IMPORTANT:
     // Replace this with your computer’s local IP
@@ -48,7 +48,7 @@ export const GlobalProvider = ({ children }) => {
         if (!userCreds) return;
 
         const date = new Date();
-        const day = "Monday" //selectedDay || date.toLocaleString("en-Gb", { weekday: "long" });
+        const day = selectedDay || date.toLocaleString("en-Gb", { weekday: "long" });
         const section = userCreds?.section || "A";
         const role = userCreds?.role?.toLowerCase();
 

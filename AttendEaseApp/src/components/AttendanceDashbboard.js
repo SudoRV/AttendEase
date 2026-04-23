@@ -48,22 +48,6 @@ export default function AttendanceDashboard() {
     startMonth: ""
   });
 
-  // useEffect(() => {
-  //   if (userData?.user_id) {
-  //     setForm(prev => ({
-  //       ...prev,
-  //       name: userData.name || "",
-  //       roll: userData.student_id || "",
-  //       collegeId: userData.collegeId?.toString() || "",
-  //       admissionId: userData.admissionId?.toString() || "",
-  //       courseId: userData.courseId?.toString() || "",
-  //       branchId: userData.branchId?.toString() || "",
-  //       durationId: userData.semester?.toString() || "",
-  //       startMonth: userData.start_month?.toString() || new Date().getMonth() + 1
-  //     }));
-  //   }
-  // }, [userData?.admissionId]);
-
   const copyCode = () => {
     Clipboard.setString(injectionCode);
     Alert.alert("Success", "Injection code copied to clipboard.");
@@ -89,12 +73,11 @@ export default function AttendanceDashboard() {
   };
 
   const handleSubmit = async () => {
-    if (!form.admissionId || !form.branchId) {
+    if (Object.values(form).filter(f => !!f === false).length > 0) {
       Alert.alert("Missing Info", "Please provide all ID fields.");
       return;
     }
 
-    console.log(form)
     const response = await fetch(buildUrl("/save/utu-creds"), {
       method: "POST",
       headers: {
@@ -112,7 +95,7 @@ export default function AttendanceDashboard() {
         const user_creds = { ...userData, collegeId: form?.collegeId, admissionId: form?.admissionId, courseId: form?.courseId, branchId: form?.branchId, semester: form?.durationId, start_month: form?.startMonth };
 
         AsyncStorage.setItem("user_creds", JSON.stringify(user_creds));
-        
+
         setUserData(user_creds);
         // RNRestart.Restart();
       }
@@ -147,9 +130,9 @@ export default function AttendanceDashboard() {
       courseId: userData.courseId?.toString() || "",
       branchId: userData.branchId?.toString() || "",
       durationId: userData.semester?.toString() || "",
-      startMonth: userData.start_month?.toString() || new Date().getMonth() + 1
+      startMonth: userData.start_month?.toString() || new Date().getMonth()
     };
-    setForm(prev => ({...prev, ...utu_creds}));
+    setForm(prev => ({ ...prev, ...utu_creds }));
     if (!userData?.admissionId) return;
 
     setHasConfig(true);
@@ -256,12 +239,41 @@ export default function AttendanceDashboard() {
     <SafeAreaView className="flex-1 bg-slate-50">
       <ScrollView className="p-6">
         <View className="mb-6">
-          <Text className="text-3xl font-black text-slate-800">Smart Setup</Text>
+          <Text className="text-3xl font-black text-slate-800">Smart Attendance Setup</Text>
           <Text className="text-slate-500 mt-1">Sync your academic records effortlessly.</Text>
         </View>
 
+        {/* instructions */}
+        <View className="p-4 bg-gray-50 rounded-xl border border-gray-200 mb-8">
+          <Text className="text-lg font-bold text-gray-800 mb-3">
+            Instructions
+          </Text>
+
+          <View className="space-y-2">
+            <Text className="text-gray-600 leading-6">
+              <Text className="font-semibold text-blue-600">1.</Text> Copy the given code.
+            </Text>
+
+            <Text className="text-gray-600 leading-6">
+              <Text className="font-semibold text-blue-600">2.</Text> Open your UTU attendance report page.
+            </Text>
+
+            <Text className="text-gray-600 leading-6">
+              <Text className="font-semibold text-blue-600">3.</Text> Open dev mode (<Text className="bg-gray-200 px-1 rounded font-mono text-xs">CTRL + SHIFT + I</Text>).
+            </Text>
+
+            <Text className="text-gray-600 leading-6">
+              <Text className="font-semibold text-blue-600">4.</Text> Paste the code (you may need to type "allow pasting" first).
+            </Text>
+
+            <Text className="text-gray-600 leading-6">
+              <Text className="font-semibold text-blue-600">5.</Text> Return to the app and press <Text className="italic font-medium">Paste from Clipboard</Text>.
+            </Text>
+          </View>
+        </View>
+
         {/* Script Section */}
-        <View className="bg-slate-900 p-5 rounded-3xl mb-6 shadow-2xl">
+        <View className="bg-slate-900 p-5 rounded-3xl mb-4 shadow-2xl">
           <View className="flex-row justify-between items-center mb-3">
             <Text className="text-indigo-400 font-bold tracking-tighter">JS CONSOLE SCRIPT</Text>
             <TouchableOpacity onPress={copyCode} className="bg-indigo-500 px-3 py-1 rounded-lg">
@@ -272,6 +284,13 @@ export default function AttendanceDashboard() {
             {injectionCode}
           </Text>
         </View>
+
+        <TouchableOpacity
+          onPress={handlePaste}
+          className="my-4 mb-8 py-4 rounded-2xl border-2 border-dashed border-indigo-200 items-center"
+        >
+          <Text className="text-indigo-600 font-bold">Paste from Clipboard</Text>
+        </TouchableOpacity>
 
         {/* Input Form */}
         <View className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
@@ -315,9 +334,9 @@ export default function AttendanceDashboard() {
             onPress={() => setShowSemesterPicker(true)}
             className="mb-4"
           >
-            <Text className="text-slate-500 text-xs font-bold uppercase ml-1 mb-1">Semester / Duration</Text>
+            <Text className="text-slate-500 text-xs font-bold uppercase ml-1 mb-1">Semester (current semester)</Text>
             <View className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex-row justify-between items-center">
-              <Text className="text-slate-800 font-medium">Semester {form.durationId}</Text>
+              <Text className="text-slate-800 font-medium">{form?.durationId ? `Semester ${form.durationId}` : "Select semester"}</Text>
               <Text className="text-indigo-600 font-bold">Change</Text>
             </View>
           </TouchableOpacity>
@@ -328,7 +347,7 @@ export default function AttendanceDashboard() {
           >
             <Text className="text-slate-500 text-xs font-bold uppercase ml-1 mb-1">Start Month</Text>
             <View className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex-row justify-between items-center">
-              <Text className="text-slate-800 font-medium"> {new Date(new Date().getFullYear(), form.startMonth, 1).toLocaleString('en-GB', { month: 'long' })}</Text>
+              <Text className="text-slate-800 font-medium">{new Date(new Date().getFullYear(), form.startMonth || new Date().getMonth(), 1).toLocaleString('en-GB', { month: 'long' })}</Text>
               <Text className="text-indigo-600 font-bold">Change</Text>
             </View>
           </TouchableOpacity>
@@ -336,15 +355,8 @@ export default function AttendanceDashboard() {
         </View>
 
         <TouchableOpacity
-          onPress={handlePaste}
-          className="mt-6 py-4 rounded-2xl border-2 border-dashed border-indigo-200 items-center"
-        >
-          <Text className="text-indigo-600 font-bold">Paste from Clipboard</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           onPress={handleSubmit}
-          className="bg-indigo-600 mt-4 p-5 rounded-2xl shadow-xl shadow-indigo-200"
+          className="bg-indigo-600 mt-8 p-5 rounded-2xl shadow-xl shadow-indigo-200"
         >
           <Text className="text-white text-center font-bold text-lg">Continue to Dashboard</Text>
         </TouchableOpacity>
@@ -355,7 +367,7 @@ export default function AttendanceDashboard() {
             <View className="bg-white rounded-t-[40px] p-8">
               <Text className="text-xl font-bold text-center mb-6">Select Semester</Text>
               <View className="flex-row flex-wrap justify-center">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
                   <TouchableOpacity
                     key={"sem-" + num}
                     onPress={() => {

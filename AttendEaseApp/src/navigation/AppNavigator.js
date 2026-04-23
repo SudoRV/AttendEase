@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -9,6 +9,8 @@ import LeaveScreen from "../screens/LeaveScreen";
 import AlertsScreen from "../screens/AlertsScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import { View, Text, Animated, Pressable } from "react-native";
+
+import { AppStates } from "../context/AppStates";
 
 import AnimatedTabIcon from "../components/ui/AnimatedTabIcon";
 
@@ -59,7 +61,16 @@ const AppTheme = {
   },
 };
 
-export default function AppNavigator() {
+export default function AppNavigator({ onLogout }) {
+
+  const { logout } = AppStates();
+
+  useEffect(() => {
+    if(logout && onLogout) {
+      onLogout();
+    }
+  }, [logout])
+  
   return (
     <NavigationContainer theme={AppTheme}>
       <Tab.Navigator

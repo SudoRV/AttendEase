@@ -121,7 +121,7 @@ const RenderStatus = ({ subject, status, index }) => {
         <View key={subject + "-" + status + "-" + index} className="rounded-lg flex-col justify-center items-center py-1.5 gap-0.5">
             {
                 status.split(",").map((s, sindex) => (
-                    <View key={subject + "-" + index + "-" + sindex} className={`w-10 flex-1 justify-center items-center rounded-md ${s.trim() === "P" ? "bg-green-500" : s.trim() === "A" ? "bg-red-500" : "bg-blue-50"}`}>
+                    <View key={subject + "-" + index + "-" + sindex} className={`w-10 flex-1 justify-center items-center rounded-md ${s.trim() === "P" ? "bg-green-500" : s.trim() === "A" ? "bg-red-500" : s.trim() === "L" ? "bg-blue-500" : "bg-blue-50"}`}>
                         <Text className={`text-xs ${s !== "NA" && "text-white font-semibold"}`}>{s === "NA" ? "-" : s}</Text>
                     </View>
                 ))

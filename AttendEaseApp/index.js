@@ -9,7 +9,7 @@ import notifee, { AndroidStyle, EventType, AndroidImportance, AndroidVisibility 
 const isProduction = false;
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
-  : "http://10.108.224.42:8000";
+  : "http://10.73.202.96:8000";
 
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
@@ -38,7 +38,7 @@ const onMessageReceived = async (remoteMessage) => {
     const scheduleImageUrl = buildUrl(`${remoteMessage?.data?.schedule_image}?v=${timestamp}`);
 
     await notifee.displayNotification({
-      id: 'daily_schedule_alert',
+      id: 'daily_class_alerts',
       title: "📚 Today's Classes",
       subtitle: subtitle,
       android: {

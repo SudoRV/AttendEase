@@ -19,7 +19,7 @@ import { AppStates } from "../context/AppStates";
 import Auth from "../components/Auth";
 
 export default function ProfileScreen() {
-  const { userData, setUserData, buildUrl } = AppStates();
+  const { userData, setUserData, buildUrl, setLogout } = AppStates();
 
   // --- NEW STATES FOR PASSWORD LOGIC ---
   const [modalVisible, setModalVisible] = useState(false);
@@ -50,6 +50,7 @@ export default function ProfileScreen() {
             await messaging().deleteToken();
             await AsyncStorage.clear();
             setUserData(null);
+            setLogout(true);
             // RNRestart.Restart();
 
           } catch (err) {
@@ -226,6 +227,20 @@ export default function ProfileScreen() {
           <InfoRow label="Email" value={userData?.email} />
           <InfoRow label="Role" value={userData?.role} />
         </GlassCard>
+
+        {/* <TouchableOpacity
+          className="!w-fit flex-row items-center justify-center py-3 px-4 bg-white mx-6 mt-4 rounded-xl active:bg-gray-200"
+        >
+          <Ionicons
+            name="create-outline"
+            size={20}
+            className="text-gray-700 mr-2"
+          />
+          <Text className="text-gray-700 font-semibold text-base">
+            Edit Profile
+          </Text>
+        </TouchableOpacity> */}
+
 
         {/* 🔹 SECURITY SETTINGS (LAST) */}
         <GlassCard title="Security Settings" icon="shield-checkmark-outline">

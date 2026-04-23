@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, RootProvider } from "react";
 import { View, Vibration, StatusBar } from "react-native";
 import Sound from 'react-native-sound';
 import AppNavigator from "./src/navigation/AppNavigator";
@@ -13,16 +13,22 @@ import "./global.css";
 
 const checkBattery = async () => {
   const settings = await notifee.getNotificationSettings();
-  
+
   // If the user hasn't ignored battery optimizations
-  if (settings.android.alarm === 0) { 
-     // You can open the system settings page directly for them:
-     await notifee.openBatteryOptimizationSettings();
+  if (settings.android.alarm === 0) {
+    // You can open the system settings page directly for them:
+    await notifee.openBatteryOptimizationSettings();
   }
 };
 
 export default function App() {
   const [notification, setNotification] = useState(null);
+  const [sessionKey, setSessionKey] = useState(0);
+
+  const handleLogout = () => {
+    // console.log(sessionKey)
+    setSessionKey(prev => prev + 1);
+  };
 
   useEffect(() => {
     async function requestPermission() {
@@ -68,9 +74,10 @@ export default function App() {
         translucent={true}
         animated={true}
       />
+
       {/* Your standard app tree */}
-      <GlobalProvider>
-        <AppNavigator />
+      <GlobalProvider key={sessionKey} >
+        <AppNavigator onLogout={handleLogout} />
       </GlobalProvider>
 
       {/* 🔴 GLOBAL POPUP: Only renders if notification state exists */}

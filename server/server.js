@@ -8,6 +8,8 @@ const path = require("path");
 const crypto = require('crypto');
 const axios = require("axios");
 require("dotenv").config();
+const nodemailer = require("nodemailer");
+
 
 const createTableImage = require("./utility/createTableImage");
 
@@ -35,7 +37,34 @@ const config2 = {
   waitForConnections: true,
 }
 
-const pool = mysql.createPool(config);
+const pool = mysql.createPool(config2);
+
+// nodemailer transporter
+// console.log(process.env.EMAIL, process.env.PASS)
+// Create a transporter with your email service credentials
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL,
+    pass: process.env.APP_PASSWORD,
+  },
+  connectionTimeout: 30000, // ↑ increase
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+  family: 4,
+});
+
+transporter.verify(function (error, success) {
+  if (error) {
+    console.log("❌ SMTP Connection Error:");
+    console.log(JSON.stringify(error, null, 2));
+  } else {
+    console.log("✅ Transporter is ready to take our messages");
+  }
+});
+
 
 app.get("/wake-me-up", (req, res) => {
   res.json({ success: true, message: "i already wokeup" });
@@ -46,7 +75,6 @@ app.post("/save-fcm-token", async (req, res) => {
   const { user_data, token, topics } = req.body;
 
   // console.log(user_data)
-
   const query = `INSERT INTO fcm_tokens (user_id, device_id, fcm_token, device_name, active) 
   VALUES (?, ?, ?, ?, '1') 
   ON DUPLICATE KEY UPDATE 
@@ -103,6 +131,140 @@ app.post("/validate-creds", async (req, res) => {
   }
 });
 
+
+app.post("/reset-password", async (req, res) => {
+  const { email, old_password, new_password, otp: userOtp, type } = req.body;
+
+  const [user] = await pool.query("select * from users where email = ?", [email]);
+  // console.log(user);
+
+  if (user?.length === 0) {
+    return res.status(400).json({ success: false, message: "user doesn't exists" });
+  }
+
+  if (type === "change") {
+    const isMatch = await bcrypt.compare(old_password, user[0].password_hash);
+
+    if (!isMatch) return res.json({ success: false, message: "password not matched" });
+
+    const new_password_hash = await bcrypt.hash(new_password, 10);
+
+    // update the databse
+    const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
+
+    if (response.affectedRows > 0) return res.json({ success: true, message: "password changed successfully" });
+
+    res.json({ success: false, message: "Internal server error" });
+  }
+
+  else if (type === "request_otp") {
+    const verifiedEmail = user[0].email;
+
+    const otpCode = generateOTP(); // Get the code first
+    const otpData = {
+      code: otpCode,
+      request_time: Date.now(),
+      ttl: 15,
+    };
+
+    try {
+      // 1. MUST use await here
+      // Note the [result] destructuring - this gets the actual result object
+      const [result] = await pool.query("UPDATE users SET otp = ? WHERE email = ?", [
+        JSON.stringify(otpData),
+        verifiedEmail
+      ]);
+
+      if (result.affectedRows <= 0) {
+        return res.json({ success: false, message: "User record not found in database" });
+      }
+
+      const mailOptions = {
+        from: '"AttendEase Support" <help.sudorv@gmail.com>',
+        to: verifiedEmail,
+        subject: `${otpData.code} is your AttendEase reset code`,
+        html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; width: 100%;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <tr>
+              <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                <h1 style="color: #4f46e5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">AttendEase</h1>
+              </td>
+            </tr>
+            
+            <tr>
+              <td style="padding: 0 20px 40px 20px; text-align: center;">
+                <h2 style="color: #1e293b; font-size: 20px; margin-bottom: 16px;">Reset Your Password</h2>
+                <p style="color: #64748b; font-size: 16px; line-height: 24px; margin-bottom: 32px;">
+                  We received a request to reset your password. Use the code below to proceed. This code will expire in 10 minutes.
+                </p>
+                
+                <div style="background-color: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 32px;">
+                  <span style="font-family: 'Courier New', Courier, monospace; font-size: 42px; font-weight: bold; color: #4f46e5; letter-spacing: 8px;">
+                    ${otpData.code}
+                  </span>
+                </div>
+  
+                <p style="font-size: 16px;">This OTP is valid only for ${otpData.ttl} min.</p>
+                
+                <p style="color: #94a3b8; font-size: 14px; line-height: 20px;">
+                  If you didn't request this, you can safely ignore this email. Your password won't change until you use this code to create a new one.
+                </p>
+              </td>
+            </tr>
+            
+            <tr>
+              <td style="padding: 30px 40px; background-color: #f8fafc; text-align: center; border-top: 1px solid #e2e8f0;">
+                <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                  &copy; 2026 AttendEase. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </div>
+      `
+      };
+
+      // 2. Use the Promise version of sendMail. 
+      // This prevents the "Hanging/Bad Gateway" issue on Render.
+      await transporter.sendMail(mailOptions);
+
+      // 3. Success response only after email is truly sent
+      return res.json({
+        success: true,
+        message: "OTP sent successfully. Check your email."
+      });
+
+    } catch (error) {
+      console.error("🔥 ERROR:", error);
+
+      // This ensures that even if SMTP times out, you return JSON, not a 502 HTML page
+      return res.status(500).json({
+        success: false,
+        message: "Mail server timeout or DB error",
+        error: error.message
+      });
+    }
+  }
+
+  else if (type === "verify_reset") {
+    const otp = user[0].otp;
+
+    if (!otp.code || new Date(otp.request_time).getTime() + otp.ttl * 60 * 1000 < new Date().getTime() || otp.code !== userOtp) {
+      return res.status(400).json({ success: false, message: "OTP incorrect or expired" });
+    }
+
+    // reset password
+    const new_password_hash = await bcrypt.hash(new_password, 10);
+
+    // update the databse
+    const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
+
+    if (response.affectedRows > 0) return res.json({ success: true, message: "password reset successfully" });
+
+    res.json({ success: false, message: "Internal server error" });
+  }
+})
 
 
 app.post("/login", async (req, res) => {
@@ -171,6 +333,8 @@ app.post("/register", async (req, res) => {
     res.json({ success: false, message: "Already Registered" })
   }
 })
+
+// reset password
 
 
 // fetch timetable
@@ -317,36 +481,60 @@ app.post("/update-schedule", async (req, res) => {
 
 // set substitution teacher 
 app.post("/set-substitutor", async (req, res) => {
-  const { class_id, substitutor, action } = req.body;
+  const { class_id, substitutee, substitutor, action } = req.body;
 
-  // check if teacher exists or not 
-  const [substitutorExists] = await pool.query("select teacher_id from users where teacher_id = ?", [substitutor.teacher_id]);
+  // check if substitute teacher exists or not 
+  const [substitutionTeachers] = await pool.query("select user_id, teacher_id from users where teacher_id in (?)", [[substitutor.teacher_id, substitutee.teacher_id]]);
 
-  if (!!substitutorExists[0]?.teacher_id) {
+  if (!!substitutionTeachers.find(tid => tid.teacher_id === substitutor.teacher_id)?.user_id) {
+    let result;
+    // substitution cancelled
     if (action === "cancel") {
-      const [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [null, null, null, class_id]);
+      [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [null, null, null, class_id]);
 
-      if (result.affectedRows > 0) {
-        return res.status(200).json({ success: true, message: "Substitution cancelled." });
-      } else {
-        return res.status(400).json({ success: false, message: "Something went wrong." });
-      }
-    }
+    } else {
+      // substitution acquired
+      // update database
+      [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [substitutor.teacher_id, substitutor.teacher_name, substitutor.substituted_till, class_id]);
+    }       
 
-    // update database
-    const [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [substitutor.teacher_id, substitutor.teacher_name, substitutor.substituted_till, class_id]);
-
-    if (result.affectedRows > 0) {
-      res.status(200).json({ success: true, message: "Class substituted successfully" });
+    if (result?.affectedRows > 0) {
+      res.status(200).json({ success: true, message: (action === "acquired" ? "Class substituted successfully" : "Substitution cancelled.") });
 
       //notify students
       const [substitutedClass] = await pool.query("select subject_id, subject_name, teacher_id, teacher_name, year, branch_id, section from schedule where id = ?", [class_id]);
-      console.log(substitutedClass)
 
-      if(substitutedClass[0]?.teacher_id) {
-        notifyGroup("Class substitution", `Class ${substitutedClass[0].subject_name} of ${substitutedClass[0].teacher_name} is substituted by ${substitutor.teacher_name}`, [substitutedClass[0].year], [substitutedClass[0].branch_id], [substitutedClass[0].section]);
-      }
+      const message = action === "acquired" ? `Class ${substitutedClass[0].subject_name} of ${substitutedClass[0].teacher_name} is substituted by ${substitutor.teacher_name}` : `Substitution of class ${substitutedClass[0].subject_name} cancelled by ${substitutor.teacher_name}`;
       
+      if (substitutedClass[0]?.subject_id) {
+        notifyGroup("Class substitution", message, [substitutedClass[0].year], [substitutedClass[0].branch_id], [substitutedClass[0].section]);
+      }
+
+      // notify absent teacher
+      console.log(substitutionTeachers, substitutee)
+      const substituteeUserId = substitutionTeachers.find(tid => tid.teacher_id === substitutee.teacher_id).user_id;
+
+      if (!!substituteeUserId) {
+        const [absentTeacher] = await pool.query("select * from fcm_tokens where user_id = ?", [substituteeUserId]);
+
+        const tokens = absentTeacher.map(at => at.fcm_token);
+
+        const message = {
+          notification: {
+            title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
+            body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.teacher_name}` : `Your class ${substitutedClass[0].subject_name} substitution cancelled by ${substitutor.teacher_name}`,
+          },
+          tokens: tokens,
+          android: {
+            notification: {
+              channelId: "class_substitution"
+            }
+          }
+        };
+
+        const response = await admin.messaging().sendEachForMulticast(message);
+      }
+
     } else {
       res.status(400).json({ success: false, message: "Something went wrong." });
     }
@@ -526,7 +714,7 @@ app.post("/verify-leave", async (req, res) => {
       const [tokens] = await pool.query(`select f.fcm_token, f.active from fcm_tokens f join users u on f.user_id = u.user_id where u.student_id = ?`, [applicant.student_id]);
 
       tokens.forEach(async (token) => {
-        if(token.active) {
+        if (token.active) {
           await notify(token.fcm_token, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier.teacher_name}`);
         }
       })
@@ -632,7 +820,7 @@ app.post("/teacher-availability", async (req, res) => {
         android: {
           notification: {
             sound: "notification",
-            channelId: "push_notification"
+            channelId: "class_cancellation"
           }
         }
       });
@@ -654,8 +842,6 @@ app.post("/teacher-availability", async (req, res) => {
 app.get("/announcements", async (req, res) => {
   const { year, branch, section } = req.query;
 
-  console.log(year, branch, section)
-
   const query = `SELECT 
     title,
     body,
@@ -665,9 +851,19 @@ app.get("/announcements", async (req, res) => {
     delete_at
   FROM announcements
   WHERE status = 'Active'
-    AND JSON_CONTAINS(target_year, JSON_ARRAY(?), '$.years')
-    AND JSON_CONTAINS(target_branch, JSON_ARRAY(?), '$.branches')
-    AND JSON_CONTAINS(target_section, JSON_ARRAY(?), '$.sections') 
+    AND (
+      JSON_CONTAINS(target_year, JSON_ARRAY(?), '$.years') 
+      OR JSON_CONTAINS(target_year, JSON_ARRAY('all'), '$.years')
+    )
+    AND (
+
+      JSON_CONTAINS(target_branch, JSON_ARRAY(?), '$.branches')
+      OR JSON_CONTAINS(target_branch, JSON_ARRAY('all'), '$.branches')
+    )
+    AND (
+      JSON_CONTAINS(target_section, JSON_ARRAY(?), '$.sections') 
+      OR JSON_CONTAINS(target_section, JSON_ARRAY('all'), '$.sections')
+    )
     ORDER BY id DESC;
   `;
   const values = [year, branch, section];
@@ -803,13 +999,10 @@ cron.schedule("0 22 * * *", () => {
 }, { timezone: "Asia/Kolkata" })
 
 // Morning 08:00 am
-cron.schedule("19 13 * * *", () => {
+cron.schedule("50 13 * * *", () => {
   console.log("Running task at 08:00 AM every day");
-  notifyTimetable(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).toLocaleDateString("en-Gb", { weekday: "long" }));
+  notifyTimetable(new Date().toLocaleDateString("en-Gb", { weekday: "long" }));
 }, { timezone: "Asia/Kolkata" })
-
-
-// notifyTimetable("Monday");
 
 async function notifyTimetable(day) {
   const years = [1, 2, 3, 4];
@@ -883,6 +1076,11 @@ app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
 
 
 // helpers
+function generateOTP() {
+  const otp = crypto.randomInt(100000, 1000000);
+  return otp.toString();
+}
+
 async function notifyGroup(title, body, target_year, target_branch, target_section) {
   return new Promise(async (resolve, reject) => {
 

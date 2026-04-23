@@ -373,7 +373,7 @@ const renderTeacherLeaves = (
 
     const [absentTeacherClasses, setAbsentTeacherClasses] = useState(null);
 
-    useEffect(()=>{
+    useEffect(() => {
         console.log(absentTeacherClasses)
     }, [absentTeacherClasses])
 
@@ -397,7 +397,16 @@ const renderTeacherLeaves = (
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ class_id: clas.id, substitutor: { teacher_name: userData?.name, teacher_id: userData?.teacher_id, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') } })
+                body: JSON.stringify({ 
+                    class_id: clas.id, 
+                    substitutee: {
+                        teacher_id: clas?.teacher_id
+                    },
+                    substitutor: { 
+                        teacher_name: userData?.name, teacher_id: userData?.teacher_id, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') 
+                    },
+                    action: action
+                })
             })
 
             const data = await response.json();
@@ -414,9 +423,18 @@ const renderTeacherLeaves = (
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ class_id: clas.id, substitutor: { teacher_name: userData?.name, teacher_id: userData?.teacher_id, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') }, action: action })
+                body: JSON.stringify({
+                    class_id: clas.id,
+                    substitutee: {
+                        teacher_id: clas?.teacher_id
+                    },
+                    substitutor: { 
+                        teacher_name: userData?.name, teacher_id: userData?.teacher_id, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') 
+                    }, 
+                    action: action
+                })
             })
-    
+
             const data = await response.json();
             if (!!data.success) {
                 setAbsentTeacherClasses(prev => ({ ...prev, substitute_teacher_id: null, substitute_teacher_name: null, substituted_till: null }));
@@ -552,7 +570,7 @@ const renderTeacherLeaves = (
                                         key={clas.id}
                                         // Logic: Disable if a substitute is already assigned
                                         disabled={!!clas.substitute_teacher_id}
-                                        onPress={() => handleSelectClass(clas, "confirm")}
+                                        onPress={() => handleSelectClass(clas, "acquired")}
                                         className={`p-4 rounded-3xl elevation-md ${clas.substitute_teacher_id
                                             ? 'bg-gray-100 opacity-80' // Muted background for substituted classes
                                             : 'bg-white active:bg-blue-50'
@@ -584,7 +602,7 @@ const renderTeacherLeaves = (
                                                 📍 Room {clas.room_number}
                                             </Text>
                                             <Text className="text-gray-500">
-                                                {clas.branch_id} - Year {clas.year} - Sec {clas.section} 
+                                                {clas.branch_id} - Year {clas.year} - Sec {clas.section}
                                             </Text>
                                         </View>
 

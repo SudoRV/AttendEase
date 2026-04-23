@@ -6,7 +6,7 @@ import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 /* =====================
    ENV CONFIG
 ===================== */
-const isProduction = true;
+const isProduction = false;
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP
@@ -25,6 +25,7 @@ export const GlobalProvider = ({ children }) => {
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
   const [activeTab, setActiveTab] = useState(0);
+  const [logout, setLogout] = useState(false);
 
   /* =====================
      TIMETABLE
@@ -39,7 +40,7 @@ export const GlobalProvider = ({ children }) => {
     if (!userCreds) return;
 
     const date = new Date();
-    const day = "Monday" //selectedDay || date.toLocaleString("en-Gb", { weekday: "long" });
+    const day = selectedDay || date.toLocaleString("en-Gb", { weekday: "long" });
     const role = userCreds?.role?.toLowerCase();
     const section = userCreds?.section || "A";
 
@@ -196,6 +197,7 @@ export const GlobalProvider = ({ children }) => {
 
   useEffect(() => {
     if (!userData?.email) return;
+    setLogout(false);
     
     loadTimetable(userData);
     loadLeaves();
@@ -234,7 +236,8 @@ export const GlobalProvider = ({ children }) => {
         leaveHistory,
         loadTimetable,
         loadLeaves,
-        teacherLeaveHistory
+        teacherLeaveHistory,
+        logout, setLogout
       }}
     >
       {children}
