@@ -17,7 +17,7 @@ const BRANCHES = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
 const SECTIONS = ["A", "B", "C"];
 
 export default function Announce() {
-  const { userData, BASE_URL } = AppStates();
+  const { userData, BASE_URL, formatDate } = AppStates();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -39,13 +39,6 @@ export default function Announce() {
     );
   };
 
-  const formatMySQL = (date) => {
-    const pad = (n) => n.toString().padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-      date.getDate()
-    )} ${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
-  };
-
   async function handleAnnounce() {
     if (!title.trim() || !body.trim()) {
       Alert.alert("Error", "Title and Body are required.");
@@ -63,7 +56,7 @@ export default function Announce() {
       target_branch: targetBranches,
       target_section: targetSections,
       status: "Active",
-      expires_at: expiryDate ? formatMySQL(expiryDate) : null
+      expires_at: expiryDate ? formatDate(expiryDate) : new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1)
     };
 
     try {

@@ -17,6 +17,12 @@ const BASE_URL = isProduction
 
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
+const formatDate = (date) => {
+  if (!date) return "Select Date";
+  return new Date(date)
+    .toISOString()
+};
+
 const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
@@ -114,10 +120,12 @@ export const GlobalProvider = ({ children }) => {
     try {
       const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
         JSON.stringify(userData)
-      )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}`;
+      )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
+
+      console.log(json)
 
       if (!!filter && !filter?.set) {
         return {
@@ -237,7 +245,8 @@ export const GlobalProvider = ({ children }) => {
         loadTimetable,
         loadLeaves,
         teacherLeaveHistory,
-        logout, setLogout
+        logout, setLogout,
+        formatDate
       }}
     >
       {children}

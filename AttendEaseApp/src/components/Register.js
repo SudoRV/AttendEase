@@ -82,7 +82,6 @@ function RegisterPage({ onSwitch }) {
       });
 
       const res = await response.json();
-      console.log(res)
       Alert.alert("User Registration", res.message);
 
       if (res.success) {

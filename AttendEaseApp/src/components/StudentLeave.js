@@ -16,7 +16,7 @@ import CustomButton from "./ui/CustomButton";
 import Selector from "./ui/Selector";
 
 const StudentLeave = () => {
-  const { userData, leaveHistory, loadLeaves, BASE_URL } = AppStates();
+  const { userData, leaveHistory, loadLeaves, BASE_URL, buildUrl, formatDate } = AppStates();
 
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
@@ -31,14 +31,6 @@ const StudentLeave = () => {
   const [latestLeaveCollapsed, setLatestLeaveCollapsed] = useState({ collapsed: false, index: 0 });
   const [leavesFilter, setLeavesFilter] = useState({ month: new Date().getMonth(), set: true });
   const [leavesByMonth, setLeavesByMonth] = useState({});
-
-  const formatDate = (date) => {
-    if (!date) return "Select Date";
-    return new Date(date)
-      .toISOString()
-      .slice(0, 19)
-      .replace("T", " ");
-  };
 
   async function fetchLeaves() {
     if (!userData?.email) return;
@@ -82,7 +74,7 @@ const StudentLeave = () => {
     try {
       setLoading(true);
 
-      const response = await fetch(`${BASE_URL}/upload-leave`, {
+      const response = await fetch(buildUrl("/upload-leave"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(leave)
@@ -320,7 +312,7 @@ const StudentLeave = () => {
             className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 mb-4"
           >
             <Text className="text-slate-800 text-base">
-              {formatDate(fromDate)}
+              {fromDate?.toLocaleString() || "Select Date"}
             </Text>
           </TouchableOpacity>
 
@@ -332,6 +324,7 @@ const StudentLeave = () => {
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={(event, selectedDate) => {
                 setShowFromPicker(Platform.OS === "ios");
+                selectedDate.setHours(0, 5, 0, 0);
                 if (selectedDate) setFromDate(selectedDate);
               }}
             />
@@ -344,7 +337,7 @@ const StudentLeave = () => {
             className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 mb-4"
           >
             <Text className="text-slate-800 text-base">
-              {formatDate(toDate)}
+              {toDate?.toLocaleString() || "Select Date"}
             </Text>
           </TouchableOpacity>
 
@@ -356,6 +349,7 @@ const StudentLeave = () => {
               display={Platform.OS === "ios" ? "spinner" : "default"}
               onChange={(event, selectedDate) => {
                 setShowToPicker(Platform.OS === "ios");
+                selectedDate.setHours(23, 55, 0, 0)
                 if (selectedDate) setToDate(selectedDate);
               }}
             />

@@ -98,7 +98,7 @@ const StudentLeaveManagement = () => {
   }, [userData]);
 
   useEffect(() => {
-    console.log(classes)
+    // console.log(classes)
     setCurrentClass(classes.classes?.find(c => c.isCurrentPeriod));
   }, [classes]);
 

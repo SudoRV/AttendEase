@@ -7,7 +7,7 @@ import { AppStates } from "../context/AppStates";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 
 const AlertsScreen = () => {
-  const { userData, buildUrl } = AppStates();
+  const { userData, buildUrl, formatDate } = AppStates();
   const [announcements, setAnnouncements] = useState([]);
 
   useEffect(() => {
@@ -33,10 +33,10 @@ const AlertsScreen = () => {
     if (!userData?.year) return;
 
     try {
-      const endpoint = `/announcements?year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}`;
+      const endpoint = `/announcements?year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}&time=${encodeURIComponent(formatDate(new Date()))}`;
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
-      console.log(json)
+
       if (json?.data) setAnnouncements(json.data);
     } catch (err) {
       console.log("Announcements error:", err);

@@ -15,7 +15,7 @@ import dayjs from 'dayjs';
 import { AppStates } from "../context/AppStates";
 
 const TeacherLeave = ({ onClose }) => {
-    const { userData, classes, loadTimetable, loadLeaves, buildUrl, teacherLeaveHistory } = AppStates();
+    const { userData, classes, loadTimetable, loadLeaves, buildUrl, teacherLeaveHistory, formatDate } = AppStates();
 
     const [leaveType, setLeaveType] = useState("");
     const [periods, setPeriods] = useState([]);
@@ -53,8 +53,8 @@ const TeacherLeave = ({ onClose }) => {
                 leave_type: leaveType,
                 applicant: userData,
                 classes: periods,
-                from: fromDate,
-                to: toDate,
+                from: leaveType === "period" ? formatDate(new Date().setHours(12, 5, 0, 0)) : fromDate,
+                to: leaveType === "period" ? formatDate(new Date().setHours(23, 55, 0, 0)) : toDate,
                 on: onDate,
             };
 
@@ -122,6 +122,8 @@ const TeacherLeave = ({ onClose }) => {
                 {/* CARD */}
                 <View className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100">
 
+                    <Text className="text-lg font-semibold text-neutral-600 mb-4">Select Leave Type</Text>
+
                     {/* LEAVE TYPE SEGMENT */}
                     <View className="bg-slate-100 rounded-full p-1 flex-row mb-6">
                         {["period", "day", "duration"].map(type => (
@@ -176,7 +178,7 @@ const TeacherLeave = ({ onClose }) => {
                                 </View>
                             )}
 
-                            <DateField
+                            {/* <DateField
                                 label="From Date"
                                 value={format(fromDate)}
                                 onPress={() => setShowFrom(true)}
@@ -186,7 +188,7 @@ const TeacherLeave = ({ onClose }) => {
                                 label="To Date"
                                 value={format(toDate)}
                                 onPress={() => setShowTo(true)}
-                            />
+                            /> */}
                         </>
                     )}
 
@@ -218,7 +220,7 @@ const TeacherLeave = ({ onClose }) => {
                     {/* SUBMIT */}
                     <TouchableOpacity
                         onPress={handleSubmit}
-                        className="mt-8 bg-indigo-600 py-4 rounded-2xl shadow-md"
+                        className="mt-4 bg-indigo-600 py-4 rounded-2xl shadow-md"
                     >
                         <Text className="text-white text-center text-lg font-semibold">
                             Submit Leave
@@ -374,74 +376,49 @@ const renderTeacherLeaves = (
     const [absentTeacherClasses, setAbsentTeacherClasses] = useState(null);
 
     useEffect(() => {
-        console.log(absentTeacherClasses)
-    }, [absentTeacherClasses])
-
-    useEffect(() => {
         if (isSubstitutorVisible?.visible && isSubstitutorVisible.teacher_id) {
             fetch(buildUrl(`/get-timetable?day=${new Date().toLocaleDateString("en-Gb", { weekday: "long" })}&teacher_id=${isSubstitutorVisible.teacher_id}`))
                 .then(response => response.json())
                 .then(timetable => {
-                    console.log(timetable);
                     setAbsentTeacherClasses(timetable?.data?.classes);
                 })
         }
     }, [isSubstitutorVisible])
 
     const processSubstitution = async (clas, action) => {
-        console.log(clas)
 
-        if (action === "confirm") {
-            const response = await fetch(buildUrl("/set-substitutor"), {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
+        const response = await fetch(buildUrl("/set-substitutor"), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                class_id: clas.id,
+                substitutee: {
+                    teacher_id: clas?.teacher_id
                 },
-                body: JSON.stringify({ 
-                    class_id: clas.id, 
-                    substitutee: {
-                        teacher_id: clas?.teacher_id
-                    },
-                    substitutor: { 
-                        teacher_name: userData?.name, teacher_id: userData?.teacher_id, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') 
-                    },
-                    action: action
-                })
+                substitutor: {
+                    teacher_name: userData?.name, teacher_id: userData?.teacher_id, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss')
+                },
+                action: action
             })
+        })
 
-            const data = await response.json();
-            if (!!data.success) {
+        const data = await response.json();
+
+        if (!!data.success) {
+            if (action === "confirm") {
                 setAbsentTeacherClasses(prev => ({ ...prev, substitute_teacher_id: userData?.teacher_id, substitute_teacher_name: userData?.name, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') }));
 
                 Alert.alert(`Substitution ${clas.subject_name}`, data.message);
             } else {
-                Alert.alert(data.message);
-            }
-        } else {
-            const response = await fetch(buildUrl("/set-substitutor"), {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    class_id: clas.id,
-                    substitutee: {
-                        teacher_id: clas?.teacher_id
-                    },
-                    substitutor: { 
-                        teacher_name: userData?.name, teacher_id: userData?.teacher_id, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') 
-                    }, 
-                    action: action
-                })
-            })
-
-            const data = await response.json();
-            if (!!data.success) {
                 setAbsentTeacherClasses(prev => ({ ...prev, substitute_teacher_id: null, substitute_teacher_name: null, substituted_till: null }));
+
                 Alert.alert(`Substitution ${clas.subject_name}`, data.message);
-            } else {
-                Alert.alert(data.message);
             }
+
+        } else {
+            Alert.alert(data.message);
         }
     }
 
@@ -518,10 +495,10 @@ const renderTeacherLeaves = (
                             </Text>
 
                             <Text className="text-gray-500 mt-1">
-                                {formatDate(item.applicable_from)} →{" "}
-                                {formatDate(item.applicable_to)}
+                                {formatDate(item.applicable_from)} {
+                                    new Date(item.applicable_from).setHours(0, 0, 0, 0) !== new Date(item.applicable_to).setHours(0, 0, 0, 0) && `→ ${formatDate(item.applicable_to)}`
+                                }
                             </Text>
-
 
                             <View className="flex-row items-end justify-between">
                                 <Text className={`mt-3 self-start px-3 py-1 rounded-full ${item.status === "Approved"

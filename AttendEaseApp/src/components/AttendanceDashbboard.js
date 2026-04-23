@@ -86,7 +86,6 @@ export default function AttendanceDashboard() {
       body: JSON.stringify(form)
     })
     const data = await response?.json();
-    console.log(data)
 
     if (data.success) {
       setHasConfig(true);

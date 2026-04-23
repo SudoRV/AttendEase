@@ -62,8 +62,6 @@ export default function LoginPage({ onSwitch }) {
           body: JSON.stringify({ email: form?.email, type: "request_otp" }),
         });
 
-        console.log(response)
-
         if (response.ok) {
           Alert.alert("OTP Sent", "Check your email for the recovery code.");
           setResetStep(2);

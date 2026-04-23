@@ -14,6 +14,7 @@ const nodemailer = require("nodemailer");
 const createTableImage = require("./utility/createTableImage");
 
 const parseAttendanceTable = require("./utility/parseAttendanceTable");
+const { type } = require("os");
 
 const app = express();
 app.use(express.json());
@@ -27,6 +28,7 @@ const config = {
   password: "A6q9yQI2tphgxS9bxWN0",
   database: "bw29rwejnmb7a0ihv8ip",
   waitForConnections: true,
+  timezone: 'Z'
 }
 
 const config2 = {
@@ -35,6 +37,7 @@ const config2 = {
   password: "rahul@1992#",
   database: "scheduler",
   waitForConnections: true,
+  timezone: 'Z'
 }
 
 const pool = mysql.createPool(config2);
@@ -321,7 +324,7 @@ app.post("/register", async (req, res) => {
       );
 
       if (result.insertId) {
-        console.log("User inserted successfully # :", result);
+        // console.log("User registered successfully # :", result);
         res.json({ success: true, message: "Registered Successfully" });
       }
     } catch (error) {
@@ -496,7 +499,7 @@ app.post("/set-substitutor", async (req, res) => {
       // substitution acquired
       // update database
       [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [substitutor.teacher_id, substitutor.teacher_name, substitutor.substituted_till, class_id]);
-    }       
+    }
 
     if (result?.affectedRows > 0) {
       res.status(200).json({ success: true, message: (action === "acquired" ? "Class substituted successfully" : "Substitution cancelled.") });
@@ -505,13 +508,13 @@ app.post("/set-substitutor", async (req, res) => {
       const [substitutedClass] = await pool.query("select subject_id, subject_name, teacher_id, teacher_name, year, branch_id, section from schedule where id = ?", [class_id]);
 
       const message = action === "acquired" ? `Class ${substitutedClass[0].subject_name} of ${substitutedClass[0].teacher_name} is substituted by ${substitutor.teacher_name}` : `Substitution of class ${substitutedClass[0].subject_name} cancelled by ${substitutor.teacher_name}`;
-      
+
+      // notify students
       if (substitutedClass[0]?.subject_id) {
-        notifyGroup("Class substitution", message, [substitutedClass[0].year], [substitutedClass[0].branch_id], [substitutedClass[0].section]);
+        notifyGroup("Class Substitution", message, "CLASS_SUBSTITUTION", null, [substitutedClass[0].year], [substitutedClass[0].branch_id], [substitutedClass[0].section]);
       }
 
       // notify absent teacher
-      console.log(substitutionTeachers, substitutee)
       const substituteeUserId = substitutionTeachers.find(tid => tid.teacher_id === substitutee.teacher_id).user_id;
 
       if (!!substituteeUserId) {
@@ -520,15 +523,14 @@ app.post("/set-substitutor", async (req, res) => {
         const tokens = absentTeacher.map(at => at.fcm_token);
 
         const message = {
-          notification: {
+          data: {
+            type: "CLASS_SUBSTITUTION",
             title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
             body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.teacher_name}` : `Your class ${substitutedClass[0].subject_name} substitution cancelled by ${substitutor.teacher_name}`,
           },
           tokens: tokens,
           android: {
-            notification: {
-              channelId: "class_substitution"
-            }
+            priority: "high"
           }
         };
 
@@ -546,7 +548,7 @@ app.post("/set-substitutor", async (req, res) => {
 
 // fetch leave
 app.get("/fetch-leaves", async (req, res) => {
-  const { user_data, filter: leaveFilter } = req.query;
+  const { user_data, filter: leaveFilter, time } = req.query;
   const userData = JSON.parse((user_data));
 
   let filter = {};
@@ -574,9 +576,9 @@ app.get("/fetch-leaves", async (req, res) => {
       WHERE s.year = ? 
       AND s.branch_id = ? 
       AND s.section = ?
-      AND applicable_to > CURRENT_TIMESTAMP
+      # AND applicable_to > ?
       `;
-    values2 = [userData.year, userData.branch_id, userData.section || "A"];
+    values2 = [userData.year, userData.branch_id, userData.section || "A", formatDate(time)];
 
   }
   // teacher fetching leave
@@ -597,7 +599,7 @@ app.get("/fetch-leaves", async (req, res) => {
     FROM leaves l
 
     WHERE
-      l.applicable_to > CURRENT_DATE
+      l.applicable_to > ? 
       AND EXISTS (
         SELECT 1
         FROM schedule s
@@ -610,23 +612,17 @@ app.get("/fetch-leaves", async (req, res) => {
     
     ORDER BY l.created_at DESC;
     `;
-
-    values = [userData?.teacher_id]
+    values = [formatDate(time), userData?.teacher_id]
 
     // teacher leaves
-    query2 = `select teacher_id, id, name, applicable_from, applicable_to, status from leaves where teacher_id != 'not a teacher' and applicable_to > current_timestamp`;
+    query2 = `select teacher_id, id, name, applicable_from, applicable_to, status from leaves where teacher_id != 'not a teacher' and applicable_to > ?`;
+    values2 = [formatDate(time)];
   }
 
   try {
     const [teacher_leaves] = await pool.query(query2, values2);
-
-    // teacher_leaves.forEach(async tl => {
-    //   const [substitutor] = await pool.query("select day, period_id, subject_id, subject_name, year, branch_id , branch_name, section, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where teacher_id = ? and cancelled = 1", [tl?.teacher_id]);
-    //   console.log(tl.name, substitutor)
-    // })
-
-    // console.log(query2, values2, teacher_leaves)
     const [leaves] = await pool.query(query, values);
+
     res.json({ success: true, data: leaves, teacher_leaves, message: "leaves fetched" });
   } catch (err) {
     console.log(err);
@@ -642,6 +638,7 @@ app.post("/upload-leave", async (req, res) => {
 
   let query = "";
   let values = [];
+  // student leave
   if (applicant.role === "Student") {
     query = `insert into leaves (
       name, 
@@ -663,7 +660,7 @@ app.post("/upload-leave", async (req, res) => {
         and applicable_from = ?
         and applicable_to = ?
      )`;
-    values = [applicant?.name, applicant?.year, applicant?.branch_id, applicant?.student_id, subject, application, applicable_from, applicable_to, affected_days, applicant?.student_id, applicable_from, applicable_to];
+    values = [applicant?.name, applicant?.year, applicant?.branch_id, applicant?.student_id, subject, application, formatDate(applicable_from), formatDate(applicable_to), affected_days, applicant?.student_id, formatDate(applicable_from), formatDate(applicable_to)];
   }
 
   try {
@@ -715,7 +712,7 @@ app.post("/verify-leave", async (req, res) => {
 
       tokens.forEach(async (token) => {
         if (token.active) {
-          await notify(token.fcm_token, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier.teacher_name}`);
+          await notify(token.fcm_token, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier.teacher_name}`, "LEAVE_STATUS", null);
         }
       })
     }
@@ -763,9 +760,9 @@ app.post("/teacher-availability", async (req, res) => {
     // Flatten all values into one array
     const tupleValues = classes.flatMap(c => [
       c.day,
-      c.period,
-      c.code,
-      c.branch,
+      c.period_id,
+      c.subject_id,
+      c.branch_id,
       c.year,
       c.section
     ]);
@@ -792,13 +789,13 @@ app.post("/teacher-availability", async (req, res) => {
 
   try {
     const response1 = await pool.query(query1, values1);
-    // console.log(response1);
     const response2 = await pool.query(query2, values2);
 
     // send notification to affected class
     // fetch affetected class
-    let [classes] = await pool.query("select distinct * from schedule where day = ? and cancelled = 1 and teacher_id = ? and cancelled_from = ? and cancelled_to = ? order by year, period_id", ["Monday", applicant.teacher_id, from || on, to || on]);
+    let [classes] = await pool.query(`select distinct * from schedule where cancelled = 1 and teacher_id = ? and cancelled_from = ? and cancelled_to = ? and day in (${affected_days.split(",").map(ad => "?").join(",")}) order by year, period_id`, [applicant.teacher_id, from || on, to || on, ...affected_days.split(",")]);
 
+    // notify affected students
     const notification = {};
     classes.forEach((clas) => {
       if (!notification[`${clas.branch_id}_${clas.year}_${clas.section}`]) {
@@ -813,15 +810,21 @@ app.post("/teacher-availability", async (req, res) => {
 
       await admin.messaging().send({
         topic: topic,
-        notification: {
+        data: {
+          type: "CLASS_CANCELLED",
           title: "Class Cancelled",
-          body: `Period ${notification[topic].map((p => p.period_id)).join(", ")} of ${notification[topic][0].teacher_name} Cancelled. From ${new Date(from || on).toLocaleDateString()} to ${new Date(to || on).toLocaleDateString()}`,
+          body: `Period ${notification[topic].map((p => p.period_id)).join(", ")} of ${notification[topic][0].teacher_name} Cancelled, ${!!on ? "on" : "from"} ${new Date(from || on).toLocaleDateString("en-Gb", {
+            day: "numeric",
+            month: "short",
+            year: "numeric"
+          })} ${!!on ? "" : `to ${new Date(to || on).toLocaleDateString("en-Gb", {
+            day: "numeric",
+            month: "short",
+            year: "numeric"
+          })}`}`,
         },
         android: {
-          notification: {
-            sound: "notification",
-            channelId: "class_cancellation"
-          }
+          priority: "high"
         }
       });
     })
@@ -840,7 +843,7 @@ app.post("/teacher-availability", async (req, res) => {
 
 // fetch announcemetns
 app.get("/announcements", async (req, res) => {
-  const { year, branch, section } = req.query;
+  const { year, branch, section, time } = req.query;
 
   const query = `SELECT 
     title,
@@ -864,9 +867,10 @@ app.get("/announcements", async (req, res) => {
       JSON_CONTAINS(target_section, JSON_ARRAY(?), '$.sections') 
       OR JSON_CONTAINS(target_section, JSON_ARRAY('all'), '$.sections')
     )
-    ORDER BY id DESC;
+    AND delete_at > ?
+    ORDER BY created_at;
   `;
-  const values = [year, branch, section];
+  const values = [year, branch, section, formatDate(time)];
 
   try {
     // set status expired
@@ -892,10 +896,10 @@ app.post("/announce", async (req, res) => {
   const query = "insert into announcements (title, body, created_by, target_year, target_branch, target_section, delete_at) values(?, ?, ?, ?, ?, ?, ?)"
 
   try {
-    const response = await pool.query(query, [title, body, JSON.stringify(created_by), JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), expires_at.replace("T", " ")]);
+    const response = await pool.query(query, [title, body, JSON.stringify(created_by), JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), expires_at]);
 
     // send notification 
-    const resp = await notifyGroup(title, body, target_year, target_branch, target_section, res);
+    const resp = await notifyGroup(title, body, "ANNOUNCEMENT", null, target_year, target_branch, target_section);
     res.json({ success: true, message: "saved to server and notified to target: " });
 
   } catch (err) {
@@ -908,10 +912,8 @@ app.post("/announce", async (req, res) => {
 // save student utm credentials 
 app.post("/save/utu-creds", async (req, res) => {
   const { collegeId, admissionId, courseId, branchId, durationId, startMonth, roll } = req.body;
-  console.log(req.body)
 
   const notFound = Object.keys(req.body).filter(v => req.body[v] === "");
-  console.log(notFound)
 
   // verify creds
   if (notFound.length > 0) {
@@ -990,7 +992,6 @@ app.use('/schedule_images', express.static(path.join(__dirname, 'static/schedule
   }
 }));
 
-
 // notify for next day timetable
 // Night 10:00 pm
 cron.schedule("0 22 * * *", () => {
@@ -999,13 +1000,16 @@ cron.schedule("0 22 * * *", () => {
 }, { timezone: "Asia/Kolkata" })
 
 // Morning 08:00 am
-cron.schedule("50 13 * * *", () => {
+cron.schedule("0 8 * * *", () => {
   console.log("Running task at 08:00 AM every day");
   notifyTimetable(new Date().toLocaleDateString("en-Gb", { weekday: "long" }));
 }, { timezone: "Asia/Kolkata" })
 
+
+// notifyTimetable("Thursday")
+
 async function notifyTimetable(day) {
-  const years = [1, 2, 3, 4];
+  const years = [1, 2, 3, 4, 5];
   const branches = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
   const sections = ["A"];
 
@@ -1038,10 +1042,6 @@ async function notifyTimetable(day) {
         if (classes.length > 0) {
           await admin.messaging().send({
             topic: topic,
-            // notification: {
-            //   title: "📚 Today's Classes",
-            //   body: message, 
-            // },
             data: {
               type: "MORNING_SCHEDULE",
               title: "📚 Today's Classes",
@@ -1051,11 +1051,6 @@ async function notifyTimetable(day) {
             },
             android: {
               priority: "high",
-              // notification: {
-              //   sound: "notification",
-              //   channelId: "daily_class_alerts",
-              //   tag: "daily-classes"
-              // }
             }
           });
         }
@@ -1081,7 +1076,7 @@ function generateOTP() {
   return otp.toString();
 }
 
-async function notifyGroup(title, body, target_year, target_branch, target_section) {
+async function notifyGroup(title, body, dataType, data, target_year, target_branch, target_section) {
   return new Promise(async (resolve, reject) => {
 
     const YEARS = ["1", "2", "3", "4"];
@@ -1108,22 +1103,19 @@ async function notifyGroup(title, body, target_year, target_branch, target_secti
     }
 
     // console.log(topics);
-
-
     topics.forEach(async (topic) => {
       await admin.messaging().send({
         topic: topic,
 
-        notification: {
+        data: {
+          type: dataType,
           title: title,
           body: body,
+          data: JSON.stringify(data)
         },
 
         android: {
-          notification: {
-            sound: "notification",
-            channelId: "push_notification"
-          }
+          priority: "high",
         }
       });
     })
@@ -1133,20 +1125,18 @@ async function notifyGroup(title, body, target_year, target_branch, target_secti
 }
 
 
-async function notify(token, title, body, data) {
+async function notify(token, title, body, dataType, data) {
   const message = {
     token,
-    notification: {
-      title: title,
-      body: body,
+    data: {
+      type: dataType,
+      title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
+      body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.teacher_name}` : `Your class ${substitutedClass[0].subject_name} substitution cancelled by ${substitutor.teacher_name}`,
+      data: JSON.stringify(data)
     },
     android: {
-      notification: {
-        sound: "notification",
-        channelId: "push_notification"
-      }
+      priority: "high"
     },
-    data: data
   };
 
   try {
