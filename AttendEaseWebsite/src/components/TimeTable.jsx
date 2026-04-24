@@ -123,7 +123,6 @@ const TimeTable = () => {
       })
 
       if (Object.keys(changes).length === 0) {
-        console.log("no changes")
         return;
       }
     } else if (action === "Insert") {

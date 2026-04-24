@@ -56,7 +56,7 @@ export default function Announce() {
       target_branch: targetBranches,
       target_section: targetSections,
       status: "Active",
-      expires_at: expiryDate ? formatDate(expiryDate) : new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1)
+      expires_at: formatDate(expiryDate || new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1))
     };
 
     try {

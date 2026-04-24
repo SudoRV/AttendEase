@@ -7,7 +7,7 @@ import LeaveBox from "../components/Student_Leave";
 import TimeTable from "../components/TimeTable";
 import Footer from "../components/Footer";
 import attendease_logo from "../images/attendease_icon.png";
-
+import AttendanceDashboard from '../components/AttendanceDashboard';
 const StudentDashboard = () => {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -109,7 +109,7 @@ const StudentDashboard = () => {
             {/* Main Content (Remains stationary) */}
             <main className="main-content">
 
-                <div className="timetable-section card other !shadow-none !bg-transparent !p-0">
+                <div className="timetable-section card other !shadow-none !bg-transparent">
                     <TimeTable />
                 </div>
 
@@ -120,6 +120,9 @@ const StudentDashboard = () => {
 
                     <div className="announcements card other">
                         <Announcements />
+                    </div>
+                    <div className='attendance card other'>
+                        <AttendanceDashboard />
                     </div>
                 </div>
 

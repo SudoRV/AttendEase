@@ -63,7 +63,7 @@ const TimeTableScreen = () => {
   const opacity = useSharedValue(1);
   const scale = useSharedValue(1);
 
-  const style = useAnimatedStyle(() => ({
+  const currentPeriodStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ scale: scale.value }]
   }));
@@ -152,24 +152,20 @@ const TimeTableScreen = () => {
 
                   {/* SLOT CONTENT */}
                   <Animated.View 
-                    style={[item?.isCurrentPeriod && style]}
+                    style={[item?.isCurrentPeriod && currentPeriodStyle]}
                    className="w-full flex-1">
 
                     <TouchableOpacity
                       activeOpacity={0.9}
                       delayLongPress={300}
                       onLongPress={() => handleLongPress(item)}
-                      className="w-full flex-1"
+                      className={`w-full flex-1 rounded-xl ${item?.isCurrentPeriod && "bg-blue-300"}`}
                     >
                       {item?.subject_id ? (
                         <View
                           className={`w-full flex-1 justify-center items-center rounded-xl px-3 py-3 shadow-md ${item?.cancelled && !item?.substitute_teacher_id
                             ? "bg-red-50 border border-red-200"
-                            : item?.isCurrentPeriod
-
-                              ? "bg-indigo-500"
-
-                              : "bg-indigo-500 text-white"
+                            : item?.substitute_teacher_id ? "bg-neutral-50 border border-teal-500/40" : "bg-indigo-500"
                             }`}
                         >
 
@@ -185,12 +181,8 @@ const TimeTableScreen = () => {
                           )}
 
                           <Text
-                            className={`font-bold text-lg ${item?.cancelled && !item?.substitute_teacher_id
-                              ? "text-red-600"
-                              : item?.isCurrentPeriod
-                                ? "text-white"
-                                : "text-neutral-50"
-                              }`}
+                            className={`font-bold text-lg ${item?.cancelled
+                              ? "text-red-500" : "text-neutral-50"}`}
                           >
                             {item.subject_id}
                           </Text>
@@ -199,12 +191,11 @@ const TimeTableScreen = () => {
                             <Text
                               numberOfLines={3}
                               ellipsizeMode="tail"
-                              className={`text-center ${item?.cancelled && !item?.substitute_teacher_id
-                                ? "text-red-500 line-through"
-                                : item?.isCurrentPeriod
-                                  ? "text-white"
-                                  : "text-neutral-50"
-                                } 
+                              className={`text-center 
+                                
+                                ${item?.cancelled
+                                ? "text-red-500" : "text-neutral-50"}
+
                               ${item?.subject_name === "LUNCH" ? "font-bold text-yellow-300" : ""}`}
                             >
                               {item.subject_name}
@@ -216,9 +207,7 @@ const TimeTableScreen = () => {
                             ellipsizeMode="tail"
                             className={`text-sm italic text-center ${item?.cancelled && !item?.substitute_teacher_id
                               ? "text-red-400"
-                              : item?.isCurrentPeriod
-                                ? "text-white"
-                                : "text-neutral-200"
+                              : item?.substitute_teacher_id ? "text-teal-500" : "text-neutral-50"
                               }`}
                           >
                             {userData?.role === "Teacher"
@@ -229,14 +218,10 @@ const TimeTableScreen = () => {
                         </View>
                       ) : (
                         <View
-                          className={`w-full flex-1 justify-center items-center rounded-xl px-2.5 py-2 shadow-md ${item?.isCurrentPeriod ? "" : "bg-neutral-100 "
-                            }`}
+                          className={`w-full flex-1 justify-center items-center rounded-xl px-2.5 py-2 shadow-lg bg-white`}
                         >
                           <Text
-                            className={`font-bold ${item?.isCurrentPeriod
-                              ? "text-white"
-                              : "text-neutral-700"
-                              }`}
+                            className={`font-bold text-neutral-700`}
                           >
                             Free
                           </Text>

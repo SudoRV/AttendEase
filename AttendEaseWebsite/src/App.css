@@ -42,6 +42,9 @@ html,body{
 .footer {
     grid-area: footer;
 }
+.footer p{
+    white-space: nowrap;
+}
 
 .Title {
     /*font-size: 2rem;*/
@@ -102,7 +105,7 @@ html,body{
     border-radius: 16px;
     padding: 6px;
     box-shadow: #8e8e8e 0px 4px 6px -1px;
-
+    margin: 10px;
 }
 
 .submit-row {
@@ -183,6 +186,7 @@ html,body{
     width: 100%;
     grid-template-areas:
         "leave announcements"
+        "attendance announcements"
         "footer footer"  
     ;
     /* grid-template-columns: minmax(0, 350px) 1fr 1fr; */
@@ -259,11 +263,26 @@ html,body{
 
 .announcements {
     grid-area: announcements;
-    overflow-y: auto;
 }
 
+.announcements-container {
+    overflow-y: auto;
+}
+.attendance {
+    grid-area: attendance;
+    padding: 0px;
+}
 
-
+.attendance-dashboard{
+    display:flex;
+    background: #ffffff;
+    max-width: 70vw;
+    margin-left: 0%;
+}
+.attendance-data{
+    max-width: 60vw;
+    padding: 0%;
+}
 /* Main grid: Row 1 layout (1:4 ratio) */
 .dashboard-grid {
     display: grid;
@@ -394,7 +413,7 @@ html,body{
 .custom-scrollbar {
     /* 1. Standard Properties (Firefox) */
     scrollbar-width: thin;
-    scrollbar-color: #6366F1 #eeeded; 
+    scrollbar-color: #6366F1 #eeeded00; 
     
     /* Ensure the container actually allows scrolling */
     overflow: auto; 
@@ -463,6 +482,7 @@ html,body{
     grid-area: timetable;
     left: 280px;
     top: 90px;
+    padding:2rem;
 }
 
 .subject-cell {
@@ -651,6 +671,7 @@ html,body{
             "teacher_leave"
             "leave"
             "announcements"
+            "attendance"
             "footer"
             
         ;
@@ -667,5 +688,25 @@ html,body{
     .leave-management {
         padding: 5px;
         position: relative;
+    }
+    .timetable-section {
+        padding: 0px;
+    }
+    .announcements {
+        padding: 0px;
+        max-height: 500px;
+    }
+     .attendance {
+        padding: 0px;
+    }
+    .attendance-dashboard{
+        max-width: 80vw;
+    }
+    .attendance-data{
+        max-width: 80vw;
+    }
+    .card{
+        margin:0px;
+        background-color: transparent;
     }
 }

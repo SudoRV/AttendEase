@@ -18,6 +18,11 @@ export const GlobalProvider = ({ children }) => {
 
     const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
+    const formatDate = (date) => {
+        if (!date) return "Select Date";
+        return new Date(date)
+            .toISOString()
+    };
 
     const [userData, setUserData] = useState({});
     const [classes, setClasses] = useState([]);
@@ -45,6 +50,11 @@ export const GlobalProvider = ({ children }) => {
     });
 
     const loadTimetable = async (userCreds, selectedDay) => {
+        // set saved classes
+        const savedClasses = await window.localStorage.getItem("classes");
+        if (!!savedClasses) {
+            setClasses(JSON.parse(savedClasses));
+        }
         if (!userCreds) return;
 
         const date = new Date();
@@ -68,8 +78,6 @@ export const GlobalProvider = ({ children }) => {
             const response = await fetch(buildUrl(endpoint));
             const json = await response.json();
             const data = json?.data;
-
-            console.log(data)
 
             data.classes = data.classes?.map(d => {
                 if (d?.period_id > 4) {
@@ -101,8 +109,12 @@ export const GlobalProvider = ({ children }) => {
                 );
             }
 
+            // console.log(timetable)
+
             if (!selectedDay) setClasses({ day, classes: timetable });
             else return { day, classes: timetable };
+
+            window.localStorage.setItem("classes", JSON.stringify({ day, classes: timetable }));
 
         } catch (err) {
             console.log("Timetable error:", err);
@@ -168,12 +180,11 @@ export const GlobalProvider = ({ children }) => {
 
     const loadLeaves = async (filter) => {
         if (!userData?.email) return;
-        console.log("fick")
 
         try {
             const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
                 JSON.stringify(userData)
-            )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}`;
+            )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
             const response = await fetch(buildUrl(endpoint));
             const json = await response.json();
@@ -211,11 +222,10 @@ export const GlobalProvider = ({ children }) => {
     }
 
     async function loadAnnouncements() {
-        const response = await doFetch(`/announcements?year=${userData?.year}&branch=${userData?.branch_id}&section=${userData?.section}`, "GET");
-        
-        const res_data = await response.data.json();
+        const endpoint = `/announcements?year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
-        console.log(res_data)
+        const response = await doFetch(endpoint, "GET");
+        const res_data = await response.data.json();
 
         const announcements = res_data.data;
         if (announcements.length > 0) {
@@ -232,7 +242,7 @@ export const GlobalProvider = ({ children }) => {
         // load timetable
         loadTimetable(userData);
         // load leaves
-        loadLeaves(userData?.role)
+        loadLeaves(userData?.role);
 
         // load announcement
         if (userData?.role === "Teacher") return;
@@ -271,7 +281,8 @@ export const GlobalProvider = ({ children }) => {
         announcements,
         leaveHistory, setLeaveHistory,
         requestNotification,
-        SubscribePushNotification
+        SubscribePushNotification,
+        formatDate
     }
 
     return (
