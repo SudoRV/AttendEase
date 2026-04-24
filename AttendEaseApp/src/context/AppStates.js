@@ -6,7 +6,7 @@ import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 /* =====================
    ENV CONFIG
 ===================== */
-const isProduction = true;
+const isProduction = false;
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP
@@ -97,6 +97,8 @@ export const GlobalProvider = ({ children }) => {
         );
       }
 
+      console.log(timetable)
+
       if (!!selectedDay) {
         return { day, classes: timetable }
       }
@@ -120,7 +122,7 @@ export const GlobalProvider = ({ children }) => {
     try {
       const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
         JSON.stringify(userData)
-      )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+      )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent( (new Date()))}`;
 
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();

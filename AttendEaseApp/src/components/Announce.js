@@ -69,6 +69,7 @@ export default function Announce() {
       });
 
       const res = await response.json();
+      console.log(res)
 
       if (res.success) {
         Alert.alert("Success", "Announcement posted.");

@@ -53,9 +53,12 @@ const TeacherLeave = ({ onClose }) => {
                 leave_type: leaveType,
                 applicant: userData,
                 classes: periods,
-                from: leaveType === "period" ? formatDate(new Date().setHours(12, 5, 0, 0)) : fromDate,
-                to: leaveType === "period" ? formatDate(new Date().setHours(23, 55, 0, 0)) : toDate,
-                on: onDate,
+                
+                from: formatDate(fromDate?.setHours(0, 5, 0, 0) || (onDate ? onDate.setHours(0, 5, 0, 0) : new Date().setHours(0, 5, 0, 0))),
+                
+                to: formatDate(toDate?.setHours(23, 55, 0, 0) || (onDate ? new Date(onDate).setHours(23, 55, 0, 0) : new Date().setHours(23, 55, 0, 0))),
+                
+                on: onDate ? formatDate(onDate?.setHours(0, 5, 0, 0)) : onDate,
             };
 
             const response = await fetch(

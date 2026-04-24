@@ -40,7 +40,7 @@ const config2 = {
   timezone: 'Z'
 }
 
-const pool = mysql.createPool(config);
+const pool = mysql.createPool(config2);
 
 // nodemailer transporter
 // console.log(process.env.EMAIL, process.env.PASS)
@@ -404,7 +404,7 @@ app.get("/get-timetable", async (req, res) => {
 
     // student timetable
     else {
-      if (day === "" || day === undefined) {
+      if (day === "" || day === undefined) {        
         const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and semester = ? and branch_id = ? and section = ? order by day, period_id`;
         const [rows] = await pool.query(query, [
           year, semester, branch, section,
@@ -747,7 +747,7 @@ app.post("/teacher-availability", async (req, res) => {
     affected_days
   ) values (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-  const values1 = [applicant.name, applicant?.teacher_id, "Priviliged", "Priviliged", from || on, to || on, "Approved", affected_days];
+  const values1 = [applicant.name, applicant?.teacher_id, "Priviliged", "Priviliged", from, to, "Approved", affected_days];
 
   let query2 = "";
   let values2 = [];
@@ -784,7 +784,7 @@ app.post("/teacher-availability", async (req, res) => {
     // if leave type day | duration then check for affected periods
     query2 = `update schedule set cancelled = ?, cancelled_from = ?, cancelled_to = ? where teacher_id = ? and day in (${affected_days.split(",").map(ad => "?").join(",")})`;
 
-    values2 = [1, from || on, to || on, applicant.teacher_id, ...affected_days.split(",")];
+    values2 = [1, from, to, applicant.teacher_id, ...affected_days.split(",")];
   }
 
   try {
@@ -793,7 +793,7 @@ app.post("/teacher-availability", async (req, res) => {
 
     // send notification to affected class
     // fetch affetected class
-    let [classes] = await pool.query(`select distinct * from schedule where cancelled = 1 and teacher_id = ? and cancelled_from = ? and cancelled_to = ? and day in (${affected_days.split(",").map(ad => "?").join(",")}) order by year, period_id`, [applicant.teacher_id, from || on, to || on, ...affected_days.split(",")]);
+    let [classes] = await pool.query(`select distinct * from schedule where cancelled = 1 and teacher_id = ? and cancelled_from = ? and cancelled_to = ? and day in (${affected_days.split(",").map(ad => "?").join(",")}) order by year, period_id`, [applicant.teacher_id, from, to, ...affected_days.split(",")]);
 
     // notify affected students
     const notification = {};
@@ -813,11 +813,11 @@ app.post("/teacher-availability", async (req, res) => {
         data: {
           type: "CLASS_CANCELLED",
           title: "Class Cancelled",
-          body: `Period ${notification[topic].map((p => p.period_id)).join(", ")} of ${notification[topic][0].teacher_name} Cancelled, ${!!on ? "on" : "from"} ${new Date(from || on).toLocaleDateString("en-Gb", {
+          body: `Period ${notification[topic].map((p => p.period_id)).join(", ")} of ${notification[topic][0].teacher_name} Cancelled, ${!!on ? "on" : "from"} ${new Date(from).toLocaleDateString("en-Gb", {
             day: "numeric",
             month: "short",
             year: "numeric"
-          })} ${!!on ? "" : `to ${new Date(to || on).toLocaleDateString("en-Gb", {
+          })} ${!!on ? "" : `to ${new Date(to).toLocaleDateString("en-Gb", {
             day: "numeric",
             month: "short",
             year: "numeric"
@@ -896,7 +896,7 @@ app.post("/announce", async (req, res) => {
   const query = "insert into announcements (title, body, created_by, target_year, target_branch, target_section, delete_at) values(?, ?, ?, ?, ?, ?, ?)"
 
   try {
-    const response = await pool.query(query, [title, body, JSON.stringify(created_by), JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), expires_at]);
+    const response = await pool.query(query, [title, body, JSON.stringify(created_by), JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), formatDate(expires_at)]);
 
     // send notification 
     const resp = await notifyGroup(title, body, "ANNOUNCEMENT", null, target_year, target_branch, target_section);
@@ -904,7 +904,7 @@ app.post("/announce", async (req, res) => {
 
   } catch (err) {
     console.log(err)
-    res.json({ success: false, error: err });
+    res.json({ success: false, message: "Something went wrong." });
   }
 })
 
