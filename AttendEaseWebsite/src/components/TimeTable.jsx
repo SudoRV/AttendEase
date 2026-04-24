@@ -36,15 +36,6 @@ const TimeTable = () => {
     <td 
       className={`subject-cell ${cellBackground}`}
       onContextMenu={(e) => SubjectEditMenu(e, period_no)}>
-      {
-        cancelled ? (
-          <div className="cancelled-class flex-col">
-            <p className={`w-full !text-white p-1 px-2.5 rounded-full text-sm ${item?.substitute_teacher_id ? "bg-gradient-to-br via-teal-500 from-teal-600 to-teal-600" : "bg-gradient-to-br via-red-500 from-red-600 to-red-600"}`}>{item?.substitute_teacher_id ? "Substituted" : "Cancelled"}</p>           
-          </div>
-        ) : (
-          ""
-        )
-      }
       <div className="subject-box">
         {
           code ? (
@@ -62,6 +53,15 @@ const TimeTable = () => {
             <p className="!text-black !text-lg !font-bold">Free</p>
           )
         }
+        {
+        cancelled ? (
+          <div className="cancelled-class">
+            <p className={`w-full !text-white py-1 px-3 rounded-full text-sm border border-dotted ${item?.substitute_teacher_id ? "bg-gradient-to-br via-teal-500 from-teal-600 to-teal-600 border-teal-800" : "bg-gradient-to-br via-red-500 from-red-600 to-red-600 border-red-200"}`}>{item?.substitute_teacher_id ? "Substituted" : "Cancelled"}</p>           
+          </div>
+        ) : (
+          ""
+        )
+      }
       </div>
     </td>
   );};
@@ -146,13 +146,13 @@ const TimeTable = () => {
   }
 
   return (
-    <div className="schedule-container">
+    <div className="schedule-container custom-scrollbar">
       <div className="flex flex-row items-start gap-4">
         <FiCalendar size={28} color="" />
         <h2 className="Day-label text-2xl">{classes.day}</h2>
       </div>
 
-      <div className="schedule-classes overflow-auto">
+      <div className="schedule-classes">
         <table className="schedule-table !px-0">
           <thead>
             <tr>
