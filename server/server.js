@@ -28,7 +28,6 @@ const config = {
   password: "A6q9yQI2tphgxS9bxWN0",
   database: "bw29rwejnmb7a0ihv8ip",
   waitForConnections: true,
-  timezone: 'Z'
 }
 
 const config2 = {
@@ -37,10 +36,9 @@ const config2 = {
   password: "rahul@1992#",
   database: "scheduler",
   waitForConnections: true,
-  timezone: 'Z'
 }
 
-const pool = mysql.createPool(config2);
+const pool = mysql.createPool(config);
 
 // nodemailer transporter
 // console.log(process.env.EMAIL, process.env.PASS)
@@ -576,9 +574,9 @@ app.get("/fetch-leaves", async (req, res) => {
       WHERE s.year = ? 
       AND s.branch_id = ? 
       AND s.section = ?
-      # AND applicable_to > ?
+      AND applicable_to > ?
       `;
-    values2 = [userData.year, userData.branch_id, userData.section || "A", formatDate(time)];
+    values2 = [userData.year, userData.branch_id, userData.section || "A", new Date(time)];
 
   }
   // teacher fetching leave
@@ -612,11 +610,11 @@ app.get("/fetch-leaves", async (req, res) => {
     
     ORDER BY l.created_at DESC;
     `;
-    values = [formatDate(time), userData?.teacher_id]
+    values = [new Date(time), userData?.teacher_id]
 
     // teacher leaves
     query2 = `select teacher_id, id, name, applicable_from, applicable_to, status from leaves where teacher_id != 'not a teacher' and applicable_to > ?`;
-    values2 = [formatDate(time)];
+    values2 = [new Date(time)];
   }
 
   try {
@@ -660,7 +658,7 @@ app.post("/upload-leave", async (req, res) => {
         and applicable_from = ?
         and applicable_to = ?
      )`;
-    values = [applicant?.name, applicant?.year, applicant?.branch_id, applicant?.student_id, subject, application, formatDate(applicable_from), formatDate(applicable_to), affected_days, applicant?.student_id, formatDate(applicable_from), formatDate(applicable_to)];
+    values = [applicant?.name, applicant?.year, applicant?.branch_id, applicant?.student_id, subject, application, new Date(applicable_from), new Date(applicable_to), affected_days, applicant?.student_id, new Date(applicable_from), new Date(applicable_to)];
   }
 
   try {
@@ -729,11 +727,9 @@ app.post("/teacher-availability", async (req, res) => {
 
   const affected_days = getAffectedDays(req.body.from || req.body.on, req.body.to || req.body.on);
 
-  // console.log(req.body.from, new Date(req.body.from).toLocaleDateString(), formatDate(req.body.from), new Date(formatDate(req.body.from)).toLocaleDateString())
-
-  const from = formatDate(req.body.from);
-  const to = formatDate(req.body.to);
-  const on = formatDate(req.body.on);
+  const from = new Date(req.body.from);
+  const to = new Date(req.body.to);
+  const on = new Date(req.body.on);
 
   // save leave to leaves table
   const query1 = `insert into leaves (
@@ -813,7 +809,7 @@ app.post("/teacher-availability", async (req, res) => {
         data: {
           type: "CLASS_CANCELLED",
           title: "Class Cancelled",
-          body: `Period ${notification[topic].map((p => p.period_id)).join(", ")} of ${notification[topic][0].teacher_name} Cancelled, ${!!on ? "on" : "from"} ${new Date(from).toLocaleDateString("en-Gb", {
+          body: `Period ${notification[topic].map((p => p.period_id)).join(", ")} of ${notification[topic][0].teacher_name} Cancelled, ${!!on ? "for" : "from"} ${new Date(from).toLocaleDateString("en-Gb", {
             day: "numeric",
             month: "short",
             year: "numeric"
@@ -822,6 +818,12 @@ app.post("/teacher-availability", async (req, res) => {
             month: "short",
             year: "numeric"
           })}`}`,
+          data: JSON.stringify({
+            class: notification[topic],
+            from: req.body.from,
+            to: req.body.to,
+            on: req.body.on
+          })
         },
         android: {
           priority: "high"
@@ -851,7 +853,7 @@ app.get("/announcements", async (req, res) => {
     created_by,
     status,
     created_at,
-    delete_at
+    expires_at
   FROM announcements
   WHERE status = 'Active'
     AND (
@@ -867,14 +869,14 @@ app.get("/announcements", async (req, res) => {
       JSON_CONTAINS(target_section, JSON_ARRAY(?), '$.sections') 
       OR JSON_CONTAINS(target_section, JSON_ARRAY('all'), '$.sections')
     )
-    AND delete_at > ?
-    ORDER BY created_at;
+    AND expires_at > ?
+    ORDER BY created_at DESC;
   `;
-  const values = [year, branch, section, formatDate(time)];
+  const values = [year, branch, section, new Date(time)];
 
   try {
     // set status expired
-    await pool.query("update announcements set status = 'Expired' where current_timestamp > delete_at");
+    // await pool.query("update announcements set status = 'Expired' where current_timestamp > delete_at");
 
     const [announcements] = await pool.query(query, values);
 
@@ -893,10 +895,10 @@ app.get("/announcements", async (req, res) => {
 app.post("/announce", async (req, res) => {
   const { title, body, status, target_year, target_branch, target_section, created_by, expires_at } = req.body;
 
-  const query = "insert into announcements (title, body, created_by, target_year, target_branch, target_section, delete_at) values(?, ?, ?, ?, ?, ?, ?)"
+  const query = "insert into announcements (title, body, created_by, target_year, target_branch, target_section, expires_at) values(?, ?, ?, ?, ?, ?, ?)"
 
   try {
-    const response = await pool.query(query, [title, body, JSON.stringify(created_by), JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), formatDate(expires_at)]);
+    const response = await pool.query(query, [title, body, JSON.stringify(created_by), JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), new Date(expires_at)]);
 
     // send notification 
     const resp = await notifyGroup(title, body, "ANNOUNCEMENT", null, target_year, target_branch, target_section);
@@ -1006,8 +1008,6 @@ cron.schedule("0 8 * * *", () => {
 }, { timezone: "Asia/Kolkata" })
 
 
-// notifyTimetable("Thursday")
-
 async function notifyTimetable(day) {
   const years = [1, 2, 3, 4, 5];
   const branches = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
@@ -1028,7 +1028,7 @@ async function notifyTimetable(day) {
         // send timetable notification
         const dayName = day;
 
-        const [classes] = await pool.query("select period_id, subject_id, subject_name, teacher_name, cancelled from schedule where year = ? and branch_id = ? and section = ? and day = ? order by period_id", [year, branch, section, dayName])
+        const [classes] = await pool.query("select period_id, subject_id, subject_name, teacher_name, cancelled, substitute_teacher_name from schedule where year = ? and branch_id = ? and section = ? and day = ? order by period_id", [year, branch, section, dayName])
 
         let message = "";
 
@@ -1124,14 +1124,13 @@ async function notifyGroup(title, body, dataType, data, target_year, target_bran
   })
 }
 
-
 async function notify(token, title, body, dataType, data) {
   const message = {
     token,
     data: {
       type: dataType,
-      title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
-      body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.teacher_name}` : `Your class ${substitutedClass[0].subject_name} substitution cancelled by ${substitutor.teacher_name}`,
+      title,
+      body,
       data: JSON.stringify(data)
     },
     android: {

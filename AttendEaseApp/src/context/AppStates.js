@@ -6,7 +6,7 @@ import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 /* =====================
    ENV CONFIG
 ===================== */
-const isProduction = false;
+const isProduction = true;
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP
@@ -33,16 +33,36 @@ export const GlobalProvider = ({ children }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [logout, setLogout] = useState(false);
 
+  // highlight current period
+  function runAtWholeHour(fn) {
+    const now = new Date();
+
+    const msToNextHour =
+      (60 - now.getMinutes()) * 60 * 1000 -
+      now.getSeconds() * 1000 -
+      now.getMilliseconds();
+
+    setTimeout(() => {
+      fn(); // runs exactly at HH:00
+
+      setInterval(fn, 60 * 60 * 1000); // every whole hour
+    }, msToNextHour);
+  }
+
+  runAtWholeHour(() => {
+    loadTimetable(userData);
+  });
+
   /* =====================
      TIMETABLE
   ===================== */
   const loadTimetable = async (userCreds, selectedDay) => {
     // set saved classes
     const savedClasses = await AsyncStorage.getItem("classes");
-    if(!!savedClasses){
+    if (!!savedClasses) {
       setClasses(JSON.parse(savedClasses));
     }
-    
+
     if (!userCreds) return;
 
     const date = new Date();
@@ -68,9 +88,9 @@ export const GlobalProvider = ({ children }) => {
       const data = json?.data;
 
       data.classes = data.classes?.map(d => {
-        if(d?.period_id > 4) {
+        if (d?.period_id > 4) {
           return {
-            ...d, 
+            ...d,
             period_id: d.period_id + 1
           }
         } else return d;
@@ -97,8 +117,6 @@ export const GlobalProvider = ({ children }) => {
         );
       }
 
-      console.log(timetable)
-
       if (!!selectedDay) {
         return { day, classes: timetable }
       }
@@ -106,6 +124,7 @@ export const GlobalProvider = ({ children }) => {
         setClasses({ day, classes: timetable })
       };
 
+      // console.log(timetable)
       AsyncStorage.setItem("classes", JSON.stringify({ day, classes: timetable }));
 
     } catch (err) {
@@ -122,12 +141,10 @@ export const GlobalProvider = ({ children }) => {
     try {
       const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
         JSON.stringify(userData)
-      )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent( (new Date()))}`;
+      )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
-
-      console.log(json)
 
       if (!!filter && !filter?.set) {
         return {
@@ -178,14 +195,14 @@ export const GlobalProvider = ({ children }) => {
           `branch_${userCreds.branch_id}`,
           `${userCreds.branch_id}_${userCreds.year}_${userCreds.section}`
         ]
-        : ["teachers"];     
+        : ["teachers"];
 
       // 3. Save to your database
       const response = await fetch(buildUrl("/save-fcm-token"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_data: {...userData, device_info: {}},
+          user_data: { ...userData, device_info: {} },
           token: token,
           topics: topics
         })
@@ -208,7 +225,7 @@ export const GlobalProvider = ({ children }) => {
   useEffect(() => {
     if (!userData?.email) return;
     setLogout(false);
-    
+
     loadTimetable(userData);
     loadLeaves();
 

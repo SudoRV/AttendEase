@@ -35,8 +35,8 @@ const LeaveBox = () => {
       applicant: userData,
       subject: subject,
       application: application,
-      applicable_from: from,
-      applicable_to: to
+      applicable_from: new Date(from).setHours(0, 5, 0, 0),
+      applicable_to: new Date(to).setHours(23, 55, 0, 0),
     }
 
     const response = await fetch(buildUrl("/upload-leave"), {
@@ -49,6 +49,7 @@ const LeaveBox = () => {
 
     const resdata = await response.json();
     if(resdata.success){
+      loadLeaves();
       alert(resdata.message);
       applicable_from_ref.value = "";
       applicable_to_ref.value = "";
@@ -59,7 +60,7 @@ const LeaveBox = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className=" mx-auto space-y-6">
   
   {/* Top Section: History & Latest Status */}
   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

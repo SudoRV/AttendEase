@@ -28,7 +28,7 @@ const SECTION_OPTIONS = [
 ];
 
 export default function Announce() {
-  const { userData, buildUrl } = AppStates();
+  const { userData, buildUrl, formatDate } = AppStates();
   
   // State management
   const [loading, setLoading] = useState(false);
@@ -56,6 +56,7 @@ export default function Announce() {
       target_branch: targetBranches.map((o) => o.value),
       target_section: targetSections.map((o) => o.value),
       status: "Active",
+      expires_at: formData.expires_at ? formatDate(formData.expires_at) : new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1)
     };
 
     try {

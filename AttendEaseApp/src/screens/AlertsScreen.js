@@ -19,7 +19,7 @@ const AlertsScreen = () => {
     // 2. Set up the foreground listener
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
       if (userData.role !== "Teacher") {
-        loadAnnouncements();
+        loadAnnouncements(userData);
       }
     });
 
@@ -38,6 +38,7 @@ const AlertsScreen = () => {
       const json = await response.json();
 
       if (json?.data) setAnnouncements(json.data);
+      
     } catch (err) {
       console.log("Announcements error:", err);
     }

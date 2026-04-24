@@ -8,7 +8,7 @@ const Announcements = () => {
   return (
     <div className="h-full flex flex-col items-center">
       <h2 className="headings !m-0 !p-0">Announcements</h2><br />
-      <div className="announcements-container w-full flex-1 flex flex-col gap-3">
+      <div className="announcements-container w-full flex-1 flex flex-col gap-3 custom-scrollbar">
         {announcements && announcements.length > 0 ? (
           announcements.map((announcement, index) => (
             <div
@@ -64,7 +64,9 @@ const Announcements = () => {
             </div>
           ))
         ) : (
-          <p>No announcements available</p>
+          <p className="m-4 rounded-[20px] items-center p-4 text-white shadow-xl flex flex-col transition-all hover:scale-[1.01] bg-gradient-to-br from-slate-500 to-slate-600">
+            No announcements available
+          </p>
         )}
       </div>
     </div>

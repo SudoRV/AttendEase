@@ -4,7 +4,7 @@ import { AppStates } from "../services/states";
 import { FiCalendar, FiClock, FiCheckCircle, FiInfo } from "react-icons/fi";
 
 const TeacherAvailability1 = ({ onSubmit }) => {
-  const { userData, classes, doFetch, loadTimetable } = AppStates();
+  const { userData, classes, doFetch, loadTimetable, formatDate } = AppStates();
   const [leaveType, setLeaveType] = useState("");
   const [periods, setPeriods] = useState([]);
 
@@ -14,6 +14,12 @@ const TeacherAvailability1 = ({ onSubmit }) => {
     const formData = Object.fromEntries(form.entries());
     formData.applicant = userData;
     formData.classes = periods;
+
+    formData.from = formatDate(new Date(formData.from)?.setHours(0, 5, 0, 0) || (formData?.on ? new Date(formData?.on).setHours(0, 5, 0, 0) : new Date().setHours(0, 5, 0, 0)));
+                
+    formData.to = formatDate(new Date(formData?.to)?.setHours(23, 55, 0, 0) || (formData?.on ? new Date(formData?.on).setHours(23, 55, 0, 0) : new Date().setHours(23, 55, 0, 0)));
+                
+    formData.on = formData?.on ? formatDate(new Date(formData?.on)?.setHours(0, 5, 0, 0)) : formData?.on;
 
     const response = await doFetch("/teacher-availability", "POST", { "Content-Type": "application/json" }, JSON.stringify(formData));
     const res_data = await response.data.json();
@@ -89,27 +95,27 @@ const TeacherAvailability1 = ({ onSubmit }) => {
                     styles={selectStyles}
                     placeholder="Search periods..."
                     options={classes.classes
-                      ?.filter(c => !!c?.code?.trim())
+                      ?.filter(c => !!c?.subject_id?.trim())
                       .map(c => ({
                         value: JSON.stringify(c),
-                        label: `${c.period}: ${c.code} (${c.section})`
+                        label: `${c.period_id}: ${c.subject_id} - ${c.subject_name}`
                       }))
                     }
                     onChange={(values) => setPeriods(values.map(v => JSON.parse(v.value)))}
                   />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
+                {/* <div className="grid grid-cols-2 gap-4">
                   <DateInput label="From Date" name="from" />
                   <DateInput label="To Date" name="to" />
-                </div>
+                </div> */}
               </div>
             )}
 
             {leaveType === "duration" && (
               <div className="grid grid-cols-2 gap-4">
-                <DateInput label="Starts On" name="from" />
-                <DateInput label="Ends On" name="to" />
+                <DateInput label="From" name="from" />
+                <DateInput label="To" name="to" />
               </div>
             )}
 

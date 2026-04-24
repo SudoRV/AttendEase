@@ -214,20 +214,20 @@ const StudentLeaveManagement = () => {
                 </div>
 
                 {activeTab === "verify" && (
-                  <div className="flex gap-1 mt-3">
+                  <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => verifyLeave("Rejected", leave, id)}
-                      className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                      className="p-1.5 border-none rounded-md text-red-500 hover:bg-red-50 transition-colors"
                       title="Reject"
                     >
-                      <FiX size={18} />
+                      Reject
                     </button>
                     <button
                       onClick={() => verifyLeave("Approved", leave, id)}
-                      className="p-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-all"
+                      className="p-1.5 py-0 rounded-md border-none bg-green-500 text-white hover:bg-indigo-700 shadow-md shadow-indigo-100 transition-all"
                       title="Approve"
                     >
-                      <FiCheck size={18} />
+                      Approve
                     </button>
                   </div>
                 )}
