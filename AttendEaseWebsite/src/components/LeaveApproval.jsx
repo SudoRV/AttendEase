@@ -97,6 +97,12 @@ const StudentLeaveManagement = () => {
 
   return (
     <div className="w-full flex flex-col h-full">
+      <div className="flex justify-center items-center mb-2 items-center text-center">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-900">Student Leaves</h1>
+                    <p className="text-slate-500">Student leave applications</p>
+                </div>
+            </div>
 
       {/* Tabs */}
       <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 gap-4 mb-6">

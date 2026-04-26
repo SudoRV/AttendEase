@@ -9,7 +9,7 @@ import TeacherAvailability from "../components/TeacherAvailablility";
 import TimeTable from "../components/TimeTable";
 import Footer from "../components/Footer";
 import attendease_logo from "../images/attendease_icon.png";
-
+import TeacherLeave from '../components/TeacherLeave';
 
 const TeacherDashboard = () => {
   const announcements = [
@@ -123,12 +123,15 @@ const TeacherDashboard = () => {
         </div>
 
         <div className="dashboard teacher-dashboard">
-          <div className="card other announcements">
+          <div className="card other announcer">
             <Announce announcements={announcements} />
+          </div>
+          <div className="card other announcements">
+            <Announcements />
           </div>
 
           <div className="card teacher-availability">
-            <TeacherAvailability />
+            <TeacherLeave />
           </div>
 
           <div className="card other leave-management leave-verifier">

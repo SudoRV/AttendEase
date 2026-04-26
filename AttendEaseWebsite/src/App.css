@@ -198,7 +198,7 @@ html,body{
     display: grid;
     width: 100%;
     grid-template-areas:
-        "teacher_leave announcements"
+        "teacher_leave announcer"
         "leave announcements"
         "footer footer"   
     ;
@@ -321,8 +321,8 @@ html,body{
 }
 
 .announcer {
-    padding: 0 1rem;
     width: 100%;
+    grid-area: announcer;
 }
 
 .announcer h3 {
@@ -335,6 +335,7 @@ html,body{
     padding: 10px;
     /*font-size: 1rem;*/
     border-radius: 8px;
+    margin-bottom: 15px;
 }
 
 .profile-card {
@@ -655,9 +656,10 @@ html,body{
         .teacher-dashboard {
             grid-template-areas:
                 "timetable"
-                "teacher_leave"
                 "leave"
+                "announcer"
                 "announcements"
+                "teacher_leave"
                 "footer"
             ;
         }
@@ -671,6 +673,9 @@ html,body{
     .announcements {
         padding: 0px;
         max-height: 500px;
+    }
+    .announcer{
+        padding:0px;
     }
      .attendance {
         padding: 0px;
