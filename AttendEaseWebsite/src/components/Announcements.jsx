@@ -8,14 +8,14 @@ const Announcements = () => {
   return (
     <div className="h-full flex flex-col items-center">
       <h2 className="headings !m-0 !p-0">Announcements</h2><br />
-      <div className="announcements-container w-full flex-1 flex flex-col gap-3">
+      <div className="announcements-container w-full flex-1 flex flex-col gap-3 custom-scrollbar">
         {announcements && announcements.length > 0 ? (
-          announcements.map((announcement, index) => (
+          <>
+          {announcements.map((announcement, index) => (
             <div
             key={index}
-              className="mb-4 rounded-[20px] p-4 text-white shadow-xl flex flex-col transition-all hover:scale-[1.01] bg-gradient-to-br from-indigo-500 to-indigo-600"
+              className="mx-4 rounded-[20px] p-4 text-white shadow-xl flex flex-col transition-all hover:scale-[1.01] bg-gradient-to-br from-indigo-500 to-indigo-600"
               style={{
-                
                 boxShadow: '0 10px 20px -5px rgba(79, 70, 229, 0.3)'
               }}
             >
@@ -28,24 +28,24 @@ const Announcements = () => {
                   </h3>
                 </div>
                 <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm aspect-square">
-                  <IoNotificationsOutline size={18} color="white" />
+                  <IoNotificationsOutline size={16} color="white" />
                 </div>
               </div>
 
               {/* Body: Softened text for better readability */}
-              <p className="text-indigo-50 mt-2 pt-2 pb-2 leading-relaxed text-base opacity-90 font-light flex flex-wrap overflow-scroll custom-scrollbar">
+              <p className="text-indigo-50 pt-2 leading-relaxed text-base opacity-90 font-light flex flex-wrap overflow-scroll custom-scrollbar">
                 {announcement.body}
               </p>
 
               {/* Separator Line */}
-              <div className="h-[1px] bg-white/10 my-4 w-full" />
+              <div className="h-[1px] bg-white/10 my-2 w-full" />
 
               {/* Footer: Multi-column layout */}
               <div className="flex flex-row justify-between items-center mt-auto">
 
                 {/* Author */}
                 <div className="flex flex-row items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-white/30 flex items-center justify-center border border-white/20">
+                  <div className="w-6 h-6 rounded-full bg-white/30 flex items-center justify-center border border-white/20">
                     <IoPerson size={12} color="white" />
                   </div>
                   <span className="text-sm font-medium">
@@ -62,9 +62,15 @@ const Announcements = () => {
                 </div>
               </div>
             </div>
-          ))
+          ))}
+          <p className="items-center flex flex-col">
+            All Notifications Shown
+          </p>
+          </>
         ) : (
-          <p>No announcements available</p>
+          <p className="m-4 rounded-[20px] items-center p-4 text-white shadow-xl flex flex-col transition-all hover:scale-[1.01] bg-gradient-to-br from-slate-500 to-slate-600">
+            No announcements available
+          </p>
         )}
       </div>
     </div>

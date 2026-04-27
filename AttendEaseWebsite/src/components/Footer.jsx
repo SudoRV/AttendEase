@@ -11,7 +11,7 @@ const team = [
     role: "Frontend Developer"
   },
   {
-    name: "Arjun",
+    name: "Arjun Singh",
     github: "arjunsinghas0077-eng",
     linkedin: "",
     role: "Frontend Developer"
@@ -41,23 +41,22 @@ export default function Footer() {
     <footer className="footer text-gray-700">
       {/* Credits*/}
       <div className="bg-gradient-to-br from-indigo-500 to-indigo-700">
-
-        <div className="max-w-7xl mx-auto px-6 py-10">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <h3 className="text-center text-gray-100 text-lg font-semibold mb-8">
             Project Credits
           </h3>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+          <div className="gap-8 flex flex-row overflow-x-auto">
             {team.map((member, index) => (
               <div
                 key={index}
-                className="flex flex-col items-center text-center gap-2"
+                className="mx-auto flex flex-col items-center text-center gap-2"
               >
                 {member.github ? (
                   <img
                     src={`https://github.com/${member.github}.png`}
                     alt={member.name}
-                    className="w-16 h-16 rounded-full border border-gray-300 object-cover"
+                    className="w-20 h-20 rounded-full border border-gray-300 object-cover"
                   />
                 ) : (
                   <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-sm text-gray-500">
@@ -99,11 +98,6 @@ export default function Footer() {
             ))}
           </div>
         </div>
-      </div>
-
-      {/* Bottom Bar */}
-      <div className="text-center text-xs text-gray-500 py-4 border-t bg-gray-50">
-        © {new Date().getFullYear()} Academic Project 2026 • Built with ❤️ by Team
       </div>
     </footer>
   );
