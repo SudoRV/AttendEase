@@ -15,7 +15,7 @@ const BASE_URL = isProduction
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
 // 1. Helper function for the channel
-const morningScheduleChannel = async () => {
+const morningScheduleChannel = async () => {r
   return await notifee.createChannel({
     id: 'daily_class_alerts',
     name: 'Morning Class Alerts',
@@ -84,6 +84,7 @@ const onMessageReceived = async (remoteMessage) => {
       id: 'daily_class_alerts',
       title: "📚 Today's Classes",
       subtitle: subtitle,
+      body: remoteMessage.data?.body,
       android: {
         channelId: channelId,
         subText: subtitle,

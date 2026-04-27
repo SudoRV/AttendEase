@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // <-- IMPORT useNavigate
+import { Link, useNavigate } from 'react-router-dom';
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import { AppStates } from '../services/states';
 import Header from './Header';
 
 function LoginPage() {
   const navigate = useNavigate();
   const { setUserData, buildUrl } = AppStates();
+
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   // 2. Update the handleSubmit function
   const handleSubmit = async (e) => {
@@ -113,13 +116,26 @@ function LoginPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Password
             </label>
+
+            <div className='flex items-center'>
             <input
               name="password"
-              type="password"
+              type={passwordVisible ? "text" : "password"}
               required
-              placeholder="••••••••"
+              placeholder="Enter you password"
               className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition"
             />
+            <div className='px-4'
+            onClick={() => setPasswordVisible(prev => !prev)}>
+              {
+                passwordVisible ? (
+                  <FiEye size={16} />
+                ) : (
+                  <FiEyeOff size={16} />
+                )
+              }
+            </div>
+            </div>
           </div>
 
           {/* Button */}
