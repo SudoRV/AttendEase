@@ -82,17 +82,22 @@ export default function Announce() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-2 bg-white shadow-sm rounded-xl border border-gray-100 h-full">
-      <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">Create Announcement</h3>
+    <div className="max-w-2xl p-2 bg-white shadow-sm rounded-xl border border-gray-100 h-full">
+      <div className="flex justify-center items-center mb-2 items-center text-center">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-900">Make Announcement</h1>
+                    <p className="text-slate-500">Post an announcement</p>
+                </div>
+            </div>
       
-      <form onSubmit={handleAnnounce} className="space-y-5">
+      <form onSubmit={handleAnnounce}>
         {/* Basic Info */}
-        <div className="space-y-4">
+        <div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <label className="label">Title</label>
             <input
               required
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              className="input-box"
               name="title"
               value={formData.title}
               onChange={handleInputChange}
@@ -101,11 +106,11 @@ export default function Announce() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Body</label>
+            <label className="label">Body</label>
             <textarea
               required
               rows={3}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              className="input-box"
               name="body"
               value={formData.body}
               onChange={handleInputChange}
@@ -115,9 +120,9 @@ export default function Announce() {
         </div>
 
         {/* Targeting Grid */}
-        <div className="pt-4 border-t">
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Target Audience</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="border-t">
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Target Audience</p>
+          <div className="grid grid-cols-1 gap-6">
             <Select
               isMulti
               placeholder="Year(s)"
@@ -146,18 +151,18 @@ export default function Announce() {
         </div>
 
         {/* Expiry */}
-        <div className="w-full">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
+        <div className="flex flex-col gap-5 pt-2">
+          <label className="label">Deadline</label>
           <input
             type="datetime-local"
             name="expires_at"
-            className="w-full md:w-64 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            className="input-box"
             value={formData.expires_at}
             onChange={handleInputChange}
           />
         </div>
 
-        <div className="flex justify-end pt-4">
+        <div className="flex justify-center pt-4">
           <button
             type="submit"
             disabled={loading}
