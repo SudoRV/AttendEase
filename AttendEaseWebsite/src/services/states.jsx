@@ -28,6 +28,7 @@ export const GlobalProvider = ({ children }) => {
     const [classes, setClasses] = useState([]);
     const [leaveHistory, setLeaveHistory] = useState([]);
     const [announcements, setAnnouncements] = useState([]);
+    const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
 
     // highlight current period
     function runAtWholeHour(fn) {
@@ -180,31 +181,31 @@ export const GlobalProvider = ({ children }) => {
 
     const loadLeaves = async (filter) => {
         if (!userData?.email) return;
-
+    
         try {
-            const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
-                JSON.stringify(userData)
-            )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+          const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
+            JSON.stringify(userData)
+          )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+    
+          const response = await fetch(buildUrl(endpoint));
+          const json = await response.json();
 
-            const response = await fetch(buildUrl(endpoint));
-            const json = await response.json();
-
-            // console.log(json)
-
-            if (filter?.month) {
-                return {
-                    month: filter?.month,
-                    ...json
-                };
-            }
-            else {
-                setLeaveHistory(json?.data || []);
-                // setTeacherLeaveHistory(json?.teacher_leaves || []);
-            }
+          console.log(json)
+    
+          if (!!filter && !filter?.set) {
+            return {
+              month: filter?.month,
+              ...json
+            };
+          }
+          else {
+            setLeaveHistory(json?.data || []);
+            setTeacherLeaveHistory(json?.teacher_leaves || []);
+          }
         } catch (err) {
-            console.log("Leaves error:", err);
+          console.log("Leaves error:", err);
         }
-    };
+      };
 
     // functions
     async function doFetch(url, method = "GET", headers = {}, body = null) {
@@ -282,7 +283,8 @@ export const GlobalProvider = ({ children }) => {
         leaveHistory, setLeaveHistory,
         requestNotification,
         SubscribePushNotification,
-        formatDate
+        formatDate,
+        teacherLeaveHistory
     }
 
     return (

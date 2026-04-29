@@ -38,7 +38,7 @@ const config2 = {
   waitForConnections: true,
 }
 
-const pool = mysql.createPool(config);
+const pool = mysql.createPool(config2);
 
 // nodemailer transporter
 // console.log(process.env.EMAIL, process.env.PASS)

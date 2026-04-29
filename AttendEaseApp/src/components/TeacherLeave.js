@@ -80,7 +80,7 @@ const TeacherLeave = ({ onClose }) => {
 
             loadTimetable();
             loadLeaves();
-            alert(res_data.message);
+            Alert.alert("Leave status", res_data.message);
 
         } catch (error) {
             console.error("Teacher Availability Error:", error);
@@ -410,7 +410,7 @@ const renderTeacherLeaves = (
         const data = await response.json();
 
         if (!!data.success) {
-            if (action === "confirm") {
+            if (action === "acquired") {
                 setAbsentTeacherClasses(prev => ({ ...prev, substitute_teacher_id: userData?.teacher_id, substitute_teacher_name: userData?.name, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') }));
 
                 Alert.alert(`Substitution ${clas.subject_name}`, data.message);
@@ -427,7 +427,7 @@ const renderTeacherLeaves = (
 
     const handleSelectClass = (clas, action) => {
         Alert.alert(
-            action === "confirm" ? "Confirm Substitution" : "Cancel Substitution", // Title
+            action === "acquired" ? "Confirm Class Substitution" : "Cancel Substitution",
             `Are you sure you want to ${action === "cancel" && "cancel"} substitute for ${clas?.subject_name}?`, // Message
             [
                 {
@@ -607,7 +607,7 @@ const renderTeacherLeaves = (
                                         ) : (
                                             <View className="mt-3 bg-blue-600 py-2 rounded-lg">
                                                 <Text className="text-white text-center font-medium">
-                                                    Select for Substitution
+                                                    Acquire Class
                                                 </Text>
                                             </View>
                                         )}
