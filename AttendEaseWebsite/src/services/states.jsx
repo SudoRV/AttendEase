@@ -7,7 +7,7 @@ const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
 
-    const isProduction = true;
+    const isProduction = false;
 
     // ⚠️ IMPORTANT:
     // Replace this with your computer’s local IP
@@ -27,6 +27,7 @@ export const GlobalProvider = ({ children }) => {
     const [userData, setUserData] = useState({});
     const [classes, setClasses] = useState([]);
     const [leaveHistory, setLeaveHistory] = useState([]);
+    const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
     const [announcements, setAnnouncements] = useState([]);
 
     // highlight current period
@@ -199,7 +200,7 @@ export const GlobalProvider = ({ children }) => {
             }
             else {
                 setLeaveHistory(json?.data || []);
-                // setTeacherLeaveHistory(json?.teacher_leaves || []);
+                setTeacherLeaveHistory(json?.teacher_leaves || []);
             }
         } catch (err) {
             console.log("Leaves error:", err);
@@ -280,6 +281,7 @@ export const GlobalProvider = ({ children }) => {
         loadLeaves,
         announcements,
         leaveHistory, setLeaveHistory,
+        teacherLeaveHistory,
         requestNotification,
         SubscribePushNotification,
         formatDate

@@ -39,9 +39,9 @@ const TeacherLeave = ({ onClose }) => {
     }, [leaveType])
 
     const togglePeriod = (item) => {
-        const exists = periods.find(p => p.code === item.code);
+        const exists = periods.find(p => p.id === item.id);
         if (exists) {
-            setPeriods(periods.filter(p => p.code !== item.code));
+            setPeriods(periods.filter(p => p.id !== item.id));
         } else {
             setPeriods([...periods, item]);
         }
@@ -53,11 +53,11 @@ const TeacherLeave = ({ onClose }) => {
                 leave_type: leaveType,
                 applicant: userData,
                 classes: periods,
-                
+
                 from: formatDate(fromDate?.setHours(0, 5, 0, 0) || (onDate ? onDate.setHours(0, 5, 0, 0) : new Date().setHours(0, 5, 0, 0))),
-                
+
                 to: formatDate(toDate?.setHours(23, 55, 0, 0) || (onDate ? new Date(onDate).setHours(23, 55, 0, 0) : new Date().setHours(23, 55, 0, 0))),
-                
+
                 on: onDate ? formatDate(onDate?.setHours(0, 5, 0, 0)) : onDate,
             };
 
@@ -410,18 +410,25 @@ const renderTeacherLeaves = (
         const data = await response.json();
 
         if (!!data.success) {
-            if (action === "confirm") {
-                setAbsentTeacherClasses(prev => ({ ...prev, substitute_teacher_id: userData?.teacher_id, substitute_teacher_name: userData?.name, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss') }));
+            setAbsentTeacherClasses(previousClasses =>
+                previousClasses?.map(item => {
+                    if (item.id === clas.id) {
+                        return {
+                            ...item,
+                            substitute_teacher_id: action === "acquired" ? userData?.teacher_id : null,
+                            substitute_teacher_name: action === "acquired" ? userData?.name : null,
+                            substituted_till: action === "acquired"
+                                ? dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss')
+                                : null,
+                        }
+                    }
+                    return item;
+                })
+            );
 
-                Alert.alert(`Substitution ${clas.subject_name}`, data.message);
-            } else {
-                setAbsentTeacherClasses(prev => ({ ...prev, substitute_teacher_id: null, substitute_teacher_name: null, substituted_till: null }));
-
-                Alert.alert(`Substitution ${clas.subject_name}`, data.message);
-            }
-
+            alert(`Substitution of ${clas.subject_name} ${action}\n\n ${data.message}`);
         } else {
-            Alert.alert(data.message);
+            alert(data.message);
         }
     }
 
