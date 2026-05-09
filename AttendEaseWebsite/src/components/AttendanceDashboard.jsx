@@ -65,21 +65,18 @@ export default function AttendanceDashboard() {
       alert("Please provide all ID fields.");
       return;
     }
-    console.log("form");
     const response = await fetch(buildUrl("/save/utu-creds"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form)
     });
     const data = await response?.json();
-    console.log("Server response");
 
     if (data.success) {
       setHasConfig(true);
       if(!userData?.admissionId){
         const user_creds = { ...userData, collegeId: form?.collegeId, admissionId: form?.admissionId, courseId: form?.courseId, branchId: form?.branchId, semester: form?.durationId, start_month: form?.startMonth };
         localStorage.setItem("user_creds", JSON.stringify(user_creds));
-        console.log("User creds saved:");
         setUserData(user_creds);
       }
     }

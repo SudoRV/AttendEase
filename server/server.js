@@ -362,6 +362,22 @@ app.get("/get-timetable", async (req, res) => {
       throw error;
     }
 
+    // remove substitution 
+    const remove_substitution_query = `UPDATE schedule
+    SET substitute_teacher_id = NULL,
+        substitute_teacher_name = NULL,
+        substituted_till = NULL 
+    WHERE CURDATE() > DATE(substituted_till);`
+
+    try {
+      const response2 = await pool.query(remove_substitution_query);
+      if (response2.affectedRows > 0) {
+        console.log("removing expired substitution classes", response2);
+      }
+    } catch (error) {
+      throw error;
+    }
+
     // teacher timetable
     if (teacher_id && teacher_id !== "undefined") {
       if (day === "" || day === undefined) {
