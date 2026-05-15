@@ -641,6 +641,16 @@ html,body{
   border: 2px dotted white !important;
 }
 
+/* Dark mode support */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
 @media screen and (max-width:720px) {
     .dashboard {
         grid-template-areas:
@@ -650,7 +660,7 @@ html,body{
             "announcements"
             "attendance"
             "footer"
-            
+
         ;
     }
         .teacher-dashboard {
@@ -674,12 +684,9 @@ html,body{
         padding: 0px;
         max-height: 500px;
     }
-<<<<<<< HEAD
-=======
     .announcer{
         padding:0px;
     }
->>>>>>> 10673cf256b7757c164da55527c4f4f4ac8a385c
      .attendance {
         padding: 0px;
     }
