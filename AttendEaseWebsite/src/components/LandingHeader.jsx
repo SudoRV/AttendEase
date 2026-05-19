@@ -91,8 +91,8 @@ export default function LandingHeader({ toggleSidebar }) {
             </div>
 
             {/* tabs */}
-            <div className="max-w-[1400px] mx-auto px-4 sm:px-2 lg:px-8 -mb-0.5 overflow-x-auto overflow-y-hidden">
-                <div className="max-w-4xl items-left justify-left flex gap-2 mx-2 md:gap-5">
+            <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 -mb-0.5 overflow-x-auto overflow-y-hidden">
+                <div className="items-left justify-left flex gap-2 md:gap-5">
                     {NAV_TABS.map((tab) => (
                         <button
                             key={tab.id}
