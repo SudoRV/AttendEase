@@ -23,15 +23,17 @@ const AttendanceTable = ({ attendance, selectedMonth }) => {
     if (!selectedMonth?.month_id && selectedMonth?.month_id !== 0) return null;
 
     return (
-        <div className="attendance-dashboard bg-black shadow-lg pb-4 custom-scrollbar">
+        <div className="attendance-dashboard dark:bg-neutral-950/40 overflow-hidden rounded-xl mt-2 shadow-lg pb-4 w-full">
+
             {/* Subject Sidebar (Sticky replacement) */}
-            <div className="flex flex-col bg-white w-24 flex-shrink-0 z-10 border-r border-slate-100 shadow-sm">
+            <div className="flex flex-col w-[6rem] flex-shrink-0 z-10 border-r border-slate-100 shadow-sm">
                 <div className="h-16 flex items-center justify-center border-b border-slate-100">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Subjects</span>
+                    <span className="text-[13px] font-bold text-slate-400 dark:text-neutral-300 uppercase tracking-tighter">Subjects</span>
                 </div>
+
                 {subjects.map((subject) => (
                     <div key={subject} className="h-16 flex items-center p-2 border-b border-slate-100 last:border-b-0 overflow-hidden">
-                        <span className="text-[10px] font-bold text-slate-700 leading-3 line-clamp-5 uppercase">
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-neutral-400 leading-3 line-clamp-5 uppercase">
                             {subject}
                         </span>
                     </div>
@@ -41,34 +43,35 @@ const AttendanceTable = ({ attendance, selectedMonth }) => {
             {/* Scrollable Attendance Data */}
             <div 
                 ref={scrollRef} 
-                className="flex-1 overflow-x-auto scrollbar-hide flex flex-col"
+                className="flex-1 w-0 custom-scrollbar flex flex-col"
             >
                 {/* Header Row */}
-                <div className="flex h-16 border-b border-slate-100 min-w-max items-center px-2 gap-2">
+                <div className="w-full flex h-16 border-b border-slate-100 min-w-max items-center px-2 gap-2">
                     {subjectsObj[subjects[0]]?.attendance?.map((_, i) => (
                         <div key={i} className="w-10 flex flex-col items-center justify-center">
-                            <span className="text-[8px] font-black text-slate-400 uppercase">Day</span>
-                            <span className="text-xs font-bold text-slate-700">{i + 1}</span>
+                            <span className="text-[10px] font-semibold text-slate-400 dark:text-neutral-300 uppercase">Day</span>
+                            <span className="text-xs font-bold text-slate-700 dark:text-neutral-400">{i + 1}</span>
                         </div>
                     ))}
                     <div className="flex gap-2 pl-4 border-l border-slate-50 italic">
-                        <span className="w-10 text-[9px] font-black text-center text-slate-400 uppercase">Held</span>
-                        <span className="w-10 text-[9px] font-black text-center text-slate-400 uppercase">Att.</span>
-                        <span className="w-12 text-[9px] font-black text-center text-slate-400 uppercase">%</span>
+                        <span className="w-10 text-[11px] font-semibold text-center text-slate-400 uppercase">Held</span>
+                        <span className="w-10 text-[11px] font-semibold text-center text-slate-400 uppercase">Att.</span>
+                        <span className="w-12 text-[11px] font-semibold text-center text-slate-400 uppercase">%</span>
                     </div>
                 </div>
 
                 {/* Subject Rows */}
                 {subjects.map((sub) => (
-                    <div key={sub} className="flex h-16 border-b border-slate-100 last:border-b-0 min-w-max items-center px-2 gap-2">
+                    <div key={sub} className="w-full flex h-16 border-b border-slate-100 last:border-b-0 min-w-max items-center px-2 gap-2">
                         {subjectsObj[sub]?.attendance?.map((status, i) => (
-                            <div key={i} className="flex flex-col gap-0.5">
+                            <div key={i} className="flex flex-col aspect-square gap-0.5">
                                 {status.split(",").map((s, si) => (
                                     <div 
                                         key={si} 
-                                        className={`w-10 h-5 flex items-center justify-center rounded-md text-[10px] font-black transition-colors ${
+                                        className={`w-10 flex-1 flex items-center justify-center rounded-md text-[11px] font-semibold transition-colors ${
                                             s.trim() === "P" ? "bg-emerald-500 text-white" : 
-                                            s.trim() === "A" ? "bg-red-500 text-white" : "bg-blue-50 text-slate-400"
+                                            s.trim() === "L" ? "bg-blue-400 text-white" :
+                                            s.trim() === "A" ? "bg-red-500 text-white" : "bg-blue-50 dark:bg-neutral-700 text-slate-400"
                                         }`}
                                     >
                                         {s.trim() === "NA" ? "-" : s}
@@ -76,7 +79,7 @@ const AttendanceTable = ({ attendance, selectedMonth }) => {
                                 ))}
                             </div>
                         ))}
-                        {/* Summary Stats */}
+                        
                         <div className="flex gap-2 pl-4 border-l border-slate-50">
                             <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 font-black text-xs">
                                 {subjectsObj[sub]?.total_classes_held}

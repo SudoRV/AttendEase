@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { AppStates } from "../services/states";
-import { FiCalendar } from "react-icons/fi";
+import { FiCalendar, FiRotateCw } from "react-icons/fi";
+
+import { FiCoffee } from 'react-icons/fi';
+import { IoRestaurantOutline } from 'react-icons/io5';
+
+import { motion, AnimatePresence } from "framer-motion";
+
+import DaySelector from "./ui/DaySelector";
 
 /**
  * Student Timetable Component
@@ -26,45 +33,81 @@ const TimeTable = () => {
     setCurrentEditCell({ toglled: true, pos: { x: e.clientY, y: e.clientX }, period_no: period_no });
   }
 
-  const SubjectCell = ({ item, period_no, code, name, teacher, year, branch, section, room_number, cancelled, current }) =>{
-    const cellBackground = !code 
-    ? "bg-gradient-to-br via-slate-200 from-slate-400 to-slate-400" // Color for "Free" periods
-    : current 
-      ? "animate-current !bg-indigo-500" // Color for active period
-      : "bg-gradient-to-br via-indigo-500 from-indigo-600 to-indigo-600"; // Default class color
+  const SubjectCell = ({ item, period_no, code, name, teacher, year, branch, section, room_number, cancelled, current }) => {
+    const cellBackground = !code
+      ? "bg-gradient-to-br from-neutral-200 dark:from-neutral-900 to-neutral-50 dark:to-neutral-700 dark:shadow-none" // Color for "Free" periods 
+      : item?.is_cancelled // Assuming 'is_cancelled' is your boolean flag
+        ? "bg-white dark:bg-slate-900 border-2 border-dashed border-neutral-200" // Case for cancelled
+        : item?.subject_name === "LUNCH"
+          ? "!p-0 dark:shadow-none"
+          : current
+            ? "animate-current !bg-indigo-500" // Color for active period
+            : "bg-gradient-to-br from-indigo-600 to-indigo-400 dark:shadow-none"; // Default class color
+
+
+    const cellRef = useRef(null);
+
+    useEffect(() => {
+      if (current && cellRef.current) {
+        cellRef.current.scrollIntoView({
+          behavior: 'smooth',  // Animated smooth scroll
+          block: 'nearest',    // Prevents jumping the whole page vertically
+          inline: 'center',    // Perfectly centers it horizontally (great for schedules!)
+        });
+      }
+    }, [current]);
+
     return (
-    <td 
-      className={`subject-cell ${cellBackground}`}
-      onContextMenu={(e) => SubjectEditMenu(e, period_no)}>
-      <div className="subject-box">
+      <td
+        ref={cellRef}
+        className={`subject-cell ${cellBackground}`}
+        onContextMenu={(e) => SubjectEditMenu(e, period_no)}>
         {
-          code ? (
-            <>
-              <p className={`subject-code ${current ? "!text-gray-100 !font-light" : ""} ${item?.subject_name === "LUNCH" ? "!border-none !text-yellow-400" : ""}`}>{code}</p>
+          code ? item.subject_name === "LUNCH" ? (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-2.5 py-5 px-6 bg-neutral-50 dark:bg-neutral-950/40 rounded-xl border border-neutral-200/60 dark:border-neutral-900">
+              {/* Clean, vibrant lunch-accented icon wrapper */}
+              <div className="p-2.5 bg-teal-50 dark:bg-teal-500/10 text-teal-500 dark:text-teal-400 rounded-xl shadow-sm">
+                <IoRestaurantOutline size={30} />
+              </div>
 
-              <p className={`subject-name ${current ? "!text-gray-100 !font-light" : ""} ${item?.subject_name === "LUNCH" ? "!text-lg !font-bold !text-yellow-400" : ""}`}>{name}</p>
+              {/* Simplified, elegant neutral typography */}
+              <span className="text-sm font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-100">
+                Lunch Break
+              </span>
+            </div>
+          ) : (
+            <div className="w-full h-full flex flex-col !justify-between">
+              <p className={`subject-code ${current ? "!text-gray-100 !font-light" : ""} ${item?.cancelled
+                ? "text-red-500" : "text-neutral-50"}`}>{code}</p>
 
-              <p className={`Teacher-name 
+              <p className={`subject-name ${current ? "!text-gray-100 !font-light" : ""}`}>{name}</p>
+
+              <p className={`Teacher-name text-ellipsis !line-clamp-1 
               ${current ? "!text-gray-100 !font-light" : ""}
               ${item?.subject_name === "LUNCH" ? "!border-none !text-yellow-400" : ""}`}
 
-              >{userData?.role === "Teacher" ? `${branch || ""}-${year || ""}-${section || ""}-${room_number || ""}` : item?.substitute_teacher_name || teacher}</p></>
+              >{userData?.role === "Teacher" ? `${branch || ""}-${year || ""}-${section || ""}-${room_number || ""}` : item?.substitute_teacher_name || teacher}</p>
+            </div>
           ) : (
-            <p className="!text-black !text-lg !font-bold">Free</p>
+            <p className="!text-black dark:!text-neutral-300 !text-lg !font-bold">Free</p>
           )
         }
         {
-        cancelled ? (
-          <div className="cancelled-class">
-            <p className={`w-full !text-white py-1 px-3 rounded-full text-sm border border-dotted ${item?.substitute_teacher_id ? "bg-gradient-to-br via-teal-500 from-teal-600 to-teal-600 border-teal-800" : "bg-gradient-to-br via-red-500 from-red-600 to-red-600 border-red-200"}`}>{item?.substitute_teacher_id ? "Substituted" : "Cancelled"}</p>           
-          </div>
-        ) : (
-          ""
-        )
-      }
-      </div>
-    </td>
-  );};
+          cancelled ? (
+            <div className={`absolute -bottom-3.5 left-1/2 -translate-x-1/2 bg-red-500 px-4 py-1.5 rounded-full ${item?.substitute_teacher_id ? "bg-teal-500" : "bg-red-500"}`}>
+              <p className="text-white">
+                {
+                  item?.substitute_teacher_id ? "Substituted" : "Cancelled"
+                }
+              </p>
+            </div>
+          ) : (
+            ""
+          )
+        }
+      </td>
+    );
+  };
 
   useEffect(() => {
     if (currentEditCell.option === "edit") {
@@ -145,26 +188,63 @@ const TimeTable = () => {
     }
   }
 
+  const [selectedDay, setSelectedDay] = useState(null);
+  const selectedDayRef = useRef(null);
+  const [selectedTimetable, setSelectedTimetable] = useState({});
+  const [loadingTimetable, setLoadingTimetable] = useState(false);
+
+  async function loadSpecificTimetable() {
+    setLoadingTimetable(true);
+    const timetable = await loadTimetable(userData, selectedDay);
+    setSelectedTimetable(timetable);
+    setLoadingTimetable(false);
+
+    console.log(selectedDay, timetable)
+  }
+
+  useEffect(() => {
+    if (!!!selectedDay) return;
+    loadSpecificTimetable();
+  }, [selectedDay])
+
+  async function refreshTimetable(){
+    if(classes.day !== selectedDay){
+      setSelectedDay(classes.day);
+    }
+    else {
+      setLoadingTimetable(true);
+      await loadTimetable(userData);
+      setLoadingTimetable(false);
+    }
+  }
+
   return (
-    <div className="schedule-container custom-scrollbar">
-      <div className="flex flex-row items-start gap-4">
-        <FiCalendar size={28} color="" />
-        <h2 className="Day-label text-2xl">{classes.day}</h2>
+    <div className="schedule-container !overflow-y-visible">
+      <div className="flex flex-row items-center gap-3 border-2 mt-2">
+        <FiCalendar size={34} color="" />
+        {/* <h2 className="Day-label text-2xl">{classes.day}</h2> */}
+       
+        <DaySelector selectedDay={selectedDay} setSelectedDay={setSelectedDay} classes={classes} />
+
+        <button onClick={refreshTimetable}
+          className="border-none bg-transparent cursor-pointer mt-0.5">
+          <FiRotateCw className={`${loadingTimetable ? "animate-spin" : ""}`} size={22} />
+        </button>
       </div>
 
-      <div className="schedule-classes">
-        <table className="schedule-table !px-0">
+      <div className="schedule-classes custom-scrollbar !overflow-y-hidden">
+        <table className="!w-full schedule-table">
           <thead>
             <tr>
               {slots.map((time) => (
-                <th className="table-time !bg-neutral-700 !text-neutral-50" key={time}>{time}</th>
+                <th className="table-time !bg-neutral-900/80 dark:!bg-neutral-700/40 !text-neutral-50 dark:!text-neutral-300" key={time}>{time}</th>
               ))}
             </tr>
           </thead>
 
-          <tbody>
-            <tr>
-              {classes?.classes?.map((item, i) => (
+          <tbody className="flex-1">
+            <tr className="h-full">
+              {(selectedTimetable.day ? selectedTimetable : classes)?.classes?.map((item, i) => (
                 <SubjectCell
                   key={i}
                   item={item}

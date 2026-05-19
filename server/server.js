@@ -362,6 +362,22 @@ app.get("/get-timetable", async (req, res) => {
       throw error;
     }
 
+    // remove substitution 
+    const remove_substitution_query = `UPDATE schedule
+    SET substitute_teacher_id = NULL,
+        substitute_teacher_name = NULL,
+        substituted_till = NULL 
+    WHERE CURDATE() > DATE(substituted_till);`
+
+    try {
+      const response2 = await pool.query(remove_substitution_query);
+      if (response2.affectedRows > 0) {
+        console.log("removing expired substitution classes", response2);
+      }
+    } catch (error) {
+      throw error;
+    }
+
     // teacher timetable
     if (teacher_id && teacher_id !== "undefined") {
       if (day === "" || day === undefined) {
@@ -402,7 +418,7 @@ app.get("/get-timetable", async (req, res) => {
 
     // student timetable
     else {
-      if (day === "" || day === undefined) {        
+      if (day === "" || day === undefined) {
         const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and semester = ? and branch_id = ? and section = ? order by day, period_id`;
         const [rows] = await pool.query(query, [
           year, semester, branch, section,
@@ -845,38 +861,46 @@ app.post("/teacher-availability", async (req, res) => {
 
 // fetch announcemetns
 app.get("/announcements", async (req, res) => {
-  const { year, branch, section, time } = req.query;
+  const { role, teacher_id, year, branch, section, time } = req.query;
 
-  const query = `SELECT 
-    title,
-    body,
-    created_by,
-    status,
-    created_at,
-    expires_at
-  FROM announcements
-  WHERE status = 'Active'
-    AND (
-      JSON_CONTAINS(target_year, JSON_ARRAY(?), '$.years') 
-      OR JSON_CONTAINS(target_year, JSON_ARRAY('all'), '$.years')
-    )
-    AND (
+  console.log(role, teacher_id);
 
-      JSON_CONTAINS(target_branch, JSON_ARRAY(?), '$.branches')
-      OR JSON_CONTAINS(target_branch, JSON_ARRAY('all'), '$.branches')
-    )
-    AND (
-      JSON_CONTAINS(target_section, JSON_ARRAY(?), '$.sections') 
-      OR JSON_CONTAINS(target_section, JSON_ARRAY('all'), '$.sections')
-    )
-    AND expires_at > ?
+  const query = `
+    SELECT 
+        title,
+        body,
+        created_by,
+        scope,
+        status,
+        created_at,
+        expires_at
+    FROM announcements
+    WHERE status = 'Active'
+      AND expires_at > ?
+      AND (
+        (
+            (JSON_CONTAINS(target_year, JSON_ARRAY(?), '$.years') OR JSON_CONTAINS(target_year, JSON_ARRAY('all'), '$.years'))
+            AND (JSON_CONTAINS(target_branch, JSON_ARRAY(?), '$.branches') OR JSON_CONTAINS(target_branch, JSON_ARRAY('all'), '$.branches'))
+            AND (JSON_CONTAINS(target_section, JSON_ARRAY(?), '$.sections') OR JSON_CONTAINS(target_section, JSON_ARRAY('all'), '$.sections'))
+        )
+        OR JSON_EXTRACT(created_by, '$.id') = ?
+        OR scope = ?
+      )
     ORDER BY created_at DESC;
-  `;
-  const values = [year, branch, section, new Date(time)];
+`;
+
+  const values = [
+    new Date(time),
+    year,
+    branch,
+    section,
+    teacher_id,
+    role === "Teacher" ? "teachers" : "null"
+  ];
 
   try {
     // set status expired
-    // await pool.query("update announcements set status = 'Expired' where current_timestamp > delete_at");
+    await pool.query("update announcements set status = 'Expired' where current_timestamp > expires_at");
 
     const [announcements] = await pool.query(query, values);
 
@@ -893,12 +917,12 @@ app.get("/announcements", async (req, res) => {
 
 // Announce 
 app.post("/announce", async (req, res) => {
-  const { title, body, status, target_year, target_branch, target_section, created_by, expires_at } = req.body;
+  const { title, body, status, target_year, target_branch, target_section, created_by, scope, expires_at } = req.body;
 
-  const query = "insert into announcements (title, body, created_by, target_year, target_branch, target_section, expires_at) values(?, ?, ?, ?, ?, ?, ?)"
+  const query = "insert into announcements (title, body, created_by, scope, target_year, target_branch, target_section, expires_at) values(?, ?, ?, ?, ?, ?, ?, ?)"
 
   try {
-    const response = await pool.query(query, [title, body, JSON.stringify(created_by), JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), new Date(expires_at)]);
+    const response = await pool.query(query, [title, body, JSON.stringify(created_by), scope, JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), new Date(expires_at)]);
 
     // send notification 
     const resp = await notifyGroup(title, body, "ANNOUNCEMENT", null, target_year, target_branch, target_section);
@@ -1013,16 +1037,11 @@ async function notifyTimetable(day) {
   const branches = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
   const sections = ["A"];
 
-  const topics = {};
-
   years.forEach(year => {
     const key = `${year}`;
-    topics[key] = [];
 
     branches.forEach(branch => {
-      // topics[key].push(`${branch}_${year}`);
       sections.forEach(async section => {
-        topics[key].push(`${branch}_${year}_${section}`);
         const topic = `${branch}_${year}_${section}`;
 
         // send timetable notification

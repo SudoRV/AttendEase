@@ -48,7 +48,7 @@ const LeaveBox = () => {
     })
 
     const resdata = await response.json();
-    if(resdata.success){
+    if (resdata.success) {
       loadLeaves();
       alert(resdata.message);
       applicable_from_ref.value = "";
@@ -60,107 +60,110 @@ const LeaveBox = () => {
   }
 
   return (
-    <div className=" mx-auto space-y-6">
-  
-  {/* Top Section: History & Latest Status */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-    
-    {/* Leave History Card */}
-    <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm">
-      <h2 className="text-lg font-bold text-slate-800 mb-4">Leave History</h2>
-      <div className="flex items-center justify-between bg-indigo-50 p-4 rounded-xl">
-        <p className="text-slate-600 font-medium">Leaves this month</p>
-        <span className="text-xl font-black text-indigo-600">
-          {leaveHistory?.length || 0}
-        </span>
-      </div>
-    </div>
+    <div className="space-y-4 mx-2">
 
-    {/* Latest Leave Status Card */}
-    <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm">
-      <h2 className="text-lg font-bold text-slate-800 mb-4">Latest Status</h2>
-      {leaveHistory && leaveHistory.length > 0 ? (
-        <div className="space-y-1 overflow-hidden">
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Subject</span>
-            <span className="text-sm font-semibold text-slate-700 text-right truncate max-w-[150px]">
-              {leaveHistory[0]?.subject}
-            </span>
-          </div>
-          
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Duration</span>
-            <span className="text-sm font-medium text-slate-600">
-              {new Date(leaveHistory[0]?.applicable_from).toLocaleDateString("en-IN")} 
-              <span className="mx-1 text-slate-300">→</span>
-              {new Date(leaveHistory[0]?.applicable_to).toLocaleDateString("en-IN")}
-            </span>
-          </div>
+      {/* Top Section: History & Latest Status */}
+      <div className="flex gap-6">
 
-          <div className="flex justify-between items-center pt-2 border-t border-slate-50">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Status</span>
-            <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-tighter 
-              ${leaveHistory[0]?.status === 'Approved' ? 'bg-green-100 text-green-600' : 
-                leaveHistory[0]?.status === 'Rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
-              {leaveHistory[0]?.status}
+        {/* Leave History Card */}
+        <div className="border border-slate-200 rounded-2xl px-4 p-2 bg-white dark:bg-neutral-950/40 shadow-xl">
+          <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-300 mb-4">Leaves this month</h2>
+          <div className="flex items-center justify-between bg-indigo-50 dark:bg-neutral-900 p-4 rounded-xl">
+            <span className="text-xl font-black text-indigo-600">
+              {leaveHistory?.length || 0}
             </span>
           </div>
         </div>
-      ) : (
-        <p className="text-sm text-slate-400 italic py-4 text-center">No leave history found</p>
-      )}
-    </div>
-  </div>
 
-  {/* Submit Leave Form */}
-  <div className="bg-white border border-slate-200 rounded-2xl p-2 shadow-sm">
-    <h2 className="text-xl font-bold text-slate-800 mb-6">Submit New Leave</h2>
+        {/* Latest Leave Status Card */}
+        <div className="w-full bg-white dark:bg-neutral-950/40 border border-slate-200 rounded-2xl px-4 p-2 shadow-xl">
+          <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-300 text- mb-4">Latest Status</h2>
+          {leaveHistory && leaveHistory.length > 0 ? (
+            <div className="space-y-1 overflow-hidden">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Subject</span>
+                <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 text-right truncate max-w-[150px]">
+                  {leaveHistory[0]?.subject}
+                </span>
+              </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">From Date</label>
-        <input 
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all" 
-          ref={applicable_from_ref} 
-          name="applicable_from" 
-          type="date" 
-          required 
-        />
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Duration</span>
+                <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
+                  {new Date(leaveHistory[0]?.applicable_from).toLocaleDateString("en-IN")}
+                  <span className="mx-1 text-slate-300">→</span>
+                  {new Date(leaveHistory[0]?.applicable_to).toLocaleDateString("en-IN")}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center pt-2 border-t border-slate-50">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Status</span>
+                <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-tighter 
+              ${leaveHistory[0]?.status === 'Approved' ? 'bg-green-100 text-green-600' :
+                    leaveHistory[0]?.status === 'Rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+                  {leaveHistory[0]?.status}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400 italic py-4 text-center">No leave history found</p>
+          )}
+        </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">To Date</label>
-        <input 
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all" 
-          ref={applicable_to_ref} 
-          name="applicable_to" 
-          type="date" 
-          required 
-        />
+      {/* Submit Leave Form */}
+      <div className="bg-gradient-to-br from-white to-neutral-50 dark:from-neutral-950/40 dark:to-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-2xl p-4 !mt-6 shadow-xl">
+        <h2 className="text-xl font-bold text-slate-800 dark:text-neutral-100 mb-6">Submit New Leave</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* From Date */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-400 ml-1">From Date</label>
+            <input
+              className="w-full bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl px-4 py-3 text-slate-700 dark:text-neutral-200 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-500/20 transition-all color-scheme-dark"
+              ref={applicable_from_ref}
+              name="applicable_from"
+              type="date"
+              required
+            />
+          </div>
+
+          {/* To Date */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-400 ml-1">To Date</label>
+            <input
+              className="w-full bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl px-4 py-3 text-slate-700 dark:text-neutral-200 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-500/20 transition-all"
+              ref={applicable_to_ref}
+              name="applicable_to"
+              type="date"
+              required
+            />
+          </div>
+        </div>
+
+        {/* Application Details */}
+        <div className="flex flex-col gap-2 mb-6">
+          <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-neutral-400 ml-1">Application Details</label>
+          <textarea
+            className="w-full bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-xl px-4 py-3 text-slate-700 dark:text-neutral-200 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-500/20 transition-all resize-none"
+            ref={applicationRef}
+            name="leave_application"
+            placeholder="Reason for leave..."
+            rows={4}
+            required
+          ></textarea>
+        </div>
+
+        {/* Submit Button */}
+        <button
+          className="w-full bg-indigo-600 dark:bg-indigo-500 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 dark:hover:bg-indigo-600 active:scale-[0.98] transition-all shadow-lg shadow-indigo-200 dark:shadow-none border-none"
+          onClick={submitLeave}
+        >
+          Submit Application
+        </button>
       </div>
+
     </div>
-
-    <div className="flex flex-col gap-2 mb-6">
-      <label className="text-xs font-bold uppercase tracking-wider text-slate-500 ml-1">Application Details</label>
-      <textarea 
-        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all resize-none" 
-        ref={applicationRef} 
-        name="leave_application" 
-        placeholder="Reason for leave..." 
-        rows={4} 
-        required
-      ></textarea>
-    </div>
-
-    <button
-      className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-lg shadow-indigo-200 border-none"
-      onClick={submitLeave}
-    >
-      Submit Application
-    </button>
-  </div>
-
-</div>
   );
 };
 

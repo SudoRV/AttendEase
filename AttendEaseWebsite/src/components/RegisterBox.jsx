@@ -1,18 +1,33 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from 'react-router-dom'; // (Recommended for real React apps)
+import { Link, useNavigate } from 'react-router-dom';
 import { AppStates } from "../services/states";
+import { 
+  FiUser, 
+  FiMail, 
+  FiLock, 
+  FiChevronDown, 
+  FiCheckCircle, 
+  FiAlertCircle, 
+  FiEye, 
+  FiEyeOff, 
+  FiArrowRight,
+  FiBriefcase,
+  FiBookOpen
+} from 'react-icons/fi';
+
+import LandingHeader from "./LandingHeader";
+import LandingFooter from "./LandingFooter";
 
 function RegisterPage() {
   const { buildUrl } = AppStates();
-
   const navigate = useNavigate();
-  // 1. State to manage the selected role
+
   const [selectedRole, setSelectedRole] = useState('');
   const [isEmailValid, setEmailValid] = useState(null);
   const [isIDValid, setIDValid] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-
-  // 2. State to manage form inputs (Recommended, though basic form is shown here)
   const [formData, setFormData] = useState({
     role: '',
     name: '',
@@ -26,77 +41,75 @@ function RegisterPage() {
     section: 'A'
   });
 
-  // 3. Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
-    const response = await fetch(buildUrl("/register"), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(formData)
-    })
-
-    const responseJSON = await response.json();
-    alert(responseJSON.message);
-
-    if (responseJSON.success === true) {
-      window.localStorage.setItem("user_creds", JSON.stringify(formData));
-      setFormData({
-        role: "",
-        name: "",
-        email: "",
-        password: "",
-        student_id: "",
-        teacher_id: "",
-        branch_id: "",
-        year: "",
-        semester: "",
-        section: "A"
+    try {
+      const response = await fetch(buildUrl("/register"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formData)
       });
 
+      const responseJSON = await response.json();
       alert(responseJSON.message);
-      navigate('/dashboard');
-    } else {
-      setFormData(prevData => ({
-        ...prevData,
-        email: "",
-        password: "",
-        student_id: ""
-      }));
+
+      if (responseJSON.success === true) {
+        window.localStorage.setItem("user_creds", JSON.stringify(formData));
+        setFormData({
+          role: "",
+          name: "",
+          email: "",
+          password: "",
+          student_id: "",
+          teacher_id: "",
+          branch_id: "",
+          year: "",
+          semester: "",
+          section: "A"
+        });
+        setSelectedRole('');
+        setEmailValid(null);
+        setIDValid(null);
+        navigate('/dashboard');
+      } else {
+        setFormData(prevData => ({
+          ...prevData,
+          email: "",
+          password: "",
+          student_id: ""
+        }));
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // 4. Handle role change (Updates state)
   const handleRoleChange = (e) => {
     const role = e.target.value;
     setSelectedRole(role);
+    setIDValid(null);
 
-    // Optional: Reset role-specific fields when the role changes
     setFormData(prevData => ({
       ...prevData,
       role: role,
       teacher_id: '',
       branch_id: '',
       year: '',
+      semester: '',
       student_id: '',
     }));
   };
 
-  // 5. useEffect hook replaces the DOMContentLoaded listener and roleSelect.addEventListener('change', ...)
-  // This runs whenever selectedRole changes
   useEffect(() => {
-    // Note: In React, we use the `required` attribute directly on the JSX element,
-    // which is controlled by the state logic, not by manipulating the DOM via JS.
-    // The conditional rendering below handles the display.
-
-    // The `required` attribute for the role-specific fields must be set directly
-    // based on the `selectedRole` state in the JSX below.
-
+    // Retained for logic extensions if required by the app layer.
   }, [selectedRole]);
 
-  // Function to handle changes in text inputs/selects
   const handleInputChange = async (e) => {
     const { name, value } = e.target;
     setFormData(prevData => ({
@@ -104,15 +117,20 @@ function RegisterPage() {
       [name]: value,
     }));
 
-    // validate email and techer/student id
     if (name === "email" || name === "student_id" || name === "teacher_id") {
+      if (!value) {
+        if (name === "email") setEmailValid(null);
+        else setIDValid(null);
+        return;
+      }
+
       const response = await fetch(buildUrl("/validate-creds"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ [name]: value })
-      })
+      });
 
       const responseJSON = await response.json();
       responseJSON.success = !responseJSON.success;
@@ -125,230 +143,325 @@ function RegisterPage() {
     }
   };
 
-  const input =
-    "w-full rounded-xl border focus:outline-none transition";
+  // Modern UI unified input component styles
+  const inputBaseStyle = "w-full pl-11 pr-11 py-2.5 rounded-xl bg-white dark:bg-neutral-950 border outline-none text-sm font-medium tracking-tight text-neutral-900 dark:text-neutral-100 transition-all duration-200";
+  const focusRingStyle = "border-neutral-200 dark:border-neutral-800 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10";
 
   return (
-    <div className="flex flex-1 flex-col gap-24 items-center justify-center px-4 mt-16 mb-10">
+    <div className="w-full !h-full flex flex-col">
+      <LandingHeader />
+      
+      <div className="flex-1 bg-[#f5f7fb] dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 flex flex-col justify-center items-center px-4 py-12 transition-colors duration-300 antialiased">
+      
+      <div className="w-full max-w-xl bg-white dark:bg-neutral-950/40 border border-neutral-200/50 dark:border-neutral-900 p-8 rounded-3xl shadow-xl dark:shadow-none space-y-6">
+        
+        {/* Header Block */}
+        <div className="text-center space-y-1">
+          <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent sm:text-4xl">
+            Create Account
+          </h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 font-medium">
+            Register below to build your institution profile
+          </p>
+        </div>
 
-      <div className="w-full max-w-xl bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
 
-        <h1 className="text-3xl font-bold text-center text-gray-800">
-          Create Account
-        </h1>
-        <p className="text-center text-gray-500 mb-8">
-          Register to continue
-        </p>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-
-          {/* Row 1: Role + Name */}
+          {/* Row 1: Role selection + Name Field */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Role
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                Account Role
               </label>
-              <select
-                className={`${input} select-box`}
-                value={selectedRole}
-                onChange={handleRoleChange}
-                required
-              >
-                <option value="">Select Role</option>
-                <option value="Teacher">Teacher</option>
-                <option value="Student">Student</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Name
-              </label>
-              <input
-                className={`${input} input-box`}
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Row 2: Email */}
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
-              Email
-            </label>
-            <input
-              className={`${input}  select-box
-                ${isEmailValid === true
-                  ? "border-green-500 focus:ring-green-300"
-                  : isEmailValid === false
-                    ? "border-red-500 focus:ring-red-300"
-                    : "border-gray-300 focus:ring-indigo-300"
-                }`}
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-            />
-            {isEmailValid === true && (
-              <p className="text-sm text-green-600 mt-1">Email available</p>
-            )}
-            {isEmailValid === false && (
-              <p className="text-sm text-red-600 mt-1">Email already registered</p>
-            )}
-          </div>
-
-          {/* Teacher Field */}
-          {selectedRole === "Teacher" && (
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
-                Teacher ID
-              </label>
-              <input
-                className={`${input}  input-box
-                  ${isIDValid === true
-                    ? "border-green-500 focus:ring-green-300"
-                    : isIDValid === false
-                      ? "border-red-500 focus:ring-red-300"
-                      : "border-gray-300 focus:ring-indigo-300"
-                  }`}
-                name="teacher_id"
-                value={formData.teacher_id}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-          )}
-
-          {/* Student Fields */}
-          {selectedRole === "Student" && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="relative group">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-indigo-500 transition-colors duration-200">
+                  <FiBriefcase size={16} />
+                </span>
                 <select
-                  className={`${input} border-gray-300 focus:ring-indigo-300  select-box`}
-                  name="branch_id"
-                  value={formData.branch_id}
-                  onChange={handleInputChange}
+                  className={`${inputBaseStyle} ${focusRingStyle} appearance-none pr-10 cursor-pointer`}
+                  value={selectedRole}
+                  onChange={handleRoleChange}
                   required
                 >
-                  <option value="">Branch</option>
-                  <option value="CSE">CSE</option>
-                  <option value="AI">AI</option>
-                  <option value="ME">ME</option>
-                  <option value="CE">CE</option>
-                  <option value="RA">RA</option>
-                  <option value="BCA">BCA</option>
+                  <option value="" className="dark:bg-neutral-900">Select Role</option>
+                  <option value="Teacher" className="dark:bg-neutral-900">Teacher</option>
+                  <option value="Student" className="dark:bg-neutral-900">Student</option>
                 </select>
-
-                <select
-                  className={`${input} border-gray-300 focus:ring-indigo-300  select-box`}
-                  name="year"
-                  value={formData.year}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Year</option>
-                  <option value="1">1st Year</option>
-                  <option value="2">2nd Year</option>
-                  <option value="3">3rd Year</option>
-                  <option value="4">4th Year</option>
-                </select>
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                  <FiChevronDown size={14} />
+                </span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <select
-                  className={`${input} border-gray-300 focus:ring-indigo-300  select-box`}
-                  name="semester"
-                  value={formData.semester}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Semester</option>
-                  <option value="1">1st Semester</option>
-                  <option value="2">2nd Semester</option>
-                  <option value="3">3rd Semester</option>
-                  <option value="4">4th Semester</option>
-                  <option value="5">5th Semester</option>
-                  <option value="6">6th Semester</option>
-                  <option value="7">7th Semester</option>
-                  <option value="8">8th Semester</option>
-                  <option value="9">9th Semester</option>
-                  <option value="10">10th Semester</option>
-                </select>
-                <select
-                  className={`${input} border-gray-300 focus:ring-indigo-300  select-box`}
-                  name="section"
-                  value={formData.section}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Section</option>
-                  <option value="A">Section A</option>
-                  <option value="B">Section B</option>
-                  <option value="C">Section C</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  Student ID
-                </label>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                Full Name
+              </label>
+              <div className="relative group">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-indigo-500 transition-colors duration-200">
+                  <FiUser size={16} />
+                </span>
                 <input
-                  className={`${input}  select-box
-                    ${isIDValid === true
-                      ? "border-green-500 focus:ring-green-300"
-                      : isIDValid === false
-                        ? "border-red-500 focus:ring-red-300"
-                        : "border-gray-300 focus:ring-indigo-300"
-                    }`}
-                  name="student_id"
-                  value={formData.student_id}
+                  className={`${inputBaseStyle} ${focusRingStyle}`}
+                  name="name"
+                  placeholder="John Doe"
+                  value={formData.name}
                   onChange={handleInputChange}
                   required
                 />
-
               </div>
-            </>
-          )}
-
-          {/* Row 3: Password */}
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">
-              Password
-            </label>
-            <input
-              type="password"
-              className={`${input} border-gray-300 focus:ring-indigo-300  select-box`}
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              required
-            />
+            </div>
           </div>
 
-          {/* Submit */}
+          {/* Row 2: Email Configuration */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              Email Address
+            </label>
+            <div className="relative group">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-indigo-500 transition-colors duration-200">
+                <FiMail size={16} />
+              </span>
+              <input
+                className={`${inputBaseStyle} 
+                  ${isEmailValid === true
+                    ? "border-green-500/70 focus:ring-4 focus:ring-green-500/10"
+                    : isEmailValid === false
+                      ? "border-red-500/70 focus:ring-4 focus:ring-red-500/10"
+                      : focusRingStyle
+                  }`}
+                name="email"
+                type="email"
+                placeholder="john.doe@institution.com"
+                value={formData.email}
+                onChange={handleInputChange}
+                required
+              />
+              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                {isEmailValid === true && <FiCheckCircle className="text-green-500" size={16} />}
+                {isEmailValid === false && <FiAlertCircle className="text-red-500" size={16} />}
+              </span>
+            </div>
+            {isEmailValid === true && (
+              <p className="text-xs font-semibold text-green-600 dark:text-green-400 pl-1">Email available</p>
+            )}
+            {isEmailValid === false && (
+              <p className="text-xs font-semibold text-red-600 dark:text-red-400 pl-1">Email already registered</p>
+            )}
+          </div>
+
+          {/* Conditional Layout Section: Teacher Specifics */}
+          {selectedRole === "Teacher" && (
+            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+              <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                Teacher ID
+              </label>
+              <div className="relative group">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-indigo-500 transition-colors duration-200">
+                  <FiBookOpen size={16} />
+                </span>
+                <input
+                  className={`${inputBaseStyle} 
+                    ${isIDValid === true
+                      ? "border-green-500/70 focus:ring-4 focus:ring-green-500/10"
+                      : isIDValid === false
+                        ? "border-red-500/70 focus:ring-4 focus:ring-red-500/10"
+                        : focusRingStyle
+                    }`}
+                  name="teacher_id"
+                  placeholder="T-101"
+                  value={formData.teacher_id}
+                  onChange={handleInputChange}
+                  required
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  {isIDValid === true && <FiCheckCircle className="text-green-500" size={16} />}
+                  {isIDValid === false && <FiAlertCircle className="text-red-500" size={16} />}
+                </span>
+              </div>
+              {isIDValid === true && <p className="text-xs font-semibold text-green-600 dark:text-green-400 pl-1">ID verified</p>}
+              {isIDValid === false && <p className="text-xs font-semibold text-red-600 dark:text-red-400 pl-1">ID already registered</p>}
+            </div>
+          )}
+
+          {/* Conditional Layout Section: Student Specifics */}
+          {selectedRole === "Student" && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+              
+              {/* Branch + Year Pickers */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative group">
+                  <select
+                    className={`${inputBaseStyle} ${focusRingStyle} appearance-none px-4 cursor-pointer`}
+                    name="branch_id"
+                    value={formData.branch_id}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="" className="dark:bg-neutral-900">Branch</option>
+                    <option value="CSE" className="dark:bg-neutral-900">CSE</option>
+                    <option value="AI" className="dark:bg-neutral-900">AI</option>
+                    <option value="ME" className="dark:bg-neutral-900">ME</option>
+                    <option value="CE" className="dark:bg-neutral-900">CE</option>
+                    <option value="RA" className="dark:bg-neutral-900">RA</option>
+                    <option value="BCA" className="dark:bg-neutral-900">BCA</option>
+                  </select>
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                    <FiChevronDown size={14} />
+                  </span>
+                </div>
+
+                <div className="relative group">
+                  <select
+                    className={`${inputBaseStyle} ${focusRingStyle} appearance-none px-4 cursor-pointer`}
+                    name="year"
+                    value={formData.year}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="" className="dark:bg-neutral-900">Year</option>
+                    <option value="1" className="dark:bg-neutral-900">1st Year</option>
+                    <option value="2" className="dark:bg-neutral-900">2nd Year</option>
+                    <option value="3" className="dark:bg-neutral-900">3rd Year</option>
+                    <option value="4" className="dark:bg-neutral-900">4th Year</option>
+                  </select>
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                    <FiChevronDown size={14} />
+                  </span>
+                </div>
+              </div>
+
+              {/* Semester + Section Pickers */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="relative group">
+                  <select
+                    className={`${inputBaseStyle} ${focusRingStyle} appearance-none px-4 cursor-pointer`}
+                    name="semester"
+                    value={formData.semester}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="" className="dark:bg-neutral-900">Semester</option>
+                    {Array.from({ length: 10 }, (_, idx) => (
+                      <option key={idx + 1} value={idx + 1} className="dark:bg-neutral-900">
+                        Semester {idx + 1}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                    <FiChevronDown size={14} />
+                  </span>
+                </div>
+
+                <div className="relative group">
+                  <select
+                    className={`${inputBaseStyle} ${focusRingStyle} appearance-none px-4 cursor-pointer`}
+                    name="section"
+                    value={formData.section}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="" className="dark:bg-neutral-900">Section</option>
+                    <option value="A" className="dark:bg-neutral-900">Section A</option>
+                    <option value="B" className="dark:bg-neutral-900">Section B</option>
+                    <option value="C" className="dark:bg-neutral-900">Section C</option>
+                  </select>
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                    <FiChevronDown size={14} />
+                  </span>
+                </div>
+              </div>
+
+              {/* Student ID Target Input Field */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                  Student ID
+                </label>
+                <div className="relative group">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-indigo-500 transition-colors duration-200">
+                    <FiBookOpen size={16} />
+                  </span>
+                  <input
+                    className={`${inputBaseStyle} 
+                      ${isIDValid === true
+                        ? "border-green-500/70 focus:ring-4 focus:ring-green-500/10"
+                        : isIDValid === false
+                          ? "border-red-500/70 focus:ring-4 focus:ring-red-500/10"
+                          : focusRingStyle
+                      }`}
+                    name="student_id"
+                    placeholder="S-10243"
+                    value={formData.student_id}
+                    onChange={handleInputChange}
+                    required
+                  />
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                    {isIDValid === true && <FiCheckCircle className="text-green-500" size={16} />}
+                    {isIDValid === false && <FiAlertCircle className="text-red-500" size={16} />}
+                  </span>
+                </div>
+                {isIDValid === true && <p className="text-xs font-semibold text-green-600 dark:text-green-400 pl-1">ID verified</p>}
+                {isIDValid === false && <p className="text-xs font-semibold text-red-600 dark:text-red-400 pl-1">ID already registered</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Row 3: Secure Password Masking Field */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              Password
+            </label>
+            <div className="relative group">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-indigo-500 transition-colors duration-200">
+                <FiLock size={16} />
+              </span>
+              <input
+                type={showPassword ? "text" : "password"}
+                className={`${inputBaseStyle} ${focusRingStyle}`}
+                name="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleInputChange}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors p-0.5 border-none bg-transparent"
+              >
+                {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Core Action Submit Handling Button */}
           <button
             type="submit"
-            disabled={!(isEmailValid && isIDValid)}
-            className={`w-full py-3 rounded-xl font-semibold text-white transition
-              border-none ${isEmailValid && isIDValid
-                ? "bg-indigo-600 hover:bg-indigo-700 shadow-md"
-                : "bg-gray-400 cursor-not-allowed"
+            disabled={!(isEmailValid && isIDValid) || isSubmitting}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 border-none select-none mt-4
+              ${isEmailValid && isIDValid && !isSubmitting
+                ? "bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/10 active:scale-[0.99]"
+                : "bg-neutral-300 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed"
               }`}
           >
-            Register
+            {isSubmitting ? "Processing Registry..." : "Register Account"}
+            {!isSubmitting && <FiArrowRight size={16} />}
           </button>
 
         </form>
 
-        <p className="text-center text-sm text-gray-600 mt-6">
+        {/* System Toggle Alternative View Trigger */}
+        <p className="text-center text-xs text-neutral-500 dark:text-neutral-400 font-medium pt-2 border-t border-neutral-100 dark:border-neutral-900">
           Already have an account?
-          <Link to="/login" className="text-indigo-600 font-medium hover:underline ml-1">
-            Login
+          <Link to="/login" className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline ml-1">
+            Login here
           </Link>
         </p>
 
       </div>
+    </div>
+
+    <LandingFooter />
     </div>
   );
 }

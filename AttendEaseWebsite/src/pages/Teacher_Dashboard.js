@@ -11,6 +11,9 @@ import Footer from "../components/Footer";
 import attendease_logo from "../images/attendease_icon.png";
 import TeacherLeave from '../components/TeacherLeave';
 
+import LandingHeader from '../components/LandingHeader';
+import { useTheme } from '../context/ThemeContext';
+
 const TeacherDashboard = () => {
   const announcements = [
     "Tomorrow is a holiday.",
@@ -24,22 +27,17 @@ const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { userData } = AppStates();
 
+  const { isDark } = useTheme();
+
   async function logout() {
     // simulate logout like buffering or loading 
     localStorage.removeItem("user_creds");
     navigate("/login");
   }
 
-
   return (
-    <div className="dashboard-container">
-      {/* Header */}
-      <header className="header bg-gradient-to-br from-indigo-500 to-indigo-600">
-        <div className='logo'>
-          <img src={attendease_logo} onClick={toggleDrawer} />
-        </div>
-        <h3>AttendEase</h3>
-      </header>
+    <div className={`dashboard-container ${isDark ? 'dark' : ''} !bg-[#f5f7fb] dark:!bg-neutral-900`}>
+      <LandingHeader toggleSidebar={toggleDrawer} />
 
       {/* Sidebar Overlay */}
       <div className={`sidebar h-full flex flex-col p-6 bg-white border-r border-gray-100 ${isOpen ? 'open' : ''}`}>
@@ -116,25 +114,25 @@ const TeacherDashboard = () => {
 
 
       {/* Main Content (Remains stationary) */}
-      <main className="main-content overflow-y-auto">
+      <main className="main-content overflow-y-auto max-w-[1350px] mx-auto !bg-[#f5f7fb] dark:!bg-neutral-900">
 
         <div className="timetable-section card other !shadow-none !bg-transparent !p-0">
           <TimeTable />
         </div>
 
-        <div className="dashboard teacher-dashboard">
-          <div className="card other announcer">
+        <div className="dashboard teacher-dashboard mt-2">
+          <div className="other announcer">
             <Announce announcements={announcements} />
           </div>
-          <div className="card other announcements">
+          <div className="card other announcements !shadow-xl !bg-white dark:!bg-neutral-950/40 mr-2">
             <Announcements />
           </div>
 
-          <div className="card teacher-availability">
+          <div className="teacher-availability">
             <TeacherLeave />
           </div>
 
-          <div className="card other leave-management leave-verifier">
+          <div className="card !h-[50rem] !shadow-xl !bg-white dark:!bg-neutral-950/40 mx-2">
             <StudentLeaveManagement />
           </div>
 
@@ -142,7 +140,7 @@ const TeacherDashboard = () => {
 
       </main>
 
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 };

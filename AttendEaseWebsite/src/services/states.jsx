@@ -27,8 +27,8 @@ export const GlobalProvider = ({ children }) => {
     const [userData, setUserData] = useState({});
     const [classes, setClasses] = useState([]);
     const [leaveHistory, setLeaveHistory] = useState([]);
-    const [announcements, setAnnouncements] = useState([]);
     const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
+    const [announcements, setAnnouncements] = useState([]);
 
     // highlight current period
     function runAtWholeHour(fn) {
@@ -181,31 +181,31 @@ export const GlobalProvider = ({ children }) => {
 
     const loadLeaves = async (filter) => {
         if (!userData?.email) return;
-    
-        try {
-          const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
-            JSON.stringify(userData)
-          )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
-    
-          const response = await fetch(buildUrl(endpoint));
-          const json = await response.json();
 
-          console.log(json)
-    
-          if (!!filter && !filter?.set) {
-            return {
-              month: filter?.month,
-              ...json
-            };
-          }
-          else {
-            setLeaveHistory(json?.data || []);
-            setTeacherLeaveHistory(json?.teacher_leaves || []);
-          }
+        try {
+            const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
+                JSON.stringify(userData)
+            )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+
+            const response = await fetch(buildUrl(endpoint));
+            const json = await response.json();
+
+            // console.log(json)
+
+            if (filter?.month) {
+                return {
+                    month: filter?.month,
+                    ...json
+                };
+            }
+            else {
+                setLeaveHistory(json?.data || []);
+                setTeacherLeaveHistory(json?.teacher_leaves || []);
+            }
         } catch (err) {
-          console.log("Leaves error:", err);
+            console.log("Leaves error:", err);
         }
-      };
+    };
 
     // functions
     async function doFetch(url, method = "GET", headers = {}, body = null) {
@@ -223,12 +223,13 @@ export const GlobalProvider = ({ children }) => {
     }
 
     async function loadAnnouncements() {
-        const endpoint = `/announcements?year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}&time=${encodeURIComponent(formatDate(new Date()))}`;
+        const endpoint = `/announcements?role=${userData?.role || "Student"}&teacher_id=${userData?.teacher_id || null}&year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
         const response = await doFetch(endpoint, "GET");
         const res_data = await response.data.json();
 
         const announcements = res_data.data;
+        console.log(announcements)
         if (announcements.length > 0) {
             setAnnouncements(announcements);
         }
@@ -246,7 +247,6 @@ export const GlobalProvider = ({ children }) => {
         loadLeaves(userData?.role);
 
         // load announcement
-        if (userData?.role === "Teacher") return;
         loadAnnouncements();
     });
 
@@ -266,7 +266,6 @@ export const GlobalProvider = ({ children }) => {
         if (Notification.permission === "granted") SubscribePushNotification(userData);
 
         // load announcement
-        if (userData?.role === "Teacher") return;
         loadAnnouncements();
     }, [userData])
 
@@ -281,10 +280,10 @@ export const GlobalProvider = ({ children }) => {
         loadLeaves,
         announcements,
         leaveHistory, setLeaveHistory,
+        teacherLeaveHistory,
         requestNotification,
         SubscribePushNotification,
-        formatDate,
-        teacherLeaveHistory
+        formatDate
     }
 
     return (

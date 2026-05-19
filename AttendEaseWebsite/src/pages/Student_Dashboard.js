@@ -8,6 +8,10 @@ import TimeTable from "../components/TimeTable";
 import Footer from "../components/Footer";
 import attendease_logo from "../images/attendease_icon.png";
 import AttendanceDashboard from '../components/AttendanceDashboard';
+
+import LandingHeader from "../components/LandingHeader.jsx";
+import LandingFooter from "../components/LandingFooter.jsx";
+
 const StudentDashboard = () => {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -24,14 +28,8 @@ const StudentDashboard = () => {
 
 
     return (
-        <div className="dashboard-container">
-            {/* Header */}
-            <header className="header bg-gradient-to-br from-indigo-500 to-indigo-600">
-                <div className='logo'>
-                    <img src={attendease_logo} onClick={toggleDrawer} />
-                </div>
-                <h3>AttendEase</h3>
-            </header>
+        <div className="dashboard-container !bg-[#f5f7fb] dark:!bg-neutral-900">
+            <LandingHeader toggleSidebar={toggleDrawer} />
 
             {/* Sidebar Overlay */}
             <div className={`sidebar h-full flex flex-col p-6 bg-white border-r border-gray-100 ${isOpen ? 'open' : ''}`}>
@@ -107,28 +105,28 @@ const StudentDashboard = () => {
             {isOpen && <div className="backdrop" onClick={toggleDrawer} />}
 
             {/* Main Content (Remains stationary) */}
-            <main className="main-content">
+            <main className="main-content student max-w-[1350px] mx-auto !bg-[#f5f7fb] dark:!bg-neutral-900">
 
-                <div className="timetable-section card other !shadow-none !bg-transparent">
+                <div className="timetable-section card other !shadow-none !bg-transparent !m-0">
                     <TimeTable />
                 </div>
 
-                <div className="dashboard">
+                <div className="dashboard mt-1">
                     <div className="leave-management card other">
                         <LeaveBox />
                     </div>
 
-                    <div className="announcements card other">
+                    <div className="card other announcements !shadow-xl !bg-white dark:!bg-neutral-950/40 mr-2">
                         <Announcements />
                     </div>
-                    <div className='attendance card other'>
+                    <div className='attendance !shadow-xl other mx-2 '>
                         <AttendanceDashboard />
                     </div>
                 </div>
 
             </main>
 
-            <Footer />
+            <LandingFooter />
         </div>
     );
 };

@@ -11,24 +11,39 @@ import StudentDashboard from "./pages/Student_Dashboard";
 import Dashboard from "./components/Dashboard";
 import TeacherDashboard from "./pages/Teacher_Dashboard";
 import { GlobalProvider } from "./services/states";
+import { ThemeProvider } from "./context/ThemeContext";
+import HomePage from "./pages/HomePage";
+import AboutPage from "./pages/AboutPage";
+import BLETechPage from "./pages/BLETechPage";
+import TeamPage from "./pages/TeamPage";
+import DownloadApp from "./pages/DownloadApp";
+
+// import LandingHeader from './components/LandingHeader';
 
 function App() {
   return (
-    <GlobalProvider>
-      <RequestNotification />
-      {/* <Header /> */}
-      <BrowserRouter>
-        <Routes>
-          {/* Default Route */}
-          <Route path="/" element={<ProtectedDashboard />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+    <ThemeProvider>
+      <GlobalProvider>
+        <RequestNotification />
+        <BrowserRouter>
+          <Routes>
+            {/* Landing Pages */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/ble" element={<BLETechPage />} />
+            <Route path="/team" element={<TeamPage />} />
+            <Route path="/download" element={<DownloadApp />} />
 
-          {/* After login */}
-          <Route path="/dashboard" element={<ProtectedDashboard />} />
-        </Routes>
-      </BrowserRouter>
-    </GlobalProvider>
+            {/* Auth Pages */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+
+            {/* Dashboard */}
+            <Route path="/dashboard" element={<ProtectedDashboard />} />
+          </Routes>
+        </BrowserRouter>
+      </GlobalProvider>
+    </ThemeProvider>
   );
 }
 

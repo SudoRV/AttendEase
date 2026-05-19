@@ -1,6 +1,14 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import Select from "react-select";
 import { AppStates } from "../services/states";
+import {
+  FiType,
+  FiFileText,
+  FiCalendar,
+  FiUsers,
+  FiArrowRight
+} from "react-icons/fi";
+import { useTheme } from '../context/ThemeContext';
 
 const YEAR_OPTIONS = [
   { value: "all", label: "All Years" },
@@ -29,8 +37,8 @@ const SECTION_OPTIONS = [
 
 export default function Announce() {
   const { userData, buildUrl, formatDate } = AppStates();
-  
-  // State management
+  const { isDark } = useTheme();
+
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ title: "", body: "", expires_at: "" });
   const [targetYears, setTargetYears] = useState([]);
@@ -51,12 +59,16 @@ export default function Announce() {
       created_by: {
         name: userData?.name,
         id: userData?.teacher_id,
+        user_id: userData?.user_id
       },
+      scope,
       target_year: targetYears.map((o) => o.value),
       target_branch: targetBranches.map((o) => o.value),
       target_section: targetSections.map((o) => o.value),
       status: "Active",
-      expires_at: formData.expires_at ? formatDate(formData.expires_at) : new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1)
+      expires_at: formData.expires_at
+        ? formatDate(formData.expires_at)
+        : new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1)
     };
 
     try {
@@ -68,11 +80,11 @@ export default function Announce() {
 
       const resData = await response.json();
       if (resData.success) {
-        // Reset form
         setFormData({ title: "", body: "", expires_at: "" });
         setTargetYears([]);
         setTargetBranches([]);
         setTargetSections([]);
+        alert("Announcement posted successfully!");
       }
     } catch (error) {
       console.error("Announcement failed:", error);
@@ -81,96 +93,211 @@ export default function Announce() {
     }
   };
 
+  // Shared custom tailwind-compatible styling mapping rules for react-select components
+  const selectStyles = {
+    control: (base, state) => ({
+      ...base,
+      backgroundColor: 'transparent',
+      borderColor: state.isFocused ? '#6366f1' : isDark ? 'rgba(226, 232, 240, 0.2)' : 'rgba(226, 232, 240, 0.8)',
+      boxShadow: state.isFocused ? '0 0 0 4px rgba(99, 102, 241, 0.1)' : 'none',
+      borderRadius: '12px',
+      paddingTop: '2px',
+      paddingBottom: '2px',
+      '&:hover': {
+        borderColor: state.isFocused ? '#6366f1' : 'rgba(203, 213, 225, 1)',
+      }
+    }),
+    menu: (base) => ({
+      ...base,
+      borderRadius: '12px',
+      overflow: 'hidden',
+      padding: '4px'
+    }),
+    option: (base, state) => ({
+      ...base,
+      borderRadius: '8px',
+      fontSize: '13px',
+      fontWeight: '500',
+      backgroundColor: state.isSelected
+        ? '#6366f1'
+        : state.isFocused
+          ? 'rgba(99, 102, 241, 0.05)'
+          : 'transparent',
+      color: state.isSelected ? '#ffffff' : '#334155',
+      '&:active': {
+        backgroundColor: '#4f46e5'
+      }
+    }),
+    multiValue: (base) => ({
+      ...base,
+      backgroundColor: 'rgba(99, 102, 241, 0.08)',
+      borderRadius: '6px',
+      fontWeight: '600',
+      color: '#4f46e5'
+    }),
+    multiValueLabel: (base) => ({
+      ...base,
+      color: '#4f46e5',
+      fontSize: '12px',
+      paddingLeft: '6px'
+    }),
+    multiValueRemove: (base) => ({
+      ...base,
+      color: '#6366f1',
+      '&:hover': {
+        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+        color: '#4f46e5',
+        borderRadius: '0 6px 6px 0'
+      }
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: '#94a3b8',
+      fontSize: '13px',
+      fontWeight: '500'
+    })
+  };
+
+  const [scope, setScope] = useState("students")
+
   return (
-    <div className="max-w-2xl p-2 bg-white shadow-sm rounded-xl border border-gray-100 h-full">
-      <div className="flex justify-center items-center mb-2 items-center text-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Make Announcement</h1>
-                    <p className="text-slate-500">Post an announcement</p>
-                </div>
+    <div className="max-w-xl mx-auto bg-white dark:bg-neutral-950/40 border border-neutral-200/50 dark:border-neutral-900 mr-2 p-2 px-6 sm:p-8 sm:py-4 rounded-3xl transition-colors duration-300 antialiased">
+
+      {/* Header Block */}
+      <div className="text-center space-y-1 mb-6 border-b border-neutral-100 dark:border-neutral-900 pb-4">
+        <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-indigo-600 to-purple-500 bg-clip-text text-transparent sm:text-3xl">
+          Broadcast Notice
+        </h1>
+        <p className="text-neutral-500 dark:text-neutral-400 font-medium">
+          Post an announcement to specific target groups inside the institution
+        </p>
+      </div>
+
+      <form onSubmit={handleAnnounce} className="space-y-5">
+
+        {/* Core Informational Blocks */}
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              Notice Title
+            </label>
+            <div className="relative group">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-indigo-500 transition-colors duration-200 pointer-events-none">
+                <FiType size={16} />
+              </span>
+              <input
+                required
+                name="title"
+                value={formData.title}
+                onChange={handleInputChange}
+                placeholder="Enter announcement title..."
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-neutral-50/50 dark:bg-neutral-950 border border-neutral-500 dark:border-neutral-800 outline-none text-sm font-medium tracking-tight text-neutral-900 dark:text-neutral-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200"
+              />
             </div>
-      
-      <form onSubmit={handleAnnounce}>
-        {/* Basic Info */}
-        <div>
-          <div>
-            <label className="label">Title</label>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              Content Body
+            </label>
+            <div className="relative group">
+              <span className="absolute left-3.5 top-4 text-neutral-400 group-focus-within:text-indigo-500 transition-colors duration-200 pointer-events-none">
+                <FiFileText size={16} />
+              </span>
+              <textarea
+                required
+                rows={4}
+                name="body"
+                value={formData.body}
+                onChange={handleInputChange}
+                placeholder="Type the message body details here..."
+                className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-neutral-50/50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 outline-none text-sm font-medium tracking-tight text-neutral-900 dark:text-neutral-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200 resize-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Audience Selective Filters Layout Column */}
+
+        <div className="space-y-3 pt-2 border-t border-neutral-100 dark:border-neutral-900">
+          <div className="flex items-center gap-1.5 text-neutral-400 dark:text-neutral-500">
+            <FiUsers size={14} />
+            <p className="text-[11px] font-bold uppercase tracking-wider">Target Audience Scope</p>
+          </div>
+
+          <div className="flex gap-4">
+            <label className="text-sm dark:text-neutral-300 flex items-center gap-2">Students <input type="radio" name="scope" value="students" checked={scope === "students"}
+              onChange={(e) => setScope(e.target.value)} /></label>
+
+            <label className="text-sm dark:text-neutral-300 flex items-center gap-2">Teachers <input type="radio" name="scope" value="teachers" checked={scope === "teachers"}
+              onChange={(e) => setScope(e.target.value)} /></label>
+          </div>
+
+          {
+            scope === "students" && (
+              <div className="grid gap-3">
+                <Select
+                  isMulti
+                  placeholder="Filter Target Year(s)"
+                  options={YEAR_OPTIONS}
+                  value={targetYears}
+                  onChange={setTargetYears}
+                  styles={selectStyles}
+                />
+                <Select
+                  isMulti
+                  placeholder="Filter Target Branch(es)"
+                  options={BRANCH_OPTIONS}
+                  value={targetBranches}
+                  onChange={setTargetBranches}
+                  styles={selectStyles}
+                />
+                <Select
+                  isMulti
+                  placeholder="Filter Target Section(s)"
+                  options={SECTION_OPTIONS}
+                  value={targetSections}
+                  onChange={setTargetSections}
+                  styles={selectStyles}
+                />
+              </div>
+            )
+          }
+
+        </div>
+
+        {/* Expiry Calendar Selection Block */}
+        <div className="space-y-1.5 pt-2 border-t border-neutral-100 dark:border-neutral-900">
+          <label className="block text-xs font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+            Broadcast Deadline
+          </label>
+          <div className="relative group">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-indigo-500 pointer-events-none z-20">
+              <FiCalendar size={16} />
+            </span>
             <input
-              required
-              className="input-box"
-              name="title"
-              value={formData.title}
+              type="datetime-local"
+              name="expires_at"
+              value={formData.expires_at}
               onChange={handleInputChange}
-              placeholder="Enter announcement title..."
-            />
-          </div>
-
-          <div>
-            <label className="label">Body</label>
-            <textarea
-              required
-              rows={3}
-              className="input-box"
-              name="body"
-              value={formData.body}
-              onChange={handleInputChange}
-              placeholder="What is this about?"
+              className="w-full bg-neutral-50/50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 pl-11 pr-4 py-2.5 rounded-xl outline-none text-sm font-medium focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition duration-200 text-neutral-800 dark:text-neutral-100 [color-scheme:light] dark:[color-scheme:dark]"
             />
           </div>
         </div>
 
-        {/* Targeting Grid */}
-        <div className="border-t">
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Target Audience</p>
-          <div className="grid grid-cols-1 gap-6">
-            <Select
-              isMulti
-              placeholder="Year(s)"
-              options={YEAR_OPTIONS}
-              value={targetYears}
-              onChange={setTargetYears}
-              className="text-sm"
-            />
-            <Select
-              isMulti
-              placeholder="Branch(es)"
-              options={BRANCH_OPTIONS}
-              value={targetBranches}
-              onChange={setTargetBranches}
-              className="text-sm"
-            />
-            <Select
-              isMulti
-              placeholder="Section(s)"
-              options={SECTION_OPTIONS}
-              value={targetSections}
-              onChange={setTargetSections}
-              className="text-sm"
-            />
-          </div>
-        </div>
-
-        {/* Expiry */}
-        <div className="flex flex-col gap-5 pt-2">
-          <label className="label">Deadline</label>
-          <input
-            type="datetime-local"
-            name="expires_at"
-            className="input-box"
-            value={formData.expires_at}
-            onChange={handleInputChange}
-          />
-        </div>
-
-        <div className="flex justify-center pt-4">
+        {/* Action Button Trigger Row */}
+        <div className="pt-3">
           <button
             type="submit"
             disabled={loading}
-            className={`px-8 py-2.5 rounded-lg font-semibold text-white transition-all border-none
-              ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-600 active:scale-95'}
-            `}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 border-none select-none
+              ${loading
+                ? 'bg-neutral-300 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'
+                : 'bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/10 active:scale-[0.99]'
+              }`}
           >
-            {loading ? 'Processing...' : 'Post Announcement'}
+            {loading ? 'Processing Broadcast...' : 'Post Announcement'}
+            {!loading && <FiArrowRight size={16} />}
           </button>
         </div>
       </form>
