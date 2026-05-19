@@ -7,7 +7,7 @@ const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
 
-    const isProduction = false;
+    const isProduction = true;
 
     // ⚠️ IMPORTANT:
     // Replace this with your computer’s local IP
@@ -163,8 +163,8 @@ export const GlobalProvider = ({ children }) => {
                     topics: userCreds?.role === "Student"
                         ? [
                             `year_${userCreds?.year}`,
-                            `branch_${userCreds?.branch}`,
-                            `${userCreds?.branch}_${userCreds?.year}_${userCreds?.section}`
+                            `branch_${userCreds?.branch_id}`,
+                            `${userCreds?.branch_id}_${userCreds?.year}_${userCreds?.section}`
                         ]
                         : ["teachers"]
                 })
@@ -229,7 +229,6 @@ export const GlobalProvider = ({ children }) => {
         const res_data = await response.data.json();
 
         const announcements = res_data.data;
-        console.log(announcements)
         if (announcements.length > 0) {
             setAnnouncements(announcements);
         }
@@ -278,7 +277,7 @@ export const GlobalProvider = ({ children }) => {
         classes, setClasses,
         loadTimetable,
         loadLeaves,
-        announcements,
+        announcements, loadAnnouncements, 
         leaveHistory, setLeaveHistory,
         teacherLeaveHistory,
         requestNotification,

@@ -38,7 +38,7 @@ const config2 = {
   waitForConnections: true,
 }
 
-const pool = mysql.createPool(config2);
+const pool = mysql.createPool(config);
 
 // nodemailer transporter
 // console.log(process.env.EMAIL, process.env.PASS)
@@ -85,7 +85,6 @@ app.post("/save-fcm-token", async (req, res) => {
 
   // subscribe to topics
   topics.forEach(async (topic) => {
-    // console.log(topic)
     await admin.messaging().subscribeToTopic(token, topic);
   })
 
@@ -543,8 +542,24 @@ app.post("/set-substitutor", async (req, res) => {
             body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.teacher_name}` : `Your class ${substitutedClass[0].subject_name} substitution cancelled by ${substitutor.teacher_name}`,
           },
           tokens: tokens,
+
           android: {
-            priority: "high"
+            priority: "high",
+          },
+
+          webpush: {
+            headers: {
+              Urgency: "high"
+            },
+
+            notification: {
+              title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
+              body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.teacher_name}` : `Your class ${substitutedClass[0].subject_name} substitution cancelled by ${substitutor.teacher_name}`,
+            },
+
+            fcmOptions: {
+              link: "https://attendease-nivr.onrender.com/"
+            }
           }
         };
 
@@ -841,8 +856,32 @@ app.post("/teacher-availability", async (req, res) => {
             on: req.body.on
           })
         },
+
         android: {
-          priority: "high"
+          priority: "high",
+        },
+
+        webpush: {
+          headers: {
+            Urgency: "high"
+          },
+
+          notification: {
+            title: "Class Cancelled",
+            body: `Period ${notification[topic].map((p => p.period_id)).join(", ")} of ${notification[topic][0].teacher_name} Cancelled, ${!!on ? "for" : "from"} ${new Date(from).toLocaleDateString("en-Gb", {
+              day: "numeric",
+              month: "short",
+              year: "numeric"
+            })} ${!!on ? "" : `to ${new Date(to).toLocaleDateString("en-Gb", {
+              day: "numeric",
+              month: "short",
+              year: "numeric"
+            })}`}`,
+          },
+
+          fcmOptions: {
+            link: "https://attendease-nivr.onrender.com/"
+          }
         }
       });
     })
@@ -862,8 +901,6 @@ app.post("/teacher-availability", async (req, res) => {
 // fetch announcemetns
 app.get("/announcements", async (req, res) => {
   const { role, teacher_id, year, branch, section, time } = req.query;
-
-  console.log(role, teacher_id);
 
   const query = `
     SELECT 
@@ -1057,6 +1094,13 @@ async function notifyTimetable(day) {
 
         // create image of timetable
         const scheduleImage = classes.length > 0 ? await createTableImage(topic, dayName, classes) : null;
+        
+        const isProduction = true;
+        const BASE_URL = isProduction
+        ? "https://attendease-nivr.onrender.com"
+        : `http://localhost:8000`;
+        
+        const scheduleImageUrl = `${BASE_URL}${scheduleImage}?v=${new Date().getTime()}`;
 
         if (classes.length > 0) {
           await admin.messaging().send({
@@ -1068,8 +1112,25 @@ async function notifyTimetable(day) {
               classes: JSON.stringify(classes),
               schedule_image: scheduleImage,
             },
+
             android: {
               priority: "high",
+            },
+
+            webpush: {
+              headers: {
+                Urgency: "high"
+              },
+
+              notification: {
+                title: "📚 Today's Classes",
+                image: scheduleImageUrl,
+                icon: "/icon-512.png",
+              },
+
+              fcmOptions: {
+                link: "https://attendease-nivr.onrender.com/"
+              }
             }
           });
         }
@@ -1121,7 +1182,6 @@ async function notifyGroup(title, body, dataType, data, target_year, target_bran
       }
     }
 
-    // console.log(topics);
     topics.forEach(async (topic) => {
       await admin.messaging().send({
         topic: topic,
@@ -1135,7 +1195,23 @@ async function notifyGroup(title, body, dataType, data, target_year, target_bran
 
         android: {
           priority: "high",
+        },
+
+        webpush: {
+          headers: {
+            Urgency: "high"
+          },
+
+          notification: {
+            title,
+            body,
+          },
+
+          fcmOptions: {
+            link: "https://attendease-nivr.onrender.com/"
+          }
         }
+
       });
     })
 
@@ -1152,9 +1228,26 @@ async function notify(token, title, body, dataType, data) {
       body,
       data: JSON.stringify(data)
     },
+
     android: {
-      priority: "high"
+      priority: "high",
     },
+
+    webpush: {
+      headers: {
+        Urgency: "high"
+      },
+
+      notification: {
+        title,
+        body,
+      },
+
+      fcmOptions: {
+        link: "https://attendease-nivr.onrender.com/"
+      }
+    }
+
   };
 
   try {

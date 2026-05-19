@@ -36,7 +36,7 @@ const SECTION_OPTIONS = [
 ];
 
 export default function Announce() {
-  const { userData, buildUrl, formatDate } = AppStates();
+  const { userData, buildUrl, formatDate, loadAnnouncements } = AppStates();
   const { isDark } = useTheme();
 
   const [loading, setLoading] = useState(false);
@@ -80,6 +80,7 @@ export default function Announce() {
 
       const resData = await response.json();
       if (resData.success) {
+        loadAnnouncements();
         setFormData({ title: "", body: "", expires_at: "" });
         setTargetYears([]);
         setTargetBranches([]);

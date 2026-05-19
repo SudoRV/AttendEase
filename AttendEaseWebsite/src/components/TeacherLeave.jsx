@@ -17,7 +17,7 @@ import {
 
 const TeacherLeave = ({ onClose }) => {
     const {
-        userData,
+        userData, 
         classes,
         loadTimetable,
         loadLeaves,
@@ -54,6 +54,17 @@ const TeacherLeave = ({ onClose }) => {
     };
 
     const handleSubmit = async () => {
+        if(leaveType === "period" && periods.length <= 0) {
+            alert("Select one class atleast.");
+            return;
+        }else if(leaveType === "date" && !!!onDate) {
+            alert("Select Date.");
+            return;
+        } else if(!!!fromDate || !!!toDate) {
+            alert("Select from/to date.")
+            return;
+        }
+
         try {
             console.log(fromDate, toDate, onDate);
             const payload = {

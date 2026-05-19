@@ -18,7 +18,18 @@ import BLETechPage from "./pages/BLETechPage";
 import TeamPage from "./pages/TeamPage";
 import DownloadApp from "./pages/DownloadApp";
 
-// import LandingHeader from './components/LandingHeader';
+
+// if ("serviceWorker" in navigator) {
+//   navigator.serviceWorker
+//     .register("/firebase-messaging-sw.js")
+//     .then((registration) => {
+//       console.log("SW registered:", registration);
+//     })
+//     .catch((err) => {
+//       console.error("SW registration failed:", err);
+//     });
+// }
+
 
 function App() {
   return (

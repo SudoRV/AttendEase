@@ -15,17 +15,10 @@ firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-    console.log("Background Message received: ", payload);
+    console.log("Background Message:", payload);
 
-    const notificationTitle = payload.data?.title || "New Update";
-
-    const notificationOptions = {
-        body: payload.data?.body || "Open AttendEase for details",
-        icon: "./AttendEase_icon.png",
-        data: payload.data,
-        tag: "alerts", // Prevents notification stacking
-        badge: "./AttendEase_badge.png",
-    };
-
-    return self.registration.showNotification(notificationTitle, notificationOptions);
+    self.registration.showNotification(payload.data.title, {
+        body: payload.data.body,
+        icon: "./icon-512.png",
+    });
 });
