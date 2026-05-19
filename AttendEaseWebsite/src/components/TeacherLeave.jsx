@@ -57,10 +57,10 @@ const TeacherLeave = ({ onClose }) => {
         if(leaveType === "period" && periods.length <= 0) {
             alert("Select one class atleast.");
             return;
-        }else if(leaveType === "date" && !!!onDate) {
+        } else if(leaveType === "day" && !!!onDate) {
             alert("Select Date.");
             return;
-        } else if(!!!fromDate || !!!toDate) {
+        } else if(leaveType === "duration" && (!!!fromDate || !!!toDate)) {
             alert("Select from/to date.")
             return;
         }
@@ -95,6 +95,7 @@ const TeacherLeave = ({ onClose }) => {
 
             loadTimetable();
             loadLeaves();
+            setPeriods([]);
             alert(res_data.message);
 
         } catch (error) {
