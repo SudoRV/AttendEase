@@ -105,13 +105,13 @@ const StudentDashboard = () => {
             {isOpen && <div className="backdrop" onClick={toggleDrawer} />}
 
             {/* Main Content (Remains stationary) */}
-            <main className="main-content student max-w-[1350px] mx-auto !bg-[#f5f7fb] dark:!bg-neutral-900">
+            <main className="main-content student !max-w-[1350px] mx-auto !bg-[#f5f7fb] dark:!bg-neutral-900">
 
                 <div className="timetable-section card other !shadow-none !bg-transparent !m-0">
                     <TimeTable />
                 </div>
 
-                <div className="dashboard mt-1">
+                <div className="dashboard mt-1 p-2">
                     <div className="leave-management card other">
                         <LeaveBox />
                     </div>

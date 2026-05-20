@@ -63,7 +63,7 @@ const LeaveBox = () => {
     <div className="space-y-4 mx-2">
 
       {/* Top Section: History & Latest Status */}
-      <div className="flex gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
 
         {/* Leave History Card */}
         <div className="border border-slate-200 rounded-2xl px-4 p-2 bg-white dark:bg-neutral-950/40 shadow-xl">
