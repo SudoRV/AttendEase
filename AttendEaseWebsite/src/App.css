@@ -708,9 +708,9 @@ html,body{
             grid-template-areas:
                 "timetable"
                 "leave"
+                "teacher_leave"
                 "announcer"
                 "announcements"
-                "teacher_leave"
                 "footer"
             ;
         }
@@ -768,9 +768,9 @@ html,body{
             grid-template-areas:
                 "timetable"
                 "leave"
+                "teacher_leave"
                 "announcer"
                 "announcements"
-                "teacher_leave"
                 "footer"
             ;
         }

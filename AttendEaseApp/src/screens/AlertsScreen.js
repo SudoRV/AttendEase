@@ -6,6 +6,8 @@ import NotSignedIn from "../components/NotSignedIn";
 import { AppStates } from "../context/AppStates";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 
+import BleDataPropagation from "../utils/BleDataPropagation";
+
 const AlertsScreen = () => {
   const { userData, buildUrl, formatDate } = AppStates();
   const [announcements, setAnnouncements] = useState([]);

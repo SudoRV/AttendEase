@@ -15,6 +15,7 @@ const createTableImage = require("./utility/createTableImage");
 
 const parseAttendanceTable = require("./utility/parseAttendanceTable");
 const { type } = require("os");
+const { default: scopes } = require("../AttendEaseApp/src/constant/scopes");
 
 const app = express();
 app.use(express.json());
@@ -379,8 +380,8 @@ app.get("/get-timetable", async (req, res) => {
 
     // teacher timetable
     if (teacher_id && teacher_id !== "undefined") {
-      if (day === "" || day === undefined) {
-        const query = `select id, day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where teacher_id = ? order by period_id`;
+      if (day === "null") {
+        const query = `select * from schedule where teacher_id = ? order by period_id group by day`;
         const [rows] = await pool.query(query, [
           year, branch, section,
         ]);
@@ -400,10 +401,10 @@ app.get("/get-timetable", async (req, res) => {
 
         res.json({
           success: true,
-          data: timetable
+          timetable
         });
       } else {
-        const query = `select id, day, period_id, subject_id, subject_name, teacher_name, teacher_id, year, branch_id, branch_name, section, room_number, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where teacher_id = ? and day = ? order by period_id`;
+        const query = `select * from schedule where teacher_id = ? and day = ? order by period_id`;
         const [classes] = await pool.query(query, [teacher_id, day
         ]);
 
@@ -417,8 +418,8 @@ app.get("/get-timetable", async (req, res) => {
 
     // student timetable
     else {
-      if (day === "" || day === undefined) {
-        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and semester = ? and branch_id = ? and section = ? order by day, period_id`;
+      if (day === "null") {
+        const query = `select * from schedule where year = ? and semester = ? and branch_id = ? and section = ? order by day, period_id`;
         const [rows] = await pool.query(query, [
           year, semester, branch, section,
         ]);
@@ -428,21 +429,16 @@ app.get("/get-timetable", async (req, res) => {
           if (!timetable[row.day]) {
             timetable[row.day] = [];
           }
-          timetable[row.day].push({
-            period_id: row.period_id,
-            subject_id: row.subject_id,
-            subject_name: row.subject_name,
-            teacher_name: row.teacher_name
-          });
+          timetable[row.day].push(row);
         });
 
         res.json({
           success: true,
-          data: timetable
+          timetable
         });
 
       } else {
-        const query = `select day, period_id, subject_id, subject_name, teacher_name, teacher_id, cancelled, substitute_teacher_id, substitute_teacher_name, substituted_till from schedule where year = ? and semester = ? and branch_id = ? and section = ? and day = ? order by period_id`;
+        const query = `select * from schedule where year = ? and semester = ? and branch_id = ? and section = ? and day = ? order by period_id`;
         const [classes] = await pool.query(query, [
           year, semester, branch, section, day
         ]);
@@ -518,13 +514,19 @@ app.post("/set-substitutor", async (req, res) => {
       res.status(200).json({ success: true, message: (action === "acquired" ? "Class substituted successfully" : "Substitution cancelled.") });
 
       //notify students
-      const [substitutedClass] = await pool.query("select subject_id, subject_name, teacher_id, teacher_name, year, branch_id, section from schedule where id = ?", [class_id]);
+      const [substitutedClass] = await pool.query("select period_id, subject_id, subject_name, teacher_id, teacher_name, year, branch_id, section from schedule where id = ?", [class_id]);
 
       const message = action === "acquired" ? `Class ${substitutedClass[0].subject_name} of ${substitutedClass[0].teacher_name} is substituted by ${substitutor.teacher_name}` : `Substitution of class ${substitutedClass[0].subject_name} cancelled by ${substitutor.teacher_name}`;
 
       // notify students
       if (substitutedClass[0]?.subject_id) {
-        notifyGroup("Class Substitution", message, "CLASS_SUBSTITUTION", null, [substitutedClass[0].year], [substitutedClass[0].branch_id], [substitutedClass[0].section]);
+        notifyGroup("Class Substitution", message, "CLASS_SUBSTITUTION", {
+          metadata: JSON.stringify({
+            status: action === "acquired" ? "1" : "0",
+            period_id: substitutedClass[0].period_id,
+            substitutor: substitutor.teacher_id
+          })
+        }, [substitutedClass[0].year], [substitutedClass[0].branch_id], [substitutedClass[0].section]);
       }
 
       // notify absent teacher
@@ -818,9 +820,25 @@ app.post("/teacher-availability", async (req, res) => {
     const response1 = await pool.query(query1, values1);
     const response2 = await pool.query(query2, values2);
 
+    const currentDate = new Date(new Date().toDateString());
+    const fromDate = new Date(new Date(from).toDateString());
+    const toDate = new Date(new Date(to).toDateString());
+
+    // if (currentDate >= fromDate && currentDate <= toDate) {
+
+    // } else {
+    //   return res.json({
+    //     success: true,
+    //     message: "Leave saved successfully",
+    //   });
+    // }
+
     // send notification to affected class
     // fetch affetected class
-    let [classes] = await pool.query(`select distinct * from schedule where cancelled = 1 and teacher_id = ? and cancelled_from = ? and cancelled_to = ? and day in (${affected_days.split(",").map(ad => "?").join(",")}) order by year, period_id`, [applicant.teacher_id, from, to, ...affected_days.split(",")]);
+    let [classes] = await pool.query(`select distinct * from schedule where cancelled = 1 and teacher_id = ? and cancelled_from = ? AND day = ? order by year, period_id`, [applicant.teacher_id, new Date(from), new Date(from).toLocaleString("en-Gb", {
+      weekday: "long"
+    })]);
+
 
     // notify affected students
     const notification = {};
@@ -828,7 +846,8 @@ app.post("/teacher-availability", async (req, res) => {
       if (!notification[`${clas.branch_id}_${clas.year}_${clas.section}`]) {
         notification[`${clas.branch_id}_${clas.year}_${clas.section}`] = [clas];
       } else {
-        notification[`${clas.branch_id}_${clas.year}_${clas.section}`].push(clas);
+        // passing to ignore multiple classes of same day
+        // notification[`${clas.branch_id}_${clas.year}_${clas.section}`].push(clas);
       }
     })
 
@@ -840,21 +859,32 @@ app.post("/teacher-availability", async (req, res) => {
         data: {
           type: "CLASS_CANCELLED",
           title: "Class Cancelled",
-          body: `Period ${notification[topic].map((p => p.period_id)).join(", ")} of ${notification[topic][0].teacher_name} Cancelled, ${!!on ? "for" : "from"} ${new Date(from).toLocaleDateString("en-Gb", {
-            day: "numeric",
-            month: "short",
-            year: "numeric"
-          })} ${!!on ? "" : `to ${new Date(to).toLocaleDateString("en-Gb", {
-            day: "numeric",
-            month: "short",
-            year: "numeric"
-          })}`}`,
-          data: JSON.stringify({
-            class: notification[topic],
-            from: req.body.from,
-            to: req.body.to,
-            on: req.body.on
-          })
+          metadata: JSON.stringify({
+            leave_type,
+            status: "1",
+            period_id: notification[topic]
+              .map((p) => p.period_id),
+            on, from, to
+          }),
+          body: `Period ${notification[topic]
+            .map((p) => p.period_id)
+            .join(", ")} of ${notification[topic][0].teacher_name} cancelled, on leave ${new Date(from).toDateString() === new Date(to).toDateString()
+              ? `for ${new Date(from).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}`
+              : `from ${new Date(from).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })} to ${new Date(to).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}`
+            }`,
+          scope: topic,
         },
 
         android: {
@@ -962,7 +992,13 @@ app.post("/announce", async (req, res) => {
     const response = await pool.query(query, [title, body, JSON.stringify(created_by), scope, JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), new Date(expires_at)]);
 
     // send notification 
-    const resp = await notifyGroup(title, body, "ANNOUNCEMENT", null, target_year, target_branch, target_section);
+    const resp = await notifyGroup(title, body, "ANNOUNCEMENT", {metadata: JSON.stringify({
+      scope,
+      target_year,
+      target_branch,
+      target_section,
+      
+    })}, target_year, target_branch, target_section, scope);
     res.json({ success: true, message: "saved to server and notified to target: " });
 
   } catch (err) {
@@ -1072,7 +1108,7 @@ cron.schedule("0 8 * * *", () => {
 async function notifyTimetable(day) {
   const years = [1, 2, 3, 4, 5];
   const branches = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
-  const sections = ["A"];
+  const sections = ["A", "B", "C"];
 
   years.forEach(year => {
     const key = `${year}`;
@@ -1094,12 +1130,12 @@ async function notifyTimetable(day) {
 
         // create image of timetable
         const scheduleImage = classes.length > 0 ? await createTableImage(topic, dayName, classes) : null;
-        
+
         const isProduction = false;
         const BASE_URL = isProduction
-        ? "https://attendease-nivr.onrender.com"
-        : `http://localhost:8000`;
-        
+          ? "https://attendease-nivr.onrender.com"
+          : `http://localhost:8000`;
+
         const scheduleImageUrl = `${BASE_URL}${scheduleImage}?v=${new Date().getTime()}`;
 
         if (classes.length > 0) {
@@ -1156,31 +1192,37 @@ function generateOTP() {
   return otp.toString();
 }
 
-async function notifyGroup(title, body, dataType, data, target_year, target_branch, target_section) {
+async function notifyGroup(title, body, dataType, data, target_year, target_branch, target_section, scope) {
   return new Promise(async (resolve, reject) => {
 
-    const YEARS = ["1", "2", "3", "4"];
-    const BRANCHES = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
-    const SECTIONS = ["A", "B", "C"];
+    let topics = []
 
-    const years =
-      target_year.includes("all") ? YEARS : target_year;
+    if (scope === "students") {
+      const YEARS = ["1", "2", "3", "4"];
+      const BRANCHES = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
+      const SECTIONS = ["A", "B", "C"];
 
-    const branches =
-      target_branch.includes("all") ? BRANCHES : target_branch;
+      const years =
+        target_year.includes("all") ? YEARS : target_year;
 
-    const sections =
-      target_section.includes("all") ? SECTIONS : target_section;
+      const branches =
+        target_branch.includes("all") ? BRANCHES : target_branch;
 
-    const topics = [];
+      const sections =
+        target_section.includes("all") ? SECTIONS : target_section;
 
-    for (const branch of branches) {
-      for (const year of years) {
-        for (const section of sections) {
-          topics.push(`${branch}_${year}_${section}`);
+      for (const branch of branches) {
+        for (const year of years) {
+          for (const section of sections) {
+            topics.push(`${branch}_${year}_${section}`);
+          }
         }
       }
+    } else { 
+      topics.push("teachers");
     }
+
+    console.log(topics)
 
     topics.forEach(async (topic) => {
       await admin.messaging().send({
@@ -1190,7 +1232,8 @@ async function notifyGroup(title, body, dataType, data, target_year, target_bran
           type: dataType,
           title: title,
           body: body,
-          data: JSON.stringify(data)
+          scope: topic,
+          ...data
         },
 
         android: {

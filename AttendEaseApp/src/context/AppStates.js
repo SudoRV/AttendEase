@@ -2,18 +2,20 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import requestFcmToken from "../utils/requestFcmToken";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
+import BleDataPropagation from "../utils/BleDataPropagation";
+import { getDBConnection } from "../database/database";
 
 /* =====================
    ENV CONFIG
 ===================== */
-const isProduction = true;
+const isProduction = false;
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP
 // Example: http://192.168.1.5:8000
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
-  : "http://10.73.202.96:8000";
+  : "http://10.218.87.143:8000";
 
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
@@ -32,6 +34,8 @@ export const GlobalProvider = ({ children }) => {
   const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
   const [activeTab, setActiveTab] = useState(0);
   const [logout, setLogout] = useState(false);
+
+  const database = getDBConnection();
 
   // highlight current period
   function runAtWholeHour(fn) {
@@ -86,6 +90,10 @@ export const GlobalProvider = ({ children }) => {
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
       const data = json?.data;
+
+      if (json?.timetable) {
+        return json.timetable;
+      }
 
       data.classes = data.classes?.map(d => {
         if (d?.period_id > 4) {
@@ -239,11 +247,81 @@ export const GlobalProvider = ({ children }) => {
     // 2. Set up the foreground listener
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
       console.log('A new FCM message arrived!', JSON.stringify(remoteMessage));
+      BleDataPropagation(userData, database, remoteMessage);
 
       // Refresh data silently!
       loadTimetable(userData);
       loadLeaves();
     });
+
+    // BleDataPropagation(userData, database, {
+    //   data: {
+    //     body: "Period 3 of Dr. Jagat Pal Singh cancelled, on leave from 22 May 2026 to 24 May 2026",
+    //     metadata: "{\"leave_type\":\"duration\",\"period_id\":[3],\"on\":\"1970-01-01T00:00:00.000Z\",\"from\":\"2026-05-21T18:35:00.000Z\",\"to\":\"2026-05-24T18:25:00.000Z\"}",
+    //     scope: "CSE_4_A",
+    //     status: "1",
+    //     title: "Class Cancelled",
+    //     type: "CLASS_CANCELLED"
+    //   },
+    //   messageId: "0:1779421461765166%3c69d815f9fd7ecd"
+    // });
+
+    // load whole week timetable and save it in database
+    async function saveTimetable() {
+      const timetable = await loadTimetable(userData, "null");
+
+      if (Object.keys(timetable).length > 1) {
+        Object.keys(timetable).forEach(day => {
+          const items = timetable[day];
+          items.forEach(item => {
+            database.execute(`insert or replace into timetable (
+              id,
+              branch_id,
+              branch_name,
+              year,
+              semester,
+              section,
+              day,
+              period_id,
+              subject_id,
+              subject_name,
+              room_number,
+              teacher_id,
+              teacher_name,
+              cancelled,
+              cancelled_from,
+              cancelled_to,
+              substitute_teacher_id,
+              substitute_teacher_name,
+              substituted_till
+            )
+              values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+              item.id,
+              item.branch_id,
+              item.branch_name,
+              item.year,
+              item.semester,
+              item.section,
+              item.day,
+              item.period_id,
+              item.subject_id,
+              item.subject_name,
+              item.room_number,
+              item.teacher_id,
+              item.teacher_name,
+              item.cancelled ? 1 : 0,
+              item.cancelled_from,
+              item.cancelled_to,
+              item.substitute_teacher_id,
+              item.substitute_teacher_name,
+              item.substituted_till
+            ])
+          })
+        })
+      }
+    }
+
+    saveTimetable();
 
     // 3. Clean up the listener when the component unmounts
     return () => {
@@ -262,6 +340,7 @@ export const GlobalProvider = ({ children }) => {
         classes,
         leaveHistory,
         loadTimetable,
+        database,
         loadLeaves,
         teacherLeaveHistory,
         logout, setLogout,

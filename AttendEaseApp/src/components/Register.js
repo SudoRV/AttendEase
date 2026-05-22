@@ -174,10 +174,11 @@ function RegisterPage({ onSwitch }) {
                 onValueChange={(v) => handleChange("branch_id", v)}
               >
                 <Picker.Item label="Select Branch" value="" />
-                <Picker.Item label="CSE" value="CSE" />
-                <Picker.Item label="AI" value="AI" />
-                <Picker.Item label="ME" value="ME" />
-                <Picker.Item label="CE" value="CE" />
+                <Picker.Item label="Computer Science & Engineering" value="CSE" />
+                <Picker.Item label="AI/ML" value="AI" />
+                <Picker.Item label="Robotics & Automation" value="RA" />
+                <Picker.Item label="Mechanical Engineering" value="ME" />
+                <Picker.Item label="Civil Engineering" value="CE" />
                 <Picker.Item label="BCA" value="BCA" />
               </Picker>
             </View>
@@ -192,6 +193,7 @@ function RegisterPage({ onSwitch }) {
                 <Picker.Item label="2nd Year" value="2" />
                 <Picker.Item label="3rd Year" value="3" />
                 <Picker.Item label="4th Year" value="4" />
+                <Picker.Item label="5th Year" value="5" />
               </Picker>
             </View>
 
