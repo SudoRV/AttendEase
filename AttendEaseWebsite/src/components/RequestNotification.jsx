@@ -18,9 +18,9 @@ export default function RequestNotification() {
         <div>
             {
                 !notificationPermission && (
-                    <div className="bg-blue-50 flex p-2 px-12 mb-2 items-center justify-between gap-6 rounded-md">
+                    <div className="bg-slate-100 dark:bg-slate-800 flex p-2 px-12 mb-2 items-center justify-between gap-6 rounded-md">
                         <p className="text-xl">Allow Notifications to get latest updates</p>
-                        <button className="p-2 px-6 text-xl rounded-lg bg-blue-500 border-none text-white" onClick={async () => {
+                        <button className="p-2 px-8 text-lg rounded-lg bg-indigo-600 border-none text-white" onClick={async () => {
                             const granted = await requestNotification();
                             if (granted) SubscribePushNotification(userData);
 

@@ -8,8 +8,6 @@
 }
 
 html,body{
-    width: 100%;
-    height: 100%;
     background-color: #ffffff;
 }
 
@@ -704,6 +702,67 @@ html,body{
             "footer"
 
         ;
+        grid-template-columns: 100% auto;
+    }
+        .teacher-dashboard {
+            grid-template-areas:
+                "timetable"
+                "leave"
+                "announcer"
+                "announcements"
+                "teacher_leave"
+                "footer"
+            ;
+        }
+    .leave-management {
+        padding: 5px;
+        position: relative;
+    }
+    .timetable-section {
+        padding: 0px;
+    }
+    .announcements {
+        padding: 0px;
+        max-height: 500px;
+    }
+    .announcer{
+        padding:0px;
+    }
+     .attendance {
+        padding: 0px;
+    }
+    /* .attendance-dashboard{
+        max-width: 80vw;
+    }
+    .attendance-data{
+        max-width: 80vw;
+    } */
+
+    .schedule-classes.custom-scrollbar {
+        overflow-x: visible;
+    }
+
+    .card{
+        margin:0px;
+        background-color: transparent;
+    }
+}
+
+
+
+@media screen and (max-width:360px) {
+    
+    .dashboard {
+        grid-template-areas:
+            "timetable"
+            "teacher_leave"
+            "leave"
+            "announcements"
+            "attendance"
+            "footer"
+
+        ;
+        grid-template-columns: 100% auto;
     }
         .teacher-dashboard {
             grid-template-areas:
