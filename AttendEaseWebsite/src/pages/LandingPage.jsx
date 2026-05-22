@@ -401,7 +401,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
       {/* Sticky header */}
-      <header className="bg-white backdrop-blur-md sticky top-0 z-50 border-t-0 border-r-0 border-l-0 border-b-3 border-indigo-500 border-solid">
+      <header className="bg-white dark:bg-neutral-900 backdrop-blur-md sticky top-0 z-50 border-t-0 border-r-0 border-l-0 border-b-3 border-indigo-500 border-solid">
         <div className="flex items-center justify-between h-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Logo */}
             <div className="flex items-center gap-2">
