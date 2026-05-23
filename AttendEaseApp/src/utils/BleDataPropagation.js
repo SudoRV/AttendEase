@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Button, PermissionsAndroid, Platform } from 'react-native';
 import BLEAdvertise from 'react-native-ble-advertise';
-import { scopes, decToHex, hexToDec } from '../constant/scopes';
+import { scopes, reverseScopes, decToHex, hexToDec } from '../constant/scopes';
 import { AppStates } from '../context/AppStates';
+
+const notification_queue = [];
 
 export default async function BleDataPropagation(userData, database, remoteMessage) {
   console.log(remoteMessage);
@@ -43,7 +45,7 @@ export default async function BleDataPropagation(userData, database, remoteMessa
     let minor;
 
     // for class cancellation
-    if (typeCode === 1) {
+    if (typeCode === 0) {
       // data to propagate ( teacher name (through period id), from, to, on date using difference from current date )
 
       let toDiff = decToHex(0).padStart(4, "0").toUpperCase();;
@@ -69,13 +71,15 @@ export default async function BleDataPropagation(userData, database, remoteMessa
       const currentHops = 0;
       major = (maxHops << 8) | currentHops;
       minor = (0xC8 << 8) | 0x0A;
+
+      queueNotification(uuid, major, minor);
     }
     // for class substitution
-    else if (typeCode === 2) {
+    else if (typeCode === 1) {
       // can be used for substitutee teacher name and subject name
       const encodedPeriod = `${metadata?.status}${decToHex(metadata.period_id)}`.padStart(4, "0").toUpperCase();
 
-      // fetch substitutot data from offline cachce
+      // fetch substitutor data from offline cachce
       const substitutor = database.execute(
         "SELECT day, period_id FROM timetable WHERE teacher_id = ? LIMIT 1",
         [metadata.substitutor]
@@ -89,42 +93,97 @@ export default async function BleDataPropagation(userData, database, remoteMessa
       const currentHops = 0;
       major = (maxHops << 8) | currentHops;
       minor = (0xC8 << 8) | 0x0A;
+
+      queueNotification(uuid, major, minor);
     }
     // for announcments
-    else if (typeCode === 3) {
+    else if (typeCode === 2) {
       // need to send scope ( branches, years, sections )
-      const yearMask = encodePeriods(metadata.target_year.map(y => scopes("year", y)));
-      const branchMask = encodePeriods(metadata.target_branch.map(b => scopes("branch", b)));
-      const sectionMask = encodePeriods(metadata.target_section.map(s => scopes("section", s)));
-
-      const announcementScope = packMetadata(typeCode, branchMask, yearMask, sectionMask);
-      console.log(announcementScope)
-      console.log(unpackMetadata(announcementScope))
+      const announcementScope = packAnnouncementMetadata(typeCode, metadata.scope, metadata.target_branch, metadata.target_year, metadata.target_section);
+      // console.log("Packed metadata payload:", unpackMetadata(announcementScope));
 
       // // 4. Stitch everything together following the strict 8-4-4-4-12 size rules
-      uuid = `${appid}-${yearMask}-${branchMask}-${sectionMask}-${notification_id}A684`;
+      uuid = `${appid}-${announcementScope.slice(0, 4)}-${announcementScope.slice(4, 8)}-AC84-${notification_id}0084`; // 0 notification incomplete, 0 notification id data / 1 title data / 2 body data
 
       const maxHops = 5;
       const currentHops = 0;
       major = (maxHops << 8) | currentHops;
       minor = (0xC8 << 8) | 0x0A;
+
+      // divide announcement in parts
+      const packets = [
+        { uuid, major, minor }
+      ];
+
+      const title = remoteMessage.data.title || "";
+      const body = remoteMessage.data.body || "";
+
+      // console.log(title, body)
+
+      // Using the 'gs' flag to slice into exactly 10-character chunks safely
+      const t_chunks = title.match(/.{1,10}/gs) || [];
+      const b_chunks = body.match(/.{1,10}/gs) || [];
+
+      // 1. Process Title Chunks
+      t_chunks.forEach((c, index) => {
+        // Convert 10 text characters into exactly 20 hex characters
+        const hexChunk = Array.from(c)
+          .map(char => char.charCodeAt(0).toString(16).toUpperCase())
+          .join("")
+          .padEnd(20, "0"); // Pad short strings with trailing zeros
+
+        // Split the 20 hex characters into the respective target locations
+        const chunk1 = hexChunk.substring(0, 4);   // 2 text chars -> UUID Block 2
+        const chunk2 = hexChunk.substring(4, 8);   // 2 text chars -> UUID Block 3
+        const chunk3 = hexChunk.substring(8, 12);  // 2 text chars -> UUID Block 4
+        const chunk4 = hexChunk.substring(12, 16); // 2 text chars -> Major
+        const chunk5 = hexChunk.substring(16, 20); // 2 text chars -> Minor
+
+        // STRICT 8-4-4-4-12 UUID FORMAT
+        // Total characters: 8 + 4 + 4 + 4 + 12 = 32 hex digits (Flawless standard compliance)
+        const uuid = `${appid}-${chunk1}-${chunk2}-${chunk3}-${notification_id}${t_chunks.length-1 === index ? 1 : 0}184`;
+
+        // Parse the remaining 4-character hex strings into numeric integers for BLE transmission
+        const major = parseInt(chunk4, 16);
+        const minor = parseInt(chunk5, 16);
+
+        // console.log(`Title Chunk ${index} Broadcast Data:`);
+        // console.log(`  UUID:  ${uuid}`);
+        // console.log(`  Major: ${major} (Hex: 0x${chunk4})`);
+        // console.log(`  Minor: ${minor} (Hex: 0x${chunk5})`);
+
+        queueNotification(uuid, major, minor);
+      });
+
+      // 2. Process Body Chunks
+      b_chunks.forEach((c, index) => {
+        const hexChunk = Array.from(c).map(char => char.charCodeAt(0).toString(16).toUpperCase()).join("").padEnd(20, "0");
+
+        const chunk1 = hexChunk.substring(0, 4);
+        const chunk2 = hexChunk.substring(4, 8);
+        const chunk3 = hexChunk.substring(8, 12);
+        const chunk4 = hexChunk.substring(12, 16);
+        const chunk5 = hexChunk.substring(16, 20);
+
+        // Uses '0284' flag inside the final 12-char block to signify Body Data
+        const uuid = `${appid}-${chunk1}-${chunk2}-${chunk3}-${notification_id}${b_chunks.length-1 === index ? 1 : 0}284`;
+
+        const major = parseInt(chunk4, 16);
+        const minor = parseInt(chunk5, 16);
+
+        // console.log(`Body Chunk ${index} Broadcast Data:`);
+        // console.log(`  UUID:  ${uuid}`);
+        // console.log(`  Major: ${major} (Hex: 0x${chunk4})`);
+        // console.log(`  Minor: ${minor} (Hex: 0x${chunk5})`);
+
+        queueNotification(uuid, major, minor);
+      });
     }
     else {
       return;
     }
 
-    console.log(uuid, major, minor)
-    if (!uuid || !major || !minor) return;
-
-    BLEAdvertise.broadcast(uuid, major, minor)
-      .then(() => console.log("Broadcasting custom payload safely!"))
-      .catch(err => console.error("Broadcast failed:", err));
-  };
-
-  const stop = () => {
-    BLEAdvertise.stopBroadcast()
-      .then(() => console.log('Broadcast stopped successfully'))
-      .catch(err => console.error('Failed to stop broadcast:', err));
+    processQueue()
   };
 
   if (hasPermission) {
@@ -134,6 +193,86 @@ export default async function BleDataPropagation(userData, database, remoteMessa
   }
 }
 
+
+
+
+
+// notification queue broadcaster
+
+let transmissionInterval = null;
+
+function processQueue() {
+  if (transmissionInterval) return;
+
+  transmissionInterval = setInterval(async () => {
+    // 1. If queue is empty, shut down the transmitter
+    if (notification_queue.length === 0) {
+      clearInterval(transmissionInterval);
+      transmissionInterval = null;
+      await stop(); 
+      return;
+    }
+
+    const currentMinute = new Date().getMinutes();
+
+    // 2. Only execute broadcasts during EVEN minutes
+    if (currentMinute % 2 === 0) {
+      // Pull the next packet completely off the FRONT of the queue
+      const currentPacket = notification_queue.shift();
+
+      try {
+        await BLEAdvertise.stopBroadcast();
+        await BLEAdvertise.broadcast(currentPacket.uuid, currentPacket.major, currentPacket.minor);
+        
+        currentPacket.broadcasted += 1;
+        console.log(`Broadcasted packet [${currentPacket.broadcasted}/5]: ${currentPacket.uuid}`);
+
+        // 3. If it hasn't hit 5 broadcasts yet, push it to the BACK of the queue
+        if (currentPacket.broadcasted < 3) {
+          notification_queue.push(currentPacket);
+        }
+        // If it is exactly 5, it just disappears into the void (deleted naturally)
+
+      } catch (err) {
+        console.error("Broadcast cycle failed:", err);
+        // Put it back in the queue so we don't lose it due to an error
+        notification_queue.push(currentPacket); 
+      }
+    } else {
+      // ODD minute: Pause transmission
+      await stop();
+      console.log("Odd minute: Transmission paused. Waiting for even minute...");
+    }
+  }, 3000); // 3 seconds gap before moving to the next item in the cycle
+}
+
+
+
+
+
+
+
+
+
+
+
+// helper functions 
+
+function queueNotification(uuid, major, minor) {
+  notification_queue.push({ broadcasted: 0, uuid, major, minor });
+}
+
+function broadcast(uuid, major, minor) {
+  BLEAdvertise.broadcast(uuid, major, minor)
+    .then(() => console.log("Broadcasting custom payload safely!"))
+    .catch(err => console.error("Broadcast failed:", err));
+}
+
+async function stop() {
+  return BLEAdvertise.stopBroadcast()
+    .then(() => console.log('Broadcast stopped successfully'))
+    .catch(err => console.error('Failed to stop broadcast:', err));
+}
 
 async function requestBLEPermissions() {
   if (Platform.OS !== 'android') return true;
@@ -160,29 +299,20 @@ async function requestBLEPermissions() {
   }
 }
 
-
 function encodePeriods(periods = []) {
   let mask = 0;
-
   periods.forEach(p => {
-    mask |= (1 << (p - 1));
+    if (p >= 0) mask |= (1 << p);
   });
-
   return mask.toString(16).padStart(4, "0").toUpperCase();
 }
 
-
 function decodePeriods(hex) {
   const mask = parseInt(hex, 16);
-
   const periods = [];
-
   for (let i = 0; i < 16; i++) {
-    if (mask & (1 << i)) {
-      periods.push(i + 1);
-    }
+    if (mask & (1 << i)) periods.push(i);
   }
-
   return periods;
 }
 
@@ -194,38 +324,49 @@ function sHash(str) {
 
     hash = Math.imul(hash, 0x01000193);
   }
-
   return hash >>> 0;
 }
 
 
-// for announcements only
-// 23-22 → type
-// 21-16 → branches
-// 15-11 → years
-// 10-1  → sections
-// 0      → reserved
+function packAnnouncementMetadata(type, scope, branches = [], years = [], sections = []) {
+  const branchMask = Array.from({ length: 7 }, (_, b) => b).reduce((mask, b) => branches.includes(reverseScopes("branch", b)) ? mask | (1 << b) : mask, 0);
+  const yearMask = Array.from({ length: 6 }, (_, y) => y).reduce((mask, y) => years.includes(reverseScopes("year", y)) ? mask | (1 << y) : mask, 0);
+  const sectionMask = Array.from({ length: 15 }, (_, s) => s).reduce((mask, s) => sections.includes(reverseScopes("section", s)) ? mask | (1 << s) : mask, 0);
 
-function packMetadata(
-  type,
-  branchMask,
-  yearMask,
-  sectionMask
-) {
-  return (
-      ((type & 0x03) << 22) |
-      ((branchMask & 0x3F) << 16) |
-      ((yearMask & 0x1F) << 11) |
-      ((sectionMask & 0x3FF) << 1)
-  ).toString(16)
-    .padStart(6, "0");
+  // Added scope straight into the primary metadata generator
+  return packMetadata(type, scope, branchMask, yearMask, sectionMask);
 }
 
-function unpackMetadata(value) {
+// 30-29 → type (2 bits)
+// 28-22 → branches (7 bits)
+// 21-16 → years (6 bits)
+// 15-1 → sections (15 bits)
+// 0 → scope (1 bit)
+
+function packMetadata(type, scope, branchMask, yearMask, sectionMask) {
+  return (
+    ((type & 0x03) << 29) |
+    ((branchMask & 0x7F) << 22) |
+    ((yearMask & 0x3F) << 16) |
+    ((sectionMask & 0x7FFF) << 1) |
+    (scope & 0x01)
+  ).toString(16).padStart(8, "0").toUpperCase();
+}
+
+function unpackMetadata(hex) {
+  const value = parseInt(hex, 16);
+
+  const type = (value >> 29) & 0x03;
+  const branchMask = (value >> 22) & 0x7F;
+  const yearMask = (value >> 16) & 0x3F;
+  const sectionMask = (value >> 1) & 0x7FFF;
+  const scope = value & 0x01; // Extracts the final flag bit safely
+
   return {
-      type: (value >> 22) & 0x03,
-      branchMask: (value >> 16) & 0x3F,
-      yearMask: (value >> 11) & 0x1F,
-      sectionMask: (value >> 1) & 0x3FF
+    type: reverseScopes("notification_type", type),
+    scope: scope, // Added direct output assignment
+    branches: Array.from({ length: 7 }, (_, b) => b).filter(b => branchMask & (1 << b)).map(b => reverseScopes("branch", b)),
+    years: Array.from({ length: 6 }, (_, y) => y).filter(y => yearMask & (1 << y)).map(y => reverseScopes("year", y)),
+    sections: Array.from({ length: 15 }, (_, s) => s).filter(s => sectionMask & (1 << s)).map(s => reverseScopes("section", s))
   };
 }

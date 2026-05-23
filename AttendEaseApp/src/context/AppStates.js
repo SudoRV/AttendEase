@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import requestFcmToken from "../utils/requestFcmToken";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import BleDataPropagation from "../utils/BleDataPropagation";
+import { processScanner } from "../utils/BleDataScanning";
 import { getDBConnection } from "../database/database";
 
 /* =====================
@@ -240,6 +241,9 @@ export const GlobalProvider = ({ children }) => {
     // save fcm token
     saveFcmToken(userData);
 
+    // scan ble notification 
+    processScanner();
+
     // listen for new message
     // 1. Get the modular messaging instance
     const messagingInstance = getMessaging();
@@ -247,24 +251,13 @@ export const GlobalProvider = ({ children }) => {
     // 2. Set up the foreground listener
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
       console.log('A new FCM message arrived!', JSON.stringify(remoteMessage));
+      // propagate notification
       BleDataPropagation(userData, database, remoteMessage);
 
       // Refresh data silently!
       loadTimetable(userData);
       loadLeaves();
     });
-
-    // BleDataPropagation(userData, database, {
-    //   data: {
-    //     body: "Period 3 of Dr. Jagat Pal Singh cancelled, on leave from 22 May 2026 to 24 May 2026",
-    //     metadata: "{\"leave_type\":\"duration\",\"period_id\":[3],\"on\":\"1970-01-01T00:00:00.000Z\",\"from\":\"2026-05-21T18:35:00.000Z\",\"to\":\"2026-05-24T18:25:00.000Z\"}",
-    //     scope: "CSE_4_A",
-    //     status: "1",
-    //     title: "Class Cancelled",
-    //     type: "CLASS_CANCELLED"
-    //   },
-    //   messageId: "0:1779421461765166%3c69d815f9fd7ecd"
-    // });
 
     // load whole week timetable and save it in database
     async function saveTimetable() {
