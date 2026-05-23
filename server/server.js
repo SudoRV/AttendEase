@@ -524,7 +524,7 @@ app.post("/set-substitutor", async (req, res) => {
             period_id: substitutedClass[0].period_id,
             substitutor: substitutor.teacher_id
           })
-        }, [substitutedClass[0].year], [substitutedClass[0].branch_id], [substitutedClass[0].section]);
+        }, [substitutedClass[0].year], [substitutedClass[0].branch_id], [substitutedClass[0].section], "students");
       }
 
       // notify absent teacher

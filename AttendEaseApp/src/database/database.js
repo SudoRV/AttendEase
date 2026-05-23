@@ -5,8 +5,8 @@ const db = open({
 });
 
 export const getDBConnection = () => {
-  const timetableExists = await isTableExists("timetable");
-  const notificationsExists = await isTableExists("notifications");
+  const timetableExists = isTableExists("timetable");
+  const notificationsExists = isTableExists("notifications");
 
   if (!timetableExists || !notificationsExists) {
     createTables();

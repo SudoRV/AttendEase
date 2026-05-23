@@ -46,7 +46,7 @@ export default async function BleDataPropagation(userData, database, remoteMessa
     if (typeCode === 1) {
       // data to propagate ( teacher name (through period id), from, to, on date using difference from current date )
 
-      let toDiff = decToHex(0).padStart(4, "0").toUpperCase();;
+      let toDiff;
       if (metadata.leave_type === "duration") {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -93,10 +93,11 @@ export default async function BleDataPropagation(userData, database, remoteMessa
     // for announcments
     else if (typeCode === 3) {
       // need to send scope ( branches, years, sections )
-      const yearMask = encodePeriods(metadata.target_year.map(y => scopes("year", y)));
-      const branchMask = encodePeriods(metadata.target_branch.map(b => scopes("branch", b)));
-      const sectionMask = encodePeriods(metadata.target_section.map(s => scopes("section", s)));
+      const yearMask = encodePeriods(metadata.target_year.map(y => scopes("year", y)), true);
+      const branchMask = encodePeriods(metadata.target_branch.map(b => scopes("branch", b)), true);
+      const sectionMask = encodePeriods(metadata.target_section.map(s => scopes("section", s)), true);
 
+      console.log(yearMask, branchMask, sectionMask)
       const announcementScope = packMetadata(typeCode, branchMask, yearMask, sectionMask);
       console.log(announcementScope)
       console.log(unpackMetadata(announcementScope))
@@ -161,12 +162,14 @@ async function requestBLEPermissions() {
 }
 
 
-function encodePeriods(periods = []) {
+function encodePeriods(periods = [], bin) {
   let mask = 0;
 
   periods.forEach(p => {
     mask |= (1 << (p - 1));
   });
+
+  if(bin) return mask;
 
   return mask.toString(16).padStart(4, "0").toUpperCase();
 }
@@ -213,19 +216,19 @@ function packMetadata(
   sectionMask
 ) {
   return (
-      ((type & 0x03) << 22) |
-      ((branchMask & 0x3F) << 16) |
-      ((yearMask & 0x1F) << 11) |
-      ((sectionMask & 0x3FF) << 1)
+    ((type & 0x03) << 22) |
+    ((branchMask & 0x3F) << 16) |
+    ((yearMask & 0x1F) << 11) |
+    ((sectionMask & 0x3FF) << 1)
   ).toString(16)
     .padStart(6, "0");
 }
 
 function unpackMetadata(value) {
   return {
-      type: (value >> 22) & 0x03,
-      branchMask: (value >> 16) & 0x3F,
-      yearMask: (value >> 11) & 0x1F,
-      sectionMask: (value >> 1) & 0x3FF
+    type: (value >> 22) & 0x03,
+    branchMask: (value >> 16) & 0x3F,
+    yearMask: (value >> 11) & 0x1F,
+    sectionMask: (value >> 1) & 0x3FF
   };
 }
