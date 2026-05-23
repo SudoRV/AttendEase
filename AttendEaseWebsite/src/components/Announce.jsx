@@ -162,7 +162,7 @@ export default function Announce() {
   const [scope, setScope] = useState("students")
 
   return (
-    <div className="max-w-xl mx-auto bg-white dark:bg-neutral-950/40 border border-neutral-200/50 dark:border-neutral-900 mr-2 p-2 px-6 sm:p-8 sm:py-4 rounded-3xl transition-colors duration-300 antialiased">
+    <div className="max-w-xl sm:max-w-full mx-auto bg-white dark:bg-neutral-950/40 border border-neutral-200/50 dark:border-neutral-900 mr-2 p-2 px-6 sm:p-8 sm:py-4 rounded-3xl transition-colors duration-300 antialiased">
 
       {/* Header Block */}
       <div className="text-center space-y-1 mb-6 border-b border-neutral-100 dark:border-neutral-900 pb-4">

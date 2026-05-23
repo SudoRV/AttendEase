@@ -1,30 +1,16 @@
-import { useEffect, useState } from "react";
+
 import {
-    FiGithub as Github,
-    FiLinkedin as Linkedin,
-    FiMail as Mail,
     FiDownload as Download,
-    FiSmartphone as Smartphone,
     FiGrid as LayoutDashboard,
     FiUsers as Users,
     FiInfo as Info,
-    FiChevronRight as ChevronRight,
-    FiShield as Shield,
-    FiZap as Zap,
-    FiBell as Bell,
-    FiBarChart2 as BarChart2,
-    FiExternalLink as ExternalLink,
-    FiCalendar as Calendar,
-    FiWifiOff as Offline,
     FiHome,
 } from "react-icons/fi";
 
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FiMenu, FiX, FiSun, FiMoon } from 'react-icons/fi';
+import { FiSun, FiMoon } from 'react-icons/fi';
 import { useTheme } from '../context/ThemeContext';
 import { AppStates } from '../services/states';
-
-import Logo from "../images/AttendEase_icon_colored.png";
 import LogoA from "../images/attendease_icon.png";
 import { Bluetooth } from "lucide-react";
 
@@ -43,17 +29,19 @@ export default function LandingHeader({ toggleSidebar }) {
     const navigate = useNavigate();
     const location = useLocation();
     const { userData, } = AppStates();
+    
 
     return (
         <header className="sticky top-0 left-0 right-0 z-50 backdrop-blur-lg bg-white/20 dark:bg-black/30 dark:border-neutral-700 border-t-0 border-l-0 border-r-0 border-solid border-b-2 border-indigo-500">
             
             <div className="flex items-center justify-between h-16 max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Logo */}
+                
                 <div onClick={toggleSidebar} className="flex items-center gap-2 no-underline">
-                    <div className="w-8 h-8 bg-gradient-to-br from-indigo-800 to-indigo-400 rounded-lg overflow-hidden flex items-center justify-center">
-                        <img src={LogoA} className='h-[55%] hover:rotate-[20deg] transition-all duration-300 cursor-pointer' />
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-800 to-indigo-400 rounded-lg overflow-hidden flex items-center justify-center">
+                        <img src={LogoA} alt="AttendEase Logo" className='h-[55%] hover:rotate-[30deg] hover:scale-125 transition-all duration-300 cursor-pointer' />
                     </div>
-                    <span className="font-bold text-lg text-neutral-800 dark:text-white">AttendEase</span>
+                    <span className="text-2xl font-semibold flex transition-colors duration-300"><p className='text-neutral-800 dark:text-slate-100'>Attend</p><p className='text-indigo-800 dark:text-indigo-600'>Ease</p></span>
                 </div>
 
                 {/* Right Actions */}

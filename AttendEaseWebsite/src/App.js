@@ -1,15 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
-
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProtectedDashboard from "./components/ProtectedDashboard";
-import Header from "./components/Header";
 import RequestNotification from "./components/RequestNotification";
-import Footer from "./components/Footer";
-import StudentDashboard from "./pages/Student_Dashboard";
-import Dashboard from "./components/Dashboard";
-import TeacherDashboard from "./pages/Teacher_Dashboard";
 import { GlobalProvider } from "./services/states";
 import { ThemeProvider } from "./context/ThemeContext";
 import HomePage from "./pages/HomePage";

@@ -288,7 +288,7 @@ html,body{
 .attendance-dashboard{
     display:flex;
     background: #ffffff;
-    max-width: 70vw;
+    max-width: 90vw;
     margin-left: 0%;
 }
 
@@ -791,13 +791,6 @@ html,body{
      .attendance {
         padding: 0px;
     }
-    /* .attendance-dashboard{
-        max-width: 80vw;
-    }
-    .attendance-data{
-        max-width: 80vw;
-    } */
-
     .schedule-classes.custom-scrollbar {
         overflow-x: visible;
     }

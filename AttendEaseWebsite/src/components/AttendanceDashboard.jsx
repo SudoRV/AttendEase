@@ -160,7 +160,7 @@ export default function AttendanceDashboard() {
 
   if (hasConfig) {
     return (
-      <div className="w-full min-h-screen bg-slate-50 dark:bg-neutral-950/40 p-5 rounded-3xl">
+      <div className="w-full bg-slate-50 dark:bg-neutral-950/40 p-5 rounded-3xl">
         <div className="width-container mx-auto">
           <p className="text-gray-500 dark:text-neutral-400 text-sm uppercase tracking-widest text-center mb-2">Attendance Report</p>
           <h1 className="text-2xl font-extrabold text-slate-800 dark:text-neutral-200 text-center mb-8 uppercase">
@@ -171,7 +171,7 @@ export default function AttendanceDashboard() {
 
           <RiskReport skipReport={skipReport} />
 
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard title="Conducted" value={attendance?.report?.total_classes_held} color="text-slate-700 dark:text-neutral-400" />
             <StatCard title="Attended" value={attendance?.report?.total_classes_attended} color="text-emerald-600" />
             <StatCard title="Missed" value={attendance?.report?.total_classes_held - attendance?.report?.total_classes_attended - (attendance?.report?.leaves || 0)} color="text-orange-500" />
@@ -218,7 +218,7 @@ export default function AttendanceDashboard() {
                 <div className="flex justify-between items-center mb-3">
                     <span className="text-indigo-400 font-bold tracking-tighter uppercase text-xs">JS Console Script</span>
                     <button onClick={copyCode} className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded-lg text-sm font-bold transition-all">
-                        COPY
+                        <FiCopy size={16} />COPY
                     </button>
                 </div>
                 <p className="text-slate-400 text-sm leading-5 italic line-clamp-3">
