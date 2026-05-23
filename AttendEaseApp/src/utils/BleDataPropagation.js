@@ -63,12 +63,11 @@ export default async function BleDataPropagation(userData, database, remoteMessa
       const encodedPeriods = encodePeriods(metadata?.period_id || []);
 
       // 4. Stitch everything together following the strict 8-4-4-4-12 size rules
-      uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${toDiff}-${notification_id}A684`;
+      uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${toDiff}-${notification_id}1684`;
 
       const maxHops = 5;
       const currentHops = 0;
       major = (maxHops << 8) | currentHops;
-
       minor = (0xC8 << 8) | 0x0A;
     }
     // for class substitution
@@ -84,25 +83,27 @@ export default async function BleDataPropagation(userData, database, remoteMessa
       const encodedSubstitutor = `${scopes("day", substitutor?.day)}${decToHex(substitutor?.period_id)}`.padStart(4, "0").toUpperCase();
 
       // 4. Stitch everything together following the strict 8-4-4-4-12 size rules
-      uuid = `${appid}-${scopeBlock}-${encodedPeriod}-${encodedSubstitutor}-${notification_id}A684`;
+      uuid = `${appid}-${scopeBlock}-${encodedPeriod}-${encodedSubstitutor}-${notification_id}1684`;
 
       const maxHops = 5;
       const currentHops = 0;
       major = (maxHops << 8) | currentHops;
-
       minor = (0xC8 << 8) | 0x0A;
     }
     // for announcments
     else if (typeCode === 3) {
+      // need to send scope ( branches, years, sections )
+      const yearMask = encodePeriods(metadata.target_year.map(y => scopes("year", y)));
+      const branchMask = encodePeriods(metadata.target_branch.map(b => scopes("branch", b)));
+      const sectionMask = encodePeriods(metadata.target_section.map(s => scopes("section", s)));
 
       // // 4. Stitch everything together following the strict 8-4-4-4-12 size rules
-      // uuid = `${appid}-${scopeBlock}-${encodedPeriod}-${encodedSubstitutor}-${notification_id}A684`;
+      uuid = `${appid}-${yearMask}-${branchMask}-${sectionMask}-${notification_id}A684`;
 
-      // const maxHops = 5;
-      // const currentHops = 0;
-      // major = (maxHops << 8) | currentHops;
-
-      // minor = (0xC8 << 8) | 0x0A;
+      const maxHops = 5;
+      const currentHops = 0;
+      major = (maxHops << 8) | currentHops;
+      minor = (0xC8 << 8) | 0x0A;
     }
     else {
       return;

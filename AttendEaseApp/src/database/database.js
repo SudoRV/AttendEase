@@ -5,8 +5,12 @@ const db = open({
 });
 
 export const getDBConnection = () => {
-  const exists = isTableExists("timetable");
-  if (!exists) createTables();
+  const timetableExists = await isTableExists("timetable");
+  const notificationsExists = await isTableExists("notifications");
+
+  if (!timetableExists || !notificationsExists) {
+    createTables();
+  }
   return db;
 };
 
@@ -50,8 +54,29 @@ export const createTables = () => {
     );
   `;
 
+  const notificationTableQuery = `
+  CREATE TABLE IF NOT EXISTS notifications 
+    (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+      notification_id TEXT NOT NULL UNIQUE,
+
+      source TEXT NOT NULL,
+      -- FCM / BLE
+
+      type TEXT NOT NULL,
+
+      title TEXT,
+      body TEXT,
+
+      is_read INTEGER DEFAULT 0,
+
+      received_at INTEGER NOT NULL
+  );`
+
   try {
     db.execute(timetableQuery);
+    db.execute(notificationTableQuery);
     console.log('Tables created');
   } catch (error) {
     console.log('Database Error:', error);

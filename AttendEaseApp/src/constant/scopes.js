@@ -12,14 +12,16 @@ export function scopes(attr, val) {
             "RA": 3,
             "ME": 4,
             "CE": 5,
-            "BCA": 6
+            "BCA": 6,
+            "all": 7,
         },
         "year": {
             "1": 1,
             "2": 2,
             "3": 3,
             "4": 4,
-            "5": 5
+            "5": 5,
+            "all": 6,
         },
         "section": {
             "A": 1,
@@ -36,7 +38,7 @@ export function scopes(attr, val) {
             "L": 12,
             "M": 13,
             "N": 14,
-            "O": 15
+            "all": 15,
         },
         "day": {
             "Monday": 1,

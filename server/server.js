@@ -382,9 +382,7 @@ app.get("/get-timetable", async (req, res) => {
     if (teacher_id && teacher_id !== "undefined") {
       if (day === "null") {
         const query = `select * from schedule where teacher_id = ? order by period_id group by day`;
-        const [rows] = await pool.query(query, [
-          year, branch, section,
-        ]);
+        const [rows] = await pool.query(query, [teacher_id]);
 
         let timetable = {};
         rows.forEach(row => {
@@ -997,7 +995,6 @@ app.post("/announce", async (req, res) => {
       target_year,
       target_branch,
       target_section,
-      
     })}, target_year, target_branch, target_section, scope);
     res.json({ success: true, message: "saved to server and notified to target: " });
 

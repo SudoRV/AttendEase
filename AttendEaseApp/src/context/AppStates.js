@@ -321,7 +321,7 @@ export const GlobalProvider = ({ children }) => {
       }
     }
 
-    saveTimetable();
+    if (userData.role === "Student") saveTimetable();
 
     // 3. Clean up the listener when the component unmounts
     return () => {
