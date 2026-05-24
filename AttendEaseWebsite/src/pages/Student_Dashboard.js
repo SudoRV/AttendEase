@@ -7,7 +7,7 @@ import LeaveBox from "../components/Student_Leave";
 import TimeTable from "../components/TimeTable";
 import attendease_logo from "../images/attendease_icon.png";
 import AttendanceDashboard from '../components/AttendanceDashboard';
-
+import PasswordSettings from '../components/PasswordManager';
 import LandingHeader from "../components/LandingHeader.jsx";
 import LandingFooter from "../components/LandingFooter.jsx";
 
@@ -86,6 +86,8 @@ const StudentDashboard = () => {
                         </span>
                       </div>
                     </div>
+                    <PasswordSettings/>
+
             
                     {/* Logout Button */}
                     <button
