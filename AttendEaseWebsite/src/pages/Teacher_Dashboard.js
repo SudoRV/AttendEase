@@ -8,7 +8,7 @@ import StudentLeaveManagement from "../components/LeaveApproval";
 import TimeTable from "../components/TimeTable";
 import attendease_logo from "../images/attendease_icon.png";
 import TeacherLeave from '../components/TeacherLeave';
-
+import PasswordSettings from '../components/PasswordManager';
 import LandingHeader from '../components/LandingHeader';
 import { useTheme } from '../context/ThemeContext';
 
@@ -94,6 +94,7 @@ const TeacherDashboard = () => {
             </span>
           </div>
         </div>
+        <PasswordSettings/>
 
         {/* Logout Button */}
         <button
