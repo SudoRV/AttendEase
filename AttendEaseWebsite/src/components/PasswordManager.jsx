@@ -12,8 +12,9 @@ import {
   FiEye,
   FiEyeOff,
 } from "react-icons/fi";
-
+import {AppStates} from "../services/states";
 export default function PasswordSettings() {
+  const { buildUrl } = AppStates();
   const [modalVisible, setModalVisible] = useState(false);
   const [authMode, setAuthMode] = useState(""); // "change" or "reset"
   const [loading, setLoading] = useState(false);
@@ -27,7 +28,8 @@ export default function PasswordSettings() {
   });
 
   // Replace this with your backend API URL
-  const API_URL = "https://your-api.com/reset-password";
+  
+  const API_URL = buildUrl("/reset-password");
 
   const handlePasswordAction = async (e) => {
     e.preventDefault();
