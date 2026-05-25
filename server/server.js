@@ -22,6 +22,12 @@ app.use(express.json());
 app.use(cors());
 // app.use(express.static(path.join(__dirname, "./static")));
 
+
+const isProduction = true;
+const BASE_URL = isProduction
+  ? "https://attendease-nivr.onrender.com"
+  : `http://localhost:8000`;
+
 // ✅ Create MySQL connection pool
 const config = {
   user: "uvjrd469tio0mrjz",
@@ -39,7 +45,7 @@ const config2 = {
   waitForConnections: true,
 }
 
-const pool = mysql.createPool(config2);
+const pool = mysql.createPool(config);
 
 // nodemailer transporter
 // console.log(process.env.EMAIL, process.env.PASS)
@@ -1123,11 +1129,6 @@ async function notifyTimetable(day) {
 
         // create image of timetable
         const scheduleImage = classes.length > 0 ? await createTableImage(topic, dayName, classes) : null;
-
-        const isProduction = false;
-        const BASE_URL = isProduction
-          ? "https://attendease-nivr.onrender.com"
-          : `http://localhost:8000`;
 
         const scheduleImageUrl = `${BASE_URL}${scheduleImage}?v=${new Date().getTime()}`;
 
