@@ -12,6 +12,7 @@ import {
   FiXCircle,
   FiKey
 } from 'react-icons/fi';
+import { AiOutlineLoading3Quarters } from "react-icons/ai";
 
 import LandingHeader from './LandingHeader';
 import LandingFooter from './LandingFooter';
@@ -19,6 +20,7 @@ import LandingFooter from './LandingFooter';
 function LoginPage() {
   const navigate = useNavigate();
   const { setUserData, buildUrl } = AppStates();
+  const [loading, setLoading] = useState(false);
 
   const [emailValue, setEmailValue] = useState("");
   const [isEmailValid, setEmailValid] = useState(null);
@@ -113,7 +115,9 @@ function LoginPage() {
   ===================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    //setIsSubmitting(true);
+    setLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     try {
       const form = new FormData(e.target);
@@ -129,8 +133,8 @@ function LoginPage() {
 
       const data = await response.json();
       window.localStorage.setItem("user_creds", JSON.stringify(data.user_creds));
-
-      alert(data.message);
+      setLoading(false);
+      //alert(data.message);
 
       if (data.success) {
         setUserData(data.user_creds);
@@ -265,7 +269,7 @@ function LoginPage() {
 
             <button
               type="submit"
-              disabled={!isEmailValid || isSubmitting}
+              disabled={!isEmailValid || loading}
               className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 border-none select-none mt-2
               ${isEmailValid && !isSubmitting
                   ? "bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/10 active:scale-[0.99] cursor-pointer"
@@ -421,6 +425,15 @@ function LoginPage() {
           </div>
         </div>
       )}
+      {loading && (
+        <div className="fixed inset-0 z-[999] bg-gradient-to-b from-neutral-900/60 to-neutral-900/60 via-neutral-900/30 backdrop-blur-md flex items-center justify-center">
+          <div className="bg-transparent px-6 py-4 rounded-2xl  items-center text-center">
+            <p className="text-4xl font-bold text-neutral-800 dark:text-neutral-200">Logging in...</p>
+            <AiOutlineLoading3Quarters className="text-indigo-500 text-6xl animate-spin mt-5 font-semibold"/>
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 }

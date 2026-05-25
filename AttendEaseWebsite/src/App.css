@@ -294,6 +294,7 @@ html,body{
 
 .attendance-data{
     /* max-width: 60vw; */
+    width: 100%;
     padding: 0%;
 }
 /* Main grid: Row 1 layout (1:4 ratio) */
