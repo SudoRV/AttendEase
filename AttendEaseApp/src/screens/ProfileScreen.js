@@ -17,9 +17,10 @@ import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppStates } from "../context/AppStates";
 import Auth from "../components/Auth";
+import BleToggle from "../components/BleToggle";
 
 export default function ProfileScreen() {
-  const { userData, setUserData, buildUrl, setLogout } = AppStates();
+  const { userData, setUserData, buildUrl, setLogout, bleOn, setBleOn } = AppStates();
 
   // --- NEW STATES FOR PASSWORD LOGIC ---
   const [modalVisible, setModalVisible] = useState(false);
@@ -258,6 +259,11 @@ export default function ProfileScreen() {
             <Text className="text-slate-600 font-medium">Reset Password</Text>
             <Ionicons name="refresh-circle-outline" size={22} color="#6366F1" />
           </TouchableOpacity>
+        </GlassCard>
+
+        {/* BLE Mesh  */}
+        <GlassCard title="BLE Mesh Technology" icon="bluetooth">
+          <BleToggle bleOn={bleOn} setBleOn={setBleOn} />
         </GlassCard>
 
       </ScrollView>

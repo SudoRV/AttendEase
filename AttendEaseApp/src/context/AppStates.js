@@ -4,7 +4,7 @@ import requestFcmToken from "../utils/requestFcmToken";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import BleDataPropagation from "../utils/BleDataPropagation";
 import { processScanner } from "../utils/BleDataScanning";
-import { getDBConnection } from "../database/database";
+import { getDBConnection, saveNotification } from "../database/database";
 
 /* =====================
    ENV CONFIG
@@ -16,7 +16,7 @@ const isProduction = false;
 // Example: http://192.168.1.5:8000
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
-  : "http://10.218.87.143:8000";
+  : "http://10.21.190.185:8000";
 
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
@@ -35,6 +35,7 @@ export const GlobalProvider = ({ children }) => {
   const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
   const [activeTab, setActiveTab] = useState(0);
   const [logout, setLogout] = useState(false);
+  const [bleOn, setBleOn] = useState(false);
 
   const database = getDBConnection();
 
@@ -242,7 +243,7 @@ export const GlobalProvider = ({ children }) => {
     saveFcmToken(userData);
 
     // scan ble notification 
-    processScanner();
+    // processScanner();
 
     // listen for new message
     // 1. Get the modular messaging instance
@@ -251,8 +252,13 @@ export const GlobalProvider = ({ children }) => {
     // 2. Set up the foreground listener
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
       console.log('A new FCM message arrived!', JSON.stringify(remoteMessage));
+      // save to local database
+      saveNotification(database, {notificatiopn_id: remoteMessage.messageId, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body})
+      
       // propagate notification
-      BleDataPropagation(userData, database, remoteMessage);
+      if(bleOn){
+        BleDataPropagation(userData, database, remoteMessage);
+      }
 
       // Refresh data silently!
       loadTimetable(userData);
@@ -337,7 +343,8 @@ export const GlobalProvider = ({ children }) => {
         loadLeaves,
         teacherLeaveHistory,
         logout, setLogout,
-        formatDate
+        formatDate,
+        bleOn, setBleOn
       }}
     >
       {children}

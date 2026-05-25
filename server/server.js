@@ -852,6 +852,25 @@ app.post("/teacher-availability", async (req, res) => {
     Object.keys(notification).forEach(async (topic) => {
       // console.log(topic, `Period ${notification[topic].map((p => p.period_id)).join(", ")} of ${notification[topic][0].teacher_name} Cancelled`)
 
+      const message = `Period ${notification[topic]
+        .map((p) => p.period_id)
+        .join(", ")} of ${notification[topic][0].teacher_name} cancelled, on leave ${new Date(from).toDateString() === new Date(to).toDateString()
+          ? `for ${new Date(from).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}`
+          : `from ${new Date(from).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })} to ${new Date(to).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}`
+        }`;
+
       await admin.messaging().send({
         topic: topic,
         data: {
@@ -864,24 +883,7 @@ app.post("/teacher-availability", async (req, res) => {
               .map((p) => p.period_id),
             on, from, to
           }),
-          body: `Period ${notification[topic]
-            .map((p) => p.period_id)
-            .join(", ")} of ${notification[topic][0].teacher_name} cancelled, on leave ${new Date(from).toDateString() === new Date(to).toDateString()
-              ? `for ${new Date(from).toLocaleDateString("en-GB", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}`
-              : `from ${new Date(from).toLocaleDateString("en-GB", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })} to ${new Date(to).toLocaleDateString("en-GB", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}`
-            }`,
+          body: message,
           scope: topic,
         },
 
@@ -896,15 +898,7 @@ app.post("/teacher-availability", async (req, res) => {
 
           notification: {
             title: "Class Cancelled",
-            body: `Period ${notification[topic].map((p => p.period_id)).join(", ")} of ${notification[topic][0].teacher_name} Cancelled, ${!!on ? "for" : "from"} ${new Date(from).toLocaleDateString("en-Gb", {
-              day: "numeric",
-              month: "short",
-              year: "numeric"
-            })} ${!!on ? "" : `to ${new Date(to).toLocaleDateString("en-Gb", {
-              day: "numeric",
-              month: "short",
-              year: "numeric"
-            })}`}`,
+            body: message,
           },
 
           fcmOptions: {
@@ -990,12 +984,14 @@ app.post("/announce", async (req, res) => {
     const response = await pool.query(query, [title, body, JSON.stringify(created_by), scope, JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), new Date(expires_at)]);
 
     // send notification 
-    const resp = await notifyGroup(title, body, "ANNOUNCEMENT", {metadata: JSON.stringify({
-      scope,
-      target_year,
-      target_branch,
-      target_section,
-    })}, target_year, target_branch, target_section, scope);
+    const resp = await notifyGroup(title, body, "ANNOUNCEMENT", {
+      metadata: JSON.stringify({
+        scope,
+        target_year,
+        target_branch,
+        target_section,
+      })
+    }, target_year, target_branch, target_section, scope);
     res.json({ success: true, message: "saved to server and notified to target: " });
 
   } catch (err) {
@@ -1215,11 +1211,9 @@ async function notifyGroup(title, body, dataType, data, target_year, target_bran
           }
         }
       }
-    } else { 
+    } else {
       topics.push("teachers");
     }
-
-    console.log(topics)
 
     topics.forEach(async (topic) => {
       await admin.messaging().send({

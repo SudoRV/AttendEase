@@ -2,7 +2,7 @@ import asyncio
 from bleak import BleakScanner
 import math
 
-APPLE_COMPANY_ID = 0xFFF0
+APPLE_COMPANY_ID = 0xFFFF
 
 
 def parse_ibeacon(manufacturer_data):

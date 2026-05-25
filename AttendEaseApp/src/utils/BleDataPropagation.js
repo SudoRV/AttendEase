@@ -65,7 +65,7 @@ export default async function BleDataPropagation(userData, database, remoteMessa
       const encodedPeriods = encodePeriods(metadata?.period_id || []);
 
       // 4. Stitch everything together following the strict 8-4-4-4-12 size rules
-      uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${toDiff}-${notification_id}1684`;
+      uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${toDiff}-${notification_id}2A${metadata.leave_type === "period" ? "0" : metadata.leave_type === "day" ? "1" : "2"}1`;
 
       const maxHops = 5;
       const currentHops = 0;
@@ -87,7 +87,7 @@ export default async function BleDataPropagation(userData, database, remoteMessa
       const encodedSubstitutor = `${scopes("day", substitutor?.day)}${decToHex(substitutor?.period_id)}`.padStart(4, "0").toUpperCase();
 
       // 4. Stitch everything together following the strict 8-4-4-4-12 size rules
-      uuid = `${appid}-${scopeBlock}-${encodedPeriod}-${encodedSubstitutor}-${notification_id}1684`;
+      uuid = `${appid}-${scopeBlock}-${encodedPeriod}-${encodedSubstitutor}-${notification_id}C2A1`;
 
       const maxHops = 5;
       const currentHops = 0;
@@ -103,17 +103,16 @@ export default async function BleDataPropagation(userData, database, remoteMessa
       // console.log("Packed metadata payload:", unpackMetadata(announcementScope));
 
       // // 4. Stitch everything together following the strict 8-4-4-4-12 size rules
-      uuid = `${appid}-${announcementScope.slice(0, 4)}-${announcementScope.slice(4, 8)}-AC84-${notification_id}0084`; // 0 notification incomplete, 0 notification id data / 1 title data / 2 body data
+      uuid = `${appid}-2BCF-${announcementScope.slice(0, 4)}-${announcementScope.slice(4, 8)}-${notification_id}B000`; //0 init of announcement,  0 notification id data / 1 title data / 2 body data, 0 notification incomplete
 
       const maxHops = 5;
       const currentHops = 0;
       major = (maxHops << 8) | currentHops;
       minor = (0xC8 << 8) | 0x0A;
 
+      queueNotification(uuid, major, minor);
+
       // divide announcement in parts
-      const packets = [
-        { uuid, major, minor }
-      ];
 
       const title = remoteMessage.data.title || "";
       const body = remoteMessage.data.body || "";
@@ -141,7 +140,7 @@ export default async function BleDataPropagation(userData, database, remoteMessa
 
         // STRICT 8-4-4-4-12 UUID FORMAT
         // Total characters: 8 + 4 + 4 + 4 + 12 = 32 hex digits (Flawless standard compliance)
-        const uuid = `${appid}-${chunk1}-${chunk2}-${chunk3}-${notification_id}${t_chunks.length-1 === index ? 1 : 0}184`;
+        const uuid = `${appid}-${chunk1}-${chunk2}-${chunk3}-${notification_id}B11${t_chunks.length - 1 === index ? 1 : 0}`;
 
         // Parse the remaining 4-character hex strings into numeric integers for BLE transmission
         const major = parseInt(chunk4, 16);
@@ -166,7 +165,7 @@ export default async function BleDataPropagation(userData, database, remoteMessa
         const chunk5 = hexChunk.substring(16, 20);
 
         // Uses '0284' flag inside the final 12-char block to signify Body Data
-        const uuid = `${appid}-${chunk1}-${chunk2}-${chunk3}-${notification_id}${b_chunks.length-1 === index ? 1 : 0}284`;
+        const uuid = `${appid}-${chunk1}-${chunk2}-${chunk3}-${notification_id}C12${b_chunks.length - 1 === index ? 1 : 0}`;
 
         const major = parseInt(chunk4, 16);
         const minor = parseInt(chunk5, 16);
@@ -195,10 +194,7 @@ export default async function BleDataPropagation(userData, database, remoteMessa
 
 
 
-
-
 // notification queue broadcaster
-
 let transmissionInterval = null;
 
 function processQueue() {
@@ -209,40 +205,32 @@ function processQueue() {
     if (notification_queue.length === 0) {
       clearInterval(transmissionInterval);
       transmissionInterval = null;
-      await stop(); 
+      await stop();
       return;
     }
 
-    const currentMinute = new Date().getMinutes();
+    // Pull the next packet completely off the FRONT of the queue
+    const currentPacket = notification_queue.shift();
 
-    // 2. Only execute broadcasts during EVEN minutes
-    if (currentMinute % 2 === 0) {
-      // Pull the next packet completely off the FRONT of the queue
-      const currentPacket = notification_queue.shift();
+    try {
+      await BLEAdvertise.stopBroadcast();
+      await BLEAdvertise.broadcast(currentPacket.uuid, currentPacket.major, currentPacket.minor);
 
-      try {
-        await BLEAdvertise.stopBroadcast();
-        await BLEAdvertise.broadcast(currentPacket.uuid, currentPacket.major, currentPacket.minor);
-        
-        currentPacket.broadcasted += 1;
-        console.log(`Broadcasted packet [${currentPacket.broadcasted}/5]: ${currentPacket.uuid}`);
+      currentPacket.broadcasted += 1;
+      console.log(`Broadcasted packet [${currentPacket.broadcasted}/5]: ${currentPacket.uuid}`);
 
-        // 3. If it hasn't hit 5 broadcasts yet, push it to the BACK of the queue
-        if (currentPacket.broadcasted < 3) {
-          notification_queue.push(currentPacket);
-        }
-        // If it is exactly 5, it just disappears into the void (deleted naturally)
-
-      } catch (err) {
-        console.error("Broadcast cycle failed:", err);
-        // Put it back in the queue so we don't lose it due to an error
-        notification_queue.push(currentPacket); 
+      // 3. If it hasn't hit 5 broadcasts yet, push it to the BACK of the queue
+      if (currentPacket.broadcasted < 3) {
+        notification_queue.push(currentPacket);
       }
-    } else {
-      // ODD minute: Pause transmission
-      await stop();
-      console.log("Odd minute: Transmission paused. Waiting for even minute...");
+      // If it is exactly 5, it just disappears into the void (deleted naturally)
+
+    } catch (err) {
+      console.error("Broadcast cycle failed:", err);
+      // Put it back in the queue so we don't lose it due to an error
+      notification_queue.push(currentPacket);
     }
+
   }, 3000); // 3 seconds gap before moving to the next item in the cycle
 }
 
@@ -262,13 +250,13 @@ function queueNotification(uuid, major, minor) {
   notification_queue.push({ broadcasted: 0, uuid, major, minor });
 }
 
-function broadcast(uuid, major, minor) {
+export function broadcast(uuid, major, minor) {
   BLEAdvertise.broadcast(uuid, major, minor)
     .then(() => console.log("Broadcasting custom payload safely!"))
     .catch(err => console.error("Broadcast failed:", err));
 }
 
-async function stop() {
+export async function stop() {
   return BLEAdvertise.stopBroadcast()
     .then(() => console.log('Broadcast stopped successfully'))
     .catch(err => console.error('Failed to stop broadcast:', err));

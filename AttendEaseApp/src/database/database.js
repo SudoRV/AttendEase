@@ -103,3 +103,40 @@ export const isTableExists = (
     return false;
   }
 };
+
+export function saveNotification(database, notification) {
+  try {
+    const result = database.execute(
+      `
+      INSERT OR IGNORE INTO notifications (
+        notification_id,
+        source,
+        type,
+        title,
+        body,
+        is_read,
+        received_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        notification.notification_id,
+        notification.source,
+        notification.type,
+        notification.title || null,
+        notification.body || null,
+        0,
+        Date.now(),
+      ]
+    );
+
+    return result;
+  } catch (error) {
+    console.log(
+      'Insert notification error:',
+      error
+    );
+
+    throw error;
+  }
+}
