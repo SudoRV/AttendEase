@@ -120,26 +120,26 @@ const StudentLeaveManagement = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 dark:border-neutral-900 pb-2">
 
         {/* Navigation Action Segment Track Selector */}
-        <div className="relative flex gap-2 items-center bg-neutral-100 dark:bg-neutral-900/80 p-1 rounded-xl w-fit border border-neutral-200/20">
-          {leavesCount > 0 && (
-            <span className={`absolute flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-4 ring-white dark:ring-neutral-950 -top-2 z-20 transition-all duration-300
-              ${activeTab === "leaves" ? "-right-1.5" : "left-12"}`}
-            >
-              {leavesCount}
-            </span>
-          )}
-
+        <div className="flex gap-2 items-center bg-neutral-100 dark:bg-neutral-900/80 p-1 rounded-xl w-fit border border-neutral-200/20">
           {["leaves", "verify"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-1.5 lg:py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 border-none select-none
+              className={`relative  px-5 py-1.5 lg:py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 border-none select-none
                 ${activeTab === tab
                   ? "bg-white dark:bg-neutral-100 text-neutral-900 dark:text-neutral-800 shadow-sm"
                   : "bg-neutral-200 dark:bg-neutral-900 text-neutral-700 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300"
                 }`}
             >
               {tab === "leaves" ? "Approved Leaves" : "Awaiting Verification"}
+
+              {leavesCount > 0 && activeTab !== tab && (
+                <span className={`absolute opacity-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-4 ring-white dark:ring-neutral-950 -top-3 z-20 -right-2 transition-all duration-300 delay-300 ${leavesCount > 0 ? "opacity-100" : "opacity-0"}`}
+                >
+                  {leavesCount}
+                </span>
+              )}
+
             </button>
           ))}
         </div>

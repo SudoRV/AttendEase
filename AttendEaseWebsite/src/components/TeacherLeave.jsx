@@ -178,7 +178,7 @@ const TeacherLeave = ({ onClose }) => {
     });
 
     return (
-        <div className="flex flex-col h-full text-neutral-800 dark:text-neutral-100 overflow-y-auto px-2 antialiased">
+        <div className="flex flex-col h-full text-neutral-800 dark:text-neutral-100 overflow-y-auto px-2 rounded-3xl shadow-sm">
 
             {/* Header Block */}
             <div className="flex justify-between items-center pb-5">

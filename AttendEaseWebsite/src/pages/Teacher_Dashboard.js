@@ -130,7 +130,7 @@ const TeacherDashboard = () => {
             <TeacherLeave />
           </div>
 
-          <div className="card !h-[50rem] !shadow-xl !bg-white dark:!bg-neutral-950/40 mx-2">
+          <div className="card md:!h-[50rem] !h-[45rem] !shadow-xl !bg-white dark:!bg-neutral-950/40 mx-2">
             <StudentLeaveManagement />
           </div>
 

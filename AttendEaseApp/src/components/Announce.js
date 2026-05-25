@@ -12,7 +12,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { AppStates } from "../context/AppStates";
 
-const YEARS = ["1", "2", "3", "4"];
+const YEARS = ["1", "2", "3", "4", "5"];
 const BRANCHES = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
 const SECTIONS = ["A", "B", "C"];
 

@@ -51,7 +51,7 @@ export default function LandingHeader({ toggleSidebar }) {
                         onClick={toggleTheme}
                         className="p-2 rounded-lg bg-slate-100 dark:bg-neutral-700 text-neutral-700 dark:text-white hover:bg-slate-200 dark:hover:bg-neutral-600 transition border-none"
                     >
-                        {isDark ? <FiSun size={18} /> : <FiMoon size={18} />}
+                        {isDark ? <FiSun size={20} /> : <FiMoon size={20} />}
                     </button>
 
                     {/* Desktop CTA Buttons */}
@@ -69,7 +69,7 @@ export default function LandingHeader({ toggleSidebar }) {
 
                         <button
                             onClick={() => navigate('/dashboard')}
-                            className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white rounded-lg hover:shadow-lg transition font-medium border-none"
+                            className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white rounded-lg hover:shadow-lg transition text-[15px] font-medium border-none"
                         >
                             Dashboard
                         </button>
@@ -79,7 +79,7 @@ export default function LandingHeader({ toggleSidebar }) {
             </div>
 
             {/* tabs */}
-            <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 -mb-0.5 overflow-x-auto overflow-y-hidden">
+            <div className="max-w-[1440px] mr-4 px-4 md:mx-auto sm:px-6 lg:px-8 -mb-0.5 overflow-x-auto overflow-y-hidden">
                 <div className="items-left justify-left flex gap-2 md:gap-5">
                     {NAV_TABS.map((tab) => (
                         <button
@@ -87,7 +87,7 @@ export default function LandingHeader({ toggleSidebar }) {
                             onClick={() => {
                                 navigate(tab.link);
                             }}
-                            className={`rounded-t-2xl flex items-center gap-1 px-4 py-2 text-sm font-medium transition-colors duration-200 ${location.pathname === tab.link
+                            className={`rounded-t-2xl whitespace-nowrap flex items-center gap-1 px-4 py-2 text-base md:text-[15px] font-medium transition-colors duration-200 ${location.pathname === tab.link
                                 ? 'text-gray-800 dark:text-neutral-100 border-indigo-500 dark:border-neutral-700 dark:border-b-0 border-solid border-3 border-b-transparent bg-[#f5f7fb] dark:bg-neutral-900'
                                 : 'border-t-1 border-r-1 border-l-1 mb-0.5 border-b-0 border-slate-500/20 border-solid bg-neutral-50 dark:bg-neutral-900/40 text-neutral-600 dark:text-neutral-400 hover:text-slate-100 hover:bg-indigo-500'
                                 }`}

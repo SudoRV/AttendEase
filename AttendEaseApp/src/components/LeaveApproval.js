@@ -124,7 +124,7 @@ const StudentLeaveManagement = () => {
   };
 
   return (
-    <View className="flex-1 px-5 pt-12">
+    <View className="flex-1 px-5 pt-14">
 
       {/* Header */}
       <View className="mb-6">

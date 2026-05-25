@@ -7,6 +7,10 @@ import { name as appName } from './app.json';
 import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebase/messaging';
 import notifee, { AndroidStyle, EventType, AndroidImportance, AndroidVisibility } from '@notifee/react-native';
 
+import BleDataPropagation from './src/utils/BleDataPropagation';
+import { Buffer } from 'buffer';
+global.Buffer = Buffer;
+
 const isProduction = true;
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
@@ -70,6 +74,8 @@ const pushNotifications = async () => {
 // 2. Define the background message handler
 const onMessageReceived = async (remoteMessage) => {
   // console.log('Background Message Received:', remoteMessage.data);
+  // propagate message
+  BleDataPropagation(remoteMessage);
 
   if (remoteMessage.data?.type === 'MORNING_SCHEDULE') {
     const channelId = await morningScheduleChannel();
@@ -122,64 +128,64 @@ const onMessageReceived = async (remoteMessage) => {
       },
     });
   }
-  else if (remoteMessage.data?.type === 'CLASS_CANCELLED') {
-    const channelIds = await pushNotifications();
-    const channelId = channelIds[remoteMessage.data?.type];
+  // else if (remoteMessage.data?.type === 'CLASS_CANCELLED') {
+  //   const channelIds = await pushNotifications();
+  //   const channelId = channelIds[remoteMessage.data?.type];
 
-    const data = JSON.parse(remoteMessage?.data?.data);
-    const from = new Date(data?.from).toLocaleDateString("en-Gb", {
-      day: "numeric",
-      month: "short",
-      year: "numeric"
-    });
+  //   const data = JSON.parse(remoteMessage?.data?.data);
+  //   const from = new Date(data?.from).toLocaleDateString("en-Gb", {
+  //     day: "numeric",
+  //     month: "short",
+  //     year: "numeric"
+  //   });
 
-    const to = new Date(data?.to).toLocaleDateString("en-Gb", {
-      day: "numeric",
-      month: "short",
-      year: "numeric"
-    })
+  //   const to = new Date(data?.to).toLocaleDateString("en-Gb", {
+  //     day: "numeric",
+  //     month: "short",
+  //     year: "numeric"
+  //   })
 
-    const on = new Date(data.on).toLocaleDateString();
+  //   const on = new Date(data.on).toLocaleDateString();
 
-    const message = `Period ${data?.class.map((p => p.period_id)).join(", ")} of ${data?.class[0].teacher_name} Cancelled, ${!!on && from === to ? `for ${from}` : `from ${from} to ${to}`}`;
+  //   const message = `Period ${data?.class.map((p => p.period_id)).join(", ")} of ${data?.class[0].teacher_name} Cancelled, ${!!on && from === to ? `for ${from}` : `from ${from} to ${to}`}`;
 
-    await notifee.displayNotification({
-      id: channelId,
-      title: remoteMessage.data?.title || "Notification",
-      subtitle: "",
-      android: {
-        channelId: channelId,
-        subText: "",
-        importance: AndroidImportance.HIGH,
-        priority: 'high',
+  //   await notifee.displayNotification({
+  //     id: channelId,
+  //     title: remoteMessage.data?.title || "Notification",
+  //     subtitle: "",
+  //     android: {
+  //       channelId: channelId,
+  //       subText: "",
+  //       importance: AndroidImportance.HIGH,
+  //       priority: 'high',
 
-        ongoing: false,
-        autoCancel: true,
-        asForegroundService: false,
+  //       ongoing: false,
+  //       autoCancel: true,
+  //       asForegroundService: false,
 
-        pressAction: { id: 'default' },
+  //       pressAction: { id: 'default' },
 
-        style: {
-          type: AndroidStyle.BIGTEXT,
-          text: message,
-        },
+  //       style: {
+  //         type: AndroidStyle.BIGTEXT,
+  //         text: message,
+  //       },
 
-        fullScreenAction: {
-          id: 'default',
-        },
+  //       fullScreenAction: {
+  //         id: 'default',
+  //       },
 
-        actions: [
-          {
-            title: 'Mark as Done',
-            pressAction: { id: 'mark_done' }
-          },
-        ],
+  //       actions: [
+  //         {
+  //           title: 'Mark as Done',
+  //           pressAction: { id: 'mark_done' }
+  //         },
+  //       ],
 
-        smallIcon: 'ic_launcher',
-        pressAction: { id: 'default' },
-      },
-    });
-  }
+  //       smallIcon: 'ic_launcher',
+  //       pressAction: { id: 'default' },
+  //     },
+  //   });
+  // }
   else {
     const channelIds = await pushNotifications();
     const channelId = channelIds[remoteMessage.data?.type];

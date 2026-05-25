@@ -14,7 +14,7 @@ import {
 } from "react-icons/fi";
 import {AppStates} from "../services/states";
 export default function PasswordSettings() {
-  const { buildUrl } = AppStates();
+  const { buildUrl, userData } = AppStates();
   const [modalVisible, setModalVisible] = useState(false);
   const [authMode, setAuthMode] = useState(""); // "change" or "reset"
   const [loading, setLoading] = useState(false);
@@ -59,6 +59,7 @@ export default function PasswordSettings() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            email: userData.email,
             old_password: form.oldPassword,
             new_password: form.newPassword,
             type: "change",
@@ -85,6 +86,7 @@ export default function PasswordSettings() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
+              email: userData?.email,
               type: "request_otp",
             }),
           });
@@ -105,9 +107,10 @@ export default function PasswordSettings() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
+              email: userData.email,
               otp: form.otp,
               new_password: form.newPassword,
-              type: "verify_reset",
+              type: "verify_reset"
             }),
           });
 

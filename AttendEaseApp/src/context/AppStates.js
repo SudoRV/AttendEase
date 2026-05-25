@@ -2,18 +2,21 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import requestFcmToken from "../utils/requestFcmToken";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
+import BleDataPropagation from "../utils/BleDataPropagation";
+import { processScanner } from "../utils/BleDataScanning";
+import { getDBConnection, saveNotification } from "../database/database";
 
 /* =====================
    ENV CONFIG
 ===================== */
-const isProduction = true;
+const isProduction = false;
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP
 // Example: http://192.168.1.5:8000
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
-  : "http://10.73.202.96:8000";
+  : "http://10.21.190.185:8000";
 
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
@@ -32,6 +35,9 @@ export const GlobalProvider = ({ children }) => {
   const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
   const [activeTab, setActiveTab] = useState(0);
   const [logout, setLogout] = useState(false);
+  const [bleOn, setBleOn] = useState(false);
+
+  const database = getDBConnection();
 
   // highlight current period
   function runAtWholeHour(fn) {
@@ -86,6 +92,10 @@ export const GlobalProvider = ({ children }) => {
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
       const data = json?.data;
+
+      if (json?.timetable) {
+        return json.timetable;
+      }
 
       data.classes = data.classes?.map(d => {
         if (d?.period_id > 4) {
@@ -232,6 +242,9 @@ export const GlobalProvider = ({ children }) => {
     // save fcm token
     saveFcmToken(userData);
 
+    // scan ble notification 
+    // processScanner();
+
     // listen for new message
     // 1. Get the modular messaging instance
     const messagingInstance = getMessaging();
@@ -239,11 +252,75 @@ export const GlobalProvider = ({ children }) => {
     // 2. Set up the foreground listener
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
       console.log('A new FCM message arrived!', JSON.stringify(remoteMessage));
+      // save to local database
+      saveNotification(database, {notificatiopn_id: remoteMessage.messageId, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body})
+      
+      // propagate notification
+      if(bleOn){
+        BleDataPropagation(userData, database, remoteMessage);
+      }
 
       // Refresh data silently!
       loadTimetable(userData);
       loadLeaves();
     });
+
+    // load whole week timetable and save it in database
+    async function saveTimetable() {
+      const timetable = await loadTimetable(userData, "null");
+
+      if (Object.keys(timetable).length > 1) {
+        Object.keys(timetable).forEach(day => {
+          const items = timetable[day];
+          items.forEach(item => {
+            database.execute(`insert or replace into timetable (
+              id,
+              branch_id,
+              branch_name,
+              year,
+              semester,
+              section,
+              day,
+              period_id,
+              subject_id,
+              subject_name,
+              room_number,
+              teacher_id,
+              teacher_name,
+              cancelled,
+              cancelled_from,
+              cancelled_to,
+              substitute_teacher_id,
+              substitute_teacher_name,
+              substituted_till
+            )
+              values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+              item.id,
+              item.branch_id,
+              item.branch_name,
+              item.year,
+              item.semester,
+              item.section,
+              item.day,
+              item.period_id,
+              item.subject_id,
+              item.subject_name,
+              item.room_number,
+              item.teacher_id,
+              item.teacher_name,
+              item.cancelled ? 1 : 0,
+              item.cancelled_from,
+              item.cancelled_to,
+              item.substitute_teacher_id,
+              item.substitute_teacher_name,
+              item.substituted_till
+            ])
+          })
+        })
+      }
+    }
+
+    if (userData.role === "Student") saveTimetable();
 
     // 3. Clean up the listener when the component unmounts
     return () => {
@@ -262,10 +339,12 @@ export const GlobalProvider = ({ children }) => {
         classes,
         leaveHistory,
         loadTimetable,
+        database,
         loadLeaves,
         teacherLeaveHistory,
         logout, setLogout,
-        formatDate
+        formatDate,
+        bleOn, setBleOn
       }}
     >
       {children}

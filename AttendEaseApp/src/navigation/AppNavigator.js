@@ -81,7 +81,7 @@ export default function AppNavigator({ onLogout }) {
           detachInactiveScreens: true,
 
           tabBarStyle: {
-            height: 112,
+            height: 70,
             paddingHorizontal: 10
           },
           tabBarIcon: ({ focused, color, size }) => {

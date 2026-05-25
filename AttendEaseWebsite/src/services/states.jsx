@@ -112,8 +112,12 @@ export const GlobalProvider = ({ children }) => {
 
             // console.log(timetable)
 
-            if (!selectedDay) setClasses({ day, classes: timetable });
-            else return { day, classes: timetable };
+            if (!!selectedDay) {
+                return { day, classes: timetable }
+            }
+            else {
+                setClasses({ day, classes: timetable })
+            };
 
             window.localStorage.setItem("classes", JSON.stringify({ day, classes: timetable }));
 
@@ -277,7 +281,7 @@ export const GlobalProvider = ({ children }) => {
         classes, setClasses,
         loadTimetable,
         loadLeaves,
-        announcements, loadAnnouncements, 
+        announcements, loadAnnouncements,
         leaveHistory, setLeaveHistory,
         teacherLeaveHistory,
         requestNotification,

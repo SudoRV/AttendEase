@@ -11,10 +11,12 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-export default function Selector({ defaultOption, options = [], onChange }) {
+export default function Selector({ defaultOption, options = [], onChange, styleSelector, selectedStyle, styleButton }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [selectedValue, setSelectedValue] = useState(defaultOption);
     const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+
+    // console.log(defaultOption, options)
 
     const selectorRef = useRef(null);
 
@@ -56,33 +58,33 @@ export default function Selector({ defaultOption, options = [], onChange }) {
             {/* Selector */}
             <View
                 ref={selectorRef}
-                className="min-w-40 bg-white elevation-sm rounded-full px-2 pl-3"
+                className={!!styleSelector ? styleSelector : "min-w-40 bg-white elevation-sm rounded-full px-2 pl-3"}
             >
-                <View className="flex-row items-center justify-between py-2">
-                    <Text>{selectedValue?.label || "Select"}</Text>
-
-                    <TouchableOpacity onPress={measureDropdown}>
-                        <View className="p-1 px-3 bg-gray-100 rounded-full">
+                <TouchableOpacity onPress={measureDropdown}>
+                    <View className="flex-row items-center justify-between py-2">
+                        <Text className={selectedStyle || ""}>{selectedValue?.label || "Select"}</Text>
+                        <View className={!!styleButton ? styleButton : "p-1 px-3 bg-gray-100 rounded-full"}>
                             <Ionicons size={16} name={`${isExpanded ? "chevron-up" : "chevron-down"}`} />
                         </View>
-                    </TouchableOpacity>
-                </View>
+                    </View>
+                </TouchableOpacity>
             </View>
 
             {/* Modal */}
-            <Modal
+            < Modal
                 visible={isExpanded}
                 transparent
                 animationType="fade"
-                onRequestClose={() => setIsExpanded(false)}
+                onRequestClose={() => setIsExpanded(false)
+                }
             >
                 {/* Transparent overlay */}
-                <Pressable
+                < Pressable
                     style={{ flex: 1 }}
                     onPress={() => setIsExpanded(false)}
                 >
                     {/* Dropdown */}
-                    <View
+                    < View
                         style={{
                             position: 'absolute',
                             top: position.top,
@@ -101,9 +103,9 @@ export default function Selector({ defaultOption, options = [], onChange }) {
                             keyboardShouldPersistTaps="handled"
                             showsVerticalScrollIndicator
                         />
-                    </View>
-                </Pressable>
-            </Modal>
+                    </View >
+                </Pressable >
+            </Modal >
         </>
     );
 }
