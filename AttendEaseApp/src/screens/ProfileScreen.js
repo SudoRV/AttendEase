@@ -28,6 +28,11 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [resetStep, setResetStep] = useState(1); // 1: Request OTP, 2: Submit New Pass
 
+  // --- PASSWORD VISIBILITY TOGGLE STATES ---
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [form, setForm] = useState({
     oldPassword: "",
     newPassword: "",
@@ -154,6 +159,9 @@ export default function ProfileScreen() {
     setModalVisible(false);
     setResetStep(1);
     setLoading(false);
+    setShowOldPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
     setForm({ oldPassword: "", newPassword: "", confirmPassword: "", otp: "" });
   };
 
@@ -228,20 +236,6 @@ export default function ProfileScreen() {
           <InfoRow label="Role" value={userData?.role} />
         </GlassCard>
 
-        {/* <TouchableOpacity
-          className="!w-fit flex-row items-center justify-center py-3 px-4 bg-white mx-6 mt-4 rounded-xl active:bg-gray-200"
-        >
-          <Ionicons
-            name="create-outline"
-            size={20}
-            className="text-gray-700 mr-2"
-          />
-          <Text className="text-gray-700 font-semibold text-base">
-            Edit Profile
-          </Text>
-        </TouchableOpacity> */}
-
-
         {/* 🔹 SECURITY SETTINGS (LAST) */}
         <GlassCard title="Security Settings" icon="shield-checkmark-outline">
           <TouchableOpacity
@@ -306,28 +300,37 @@ export default function ProfileScreen() {
                   <Ionicons name="lock-closed-outline" size={20} color="#64748B" />
                   <TextInput
                     placeholder="Old Password"
-                    secureTextEntry
-                    className="flex-1 py-4 ml-3"
+                    secureTextEntry={!showOldPassword}
+                    className="flex-1 py-4 ml-3 text-slate-800"
                     onChangeText={(val) => setForm({ ...form, oldPassword: val })}
                   />
+                  <TouchableOpacity onPress={() => setShowOldPassword(prev => !prev)}>
+                    <Ionicons name={showOldPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748B" />
+                  </TouchableOpacity>
                 </View>
                 <View className="bg-slate-100 rounded-2xl px-4 flex-row items-center border border-slate-200">
                   <Ionicons name="key-outline" size={20} color="#64748B" />
                   <TextInput
                     placeholder="New Password"
-                    secureTextEntry
-                    className="flex-1 py-4 ml-3"
+                    secureTextEntry={!showNewPassword}
+                    className="flex-1 py-4 ml-3 text-slate-800"
                     onChangeText={(val) => setForm({ ...form, newPassword: val })}
                   />
+                  <TouchableOpacity onPress={() => setShowNewPassword(prev => !prev)}>
+                    <Ionicons name={showNewPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748B" />
+                  </TouchableOpacity>
                 </View>
                 <View className="bg-slate-100 rounded-2xl px-4 flex-row items-center border border-slate-200">
                   <Ionicons name="checkmark-circle-outline" size={20} color="#64748B" />
                   <TextInput
                     placeholder="Confirm New Password"
-                    secureTextEntry
-                    className="flex-1 py-4 ml-3"
+                    secureTextEntry={!showConfirmPassword}
+                    className="flex-1 py-4 ml-3 text-slate-800"
                     onChangeText={(val) => setForm({ ...form, confirmPassword: val })}
                   />
+                  <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)}>
+                    <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748B" />
+                  </TouchableOpacity>
                 </View>
                 <TouchableOpacity
                   disabled={loading}
@@ -362,7 +365,7 @@ export default function ProfileScreen() {
                       <TextInput
                         placeholder="Enter OTP"
                         keyboardType="number-pad"
-                        className="flex-1 py-4 ml-3"
+                        className="flex-1 py-4 ml-3 text-slate-800"
                         onChangeText={(val) => setForm({ ...form, otp: val })}
                       />
                     </View>
@@ -370,19 +373,25 @@ export default function ProfileScreen() {
                       <Ionicons name="key-outline" size={20} color="#64748B" />
                       <TextInput
                         placeholder="New Password"
-                        secureTextEntry
-                        className="flex-1 py-4 ml-3"
+                        secureTextEntry={!showNewPassword}
+                        className="flex-1 py-4 ml-3 text-slate-800"
                         onChangeText={(val) => setForm({ ...form, newPassword: val })}
                       />
+                      <TouchableOpacity onPress={() => setShowNewPassword(prev => !prev)}>
+                        <Ionicons name={showNewPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748B" />
+                      </TouchableOpacity>
                     </View>
                     <View className="bg-slate-100 rounded-2xl px-4 flex-row items-center border border-slate-200">
                       <Ionicons name="checkmark-circle-outline" size={20} color="#64748B" />
                       <TextInput
                         placeholder="Confirm Password"
-                        secureTextEntry
-                        className="flex-1 py-4 ml-3"
+                        secureTextEntry={!showConfirmPassword}
+                        className="flex-1 py-4 ml-3 text-slate-800"
                         onChangeText={(val) => setForm({ ...form, confirmPassword: val })}
                       />
+                      <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)}>
+                        <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748B" />
+                      </TouchableOpacity>
                     </View>
                     <TouchableOpacity
                       disabled={loading}

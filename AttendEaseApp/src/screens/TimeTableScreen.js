@@ -237,11 +237,11 @@ const TimeTableScreen = () => {
 
   return (
     <>
-      <ScrollView className="flex-1 pt-8 bg-slate-100">
-        <Text className="text-[30px] font-bold ml-3 mt-4 text-indigo-500">AttendEase</Text>
+      <ScrollView className="flex-1 pt-14 bg-slate-100">
+        <Text className="text-[30px] font-bold ml-3 text-indigo-500">AttendEase</Text>
 
         <TouchableOpacity
-          className="absolute top-3.5 right-4 bg-white p-2 rounded-full elevation-5 z-20"
+          className="absolute top-1 right-4 bg-white p-2 rounded-full elevation-5 z-20"
           onPress={() => setRotated(prev => !prev)}
         >
           <Ionicons
@@ -335,8 +335,8 @@ const TimeTableScreen = () => {
                           /* STANDARD COMPONENT CARD DESIGN */
                           <View
                             className={`w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-3 py-3 shadow-md ${item?.cancelled && !item?.substitute_teacher_id
-                                ? "bg-red-50 border border-red-200"
-                                : item?.substitute_teacher_id ? "bg-neutral-50 border border-teal-500/40" : "bg-indigo-500"
+                              ? "bg-red-50 border border-red-200"
+                              : item?.substitute_teacher_id ? "bg-neutral-50 border border-teal-500/40" : "bg-indigo-500"
                               }`}
                           >
                             {!!item?.cancelled && (
@@ -365,8 +365,8 @@ const TimeTableScreen = () => {
                               numberOfLines={1}
                               ellipsizeMode="tail"
                               className={`text-[12px] italic text-center w-full ${item?.cancelled && !item?.substitute_teacher_id
-                                  ? "text-red-400"
-                                  : item?.substitute_teacher_id ? "text-teal-500" : "text-neutral-200"
+                                ? "text-red-400"
+                                : item?.substitute_teacher_id ? "text-teal-500" : "text-neutral-200"
                                 }`}
                             >
                               {userData?.role === "Teacher"
@@ -390,13 +390,26 @@ const TimeTableScreen = () => {
 
           {userData?.role === "Student" && <AttendanceDashboard />}
 
-          {/* Notes Section */}
-          <View className={`bg-slate-200 m-4 p-4 rounded-xl mb-16 ${rotated ? "flex-row justify-end" : ""}`}>
-            <View className={rotated ? "w-[65%]" : ""}>
-              <Text className="font-bold mb-2">Note:</Text>
-              <Text className="mb-2">Long-press any period slot to open context operations (Edit, Delete, Add or View Leaves).</Text>
+          <View className={`bg-slate-200 dark:bg-neutral-900 m-4 p-5 rounded-2xl mb-16 shadow-sm border border-neutral-300/30 dark:border-neutral-800 ${rotated ? "flex-row justify-end" : ""}`}>
+            <View className={rotated ? "w-[65%]" : "space-y-2.5"}>
+              <Text className="font-bold text-base text-slate-800 dark:text-neutral-100">
+                System Overview & Guidelines
+              </Text>
+
+              <Text className="text-sm leading-5 text-slate-600 dark:text-neutral-400">
+                • <Text className="font-semibold">Quick Actions:</Text> Long-press any timetable slot to {userData.role === "teacher" && "manage schedules (Insert, Edit, Delete) or"} review consolidated teacher leave tracking logs.
+              </Text>
+
+              <Text className="text-sm leading-5 text-slate-600 dark:text-neutral-400">
+                • <Text className="font-semibold">Data Accuracy:</Text> AttendEase leverages automated verification networks to sync real-time database modifications. While the system architecture targets maximum uptime and accurate scheduling data, temporary synchronization delays or data mismatches may occasionally occur due to offline local states or network variations.
+              </Text>
+
+              <Text className="text-sm leading-5 text-slate-600 dark:text-neutral-400">
+                • <Text className="font-semibold">Precedence:</Text> In the event of an internal discrepancy, official physical department notices and institutional coordinator declarations override digital application data.
+              </Text>
             </View>
           </View>
+
         </ScrollView>
       </ScrollView>
 
