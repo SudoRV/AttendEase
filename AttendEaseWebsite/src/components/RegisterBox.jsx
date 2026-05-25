@@ -148,7 +148,7 @@ function RegisterPage() {
   const focusRingStyle = "border-neutral-200 dark:border-neutral-800 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10";
 
   return (
-    <div className="w-full !h-full flex flex-col">
+    <div className="w-full !h-screen flex flex-col">
       <LandingHeader />
       
       <div className="flex-1 bg-[#f5f7fb] dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 flex flex-col justify-center items-center px-4 py-12 transition-colors duration-300 antialiased">

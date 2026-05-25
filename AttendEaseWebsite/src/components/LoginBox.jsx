@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppStates } from '../services/states';
-import Header from './Header';
 import {
   FiMail,
   FiLock,
@@ -82,10 +81,10 @@ function LoginPage() {
   };
 
   return (
-    <div className='w-full !h-full flex flex-col'>
+    <div className='w-full !h-screen flex flex-col '>
       <LandingHeader />
 
-      <div className="w-full flex-1 bg-[#f5f7fb] dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 flex flex-col justify-center items-center px-4 transition-colors duration-300 antialiased py-12">
+      <div className="my-4 w-full flex-1 bg-[#f5f7fb] dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 flex flex-col justify-center items-center px-4 py-8 transition-colors duration-300 antialiased">
 
         <div className="w-full max-w-md bg-white dark:bg-neutral-950/40 border border-neutral-200/50 dark:border-neutral-900 p-8 rounded-3xl shadow-xl  dark:shadow-none space-y-6">
 
@@ -193,7 +192,6 @@ function LoginPage() {
 
         </div>
       </div>
-
       <LandingFooter />
     </div>
   );
