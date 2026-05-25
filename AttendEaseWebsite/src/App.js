@@ -11,6 +11,7 @@ import AboutPage from "./pages/AboutPage";
 import BLETechPage from "./pages/BLETechPage";
 import TeamPage from "./pages/TeamPage";
 import DownloadApp from "./pages/DownloadApp";
+import BrowserCheck from "./components/BrowserCheck";
 
 
 // if ("serviceWorker" in navigator) {
@@ -27,28 +28,30 @@ import DownloadApp from "./pages/DownloadApp";
 
 function App() {
   return (
-    <ThemeProvider>
-      <GlobalProvider>
-        <RequestNotification />
-        <BrowserRouter>
-          <Routes>
-            {/* Landing Pages */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/ble" element={<BLETechPage />} />
-            <Route path="/team" element={<TeamPage />} />
-            <Route path="/download" element={<DownloadApp />} />
+    <BrowserCheck>
+        <ThemeProvider>
+          <GlobalProvider>
+            <RequestNotification />
+            <BrowserRouter>
+              <Routes>
+              {/* Landing Pages */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/ble" element={<BLETechPage />} />
+              <Route path="/team" element={<TeamPage />} />
+              <Route path="/download" element={<DownloadApp />} />
 
-            {/* Auth Pages */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+              {/* Auth Pages */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
 
-            {/* Dashboard */}
-            <Route path="/dashboard" element={<ProtectedDashboard />} />
-          </Routes>
-        </BrowserRouter>
-      </GlobalProvider>
-    </ThemeProvider>
+              {/* Dashboard */}
+              <Route path="/dashboard" element={<ProtectedDashboard />} />
+            </Routes>
+          </BrowserRouter>
+        </GlobalProvider>
+      </ThemeProvider>
+    </BrowserCheck>
   );
 }
 

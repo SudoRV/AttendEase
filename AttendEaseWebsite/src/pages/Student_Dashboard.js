@@ -10,9 +10,12 @@ import AttendanceDashboard from '../components/AttendanceDashboard';
 import PasswordSettings from '../components/PasswordManager';
 import LandingHeader from "../components/LandingHeader.jsx";
 import LandingFooter from "../components/LandingFooter.jsx";
+import { AiOutlineLoading3Quarters } from "react-icons/ai";
+
 
 const StudentDashboard = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     const toggleDrawer = () => setIsOpen(!isOpen);
 
@@ -20,9 +23,11 @@ const StudentDashboard = () => {
     const { userData } = AppStates();
 
     async function logout() {
-        // simulate logout like buffering or loading 
-        localStorage.removeItem("user_creds");
-        navigate("/login");
+      setLoading(true);
+      // simulate logout like buffering or loading 
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      localStorage.removeItem("user_creds");
+      navigate("/login");
     }
 
 
@@ -94,6 +99,7 @@ const StudentDashboard = () => {
                       className="group mt-auto flex items-center justify-center gap-3 w-full py-4 rounded-xl
                                       border-none bg-red-500 text-slate-100 font-semibold hover:bg-red-50 hover:text-red-600 hover:shadow-md transition-all duration-200 active:scale-95"
                       onClick={logout}
+                      disabled={loading}
                     >
                       <FiLogOut size={18} className="transition-transform group-hover:translate-x-0.5" />
                       <span>Logout System</span>
@@ -117,12 +123,22 @@ const StudentDashboard = () => {
                     <div className="card other announcements !shadow-xl !bg-white dark:!bg-neutral-950/40 mr-2">
                         <Announcements />
                     </div>
-                    <div className='attendance !shadow-xl other mx-2 '>
+                    <div className='attendance !shadow-xl other '>
                         <AttendanceDashboard />
                     </div>
                 </div>
 
             </main>
+
+
+            {loading && (
+                <div className="fixed inset-0 z-[999] bg-gradient-to-b from-neutral-900/60 to-neutral-900/60 via-neutral-900/30 backdrop-blur-md flex items-center justify-center">
+                    <div className="bg-transparent px-6 py-4 rounded-2xl  items-center text-center">
+                        <p className="text-4xl font-bold text-neutral-800 dark:text-neutral-200">Logging out...</p>
+                        <AiOutlineLoading3Quarters className="text-indigo-500 text-6xl animate-spin mt-5 font-semibold"/>
+                    </div>
+                </div>
+            )}
 
             <LandingFooter />
         </div>

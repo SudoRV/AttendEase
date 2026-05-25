@@ -10,6 +10,7 @@ import {
   FiEyeOff,
   FiArrowRight
 } from 'react-icons/fi';
+import { AiOutlineLoading3Quarters } from "react-icons/ai";
 
 import LandingHeader from './LandingHeader';
 import LandingFooter from './LandingFooter';
@@ -17,6 +18,7 @@ import LandingFooter from './LandingFooter';
 function LoginPage() {
   const navigate = useNavigate();
   const { setUserData, buildUrl } = AppStates();
+  const [loading, setLoading] = useState(false);
 
   const [isEmailValid, setEmailValid] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +26,9 @@ function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    //setIsSubmitting(true);
+    setLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     try {
       const form = new FormData(e.target);
@@ -40,8 +44,8 @@ function LoginPage() {
 
       const data = await response.json();
       window.localStorage.setItem("user_creds", JSON.stringify(data.user_creds));
-
-      alert(data.message);
+      setLoading(false);
+      //alert(data.message);
 
       if (data.success) {
         console.log('Login successful! Redirecting to dashboard...');
@@ -169,7 +173,7 @@ function LoginPage() {
             {/* Interactive Submit Controller Button */}
             <button
               type="submit"
-              disabled={!isEmailValid || isSubmitting}
+              disabled={!isEmailValid || loading}
               className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 border-none select-none mt-2
               ${isEmailValid && !isSubmitting
                   ? "bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/10 active:scale-[0.99]"
@@ -193,6 +197,150 @@ function LoginPage() {
         </div>
       </div>
       <LandingFooter />
+
+      {/* =====================
+           RECOVERY MODAL
+      ===================== */}
+      {resetPassModalVisible && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-colors">
+          <div className="bg-white dark:bg-neutral-900 border border-transparent dark:border-neutral-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            
+            <div className="flex justify-between items-center pb-2 border-b border-neutral-100 dark:border-neutral-800">
+              <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                Reset Password
+              </h3>
+              <button 
+                onClick={closeResetModal} 
+                className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 bg-transparent border-none p-0.5 cursor-pointer"
+              >
+                <FiXCircle size={22} />
+              </button>
+            </div>
+
+            <form onSubmit={handlePasswordAction} className="space-y-4">
+              {resetStep === 1 ? (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">Email Address</label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400">
+                        <FiMail size={16} />
+                      </span>
+                      <input
+                        type="email"
+                        required
+                        value={resetForm.email}
+                        onChange={(e) => setResetForm({ ...resetForm, email: e.target.value })}
+                        placeholder="tom.holland@mcu.com"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 outline-none text-sm text-neutral-900 dark:text-neutral-100 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  <p className="text-neutral-500 dark:text-neutral-400 text-xs text-center leading-relaxed">
+                    We will send a one-time password to your registered email to verify your identity.
+                  </p>
+
+                  <button
+                    type="submit"
+                    disabled={loadingReset || !resetForm.email}
+                    className="w-full py-2.5 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none"
+                  >
+                    {loadingReset ? "Sending OTP..." : "Send OTP"}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* OTP Token input */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">Verification OTP</label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400">
+                        <FiKey size={16} />
+                      </span>
+                      <input
+                        type="text"
+                        required
+                        value={resetForm.otp}
+                        onChange={(e) => setResetForm({ ...resetForm, otp: e.target.value })}
+                        placeholder="Enter One-Time Code"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 outline-none text-sm text-neutral-900 dark:text-neutral-100 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* New Password input */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">New Password</label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400">
+                        <FiLock size={16} />
+                      </span>
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        required
+                        value={resetForm.newPassword}
+                        onChange={(e) => setResetForm({ ...resetForm, newPassword: e.target.value })}
+                        placeholder="••••••••"
+                        className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 outline-none text-sm text-neutral-900 dark:text-neutral-100 focus:border-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors p-0.5 border-none bg-transparent cursor-pointer"
+                      >
+                        {showNewPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm Password input */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">Confirm Password</label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400">
+                        <FiLock size={16} />
+                      </span>
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        required
+                        value={resetForm.confirmPassword}
+                        onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
+                        placeholder="••••••••"
+                        className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 outline-none text-sm text-neutral-900 dark:text-neutral-100 focus:border-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors p-0.5 border-none bg-transparent cursor-pointer"
+                      >
+                        {showConfirmPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loadingReset}
+                    className="w-full py-2.5 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-md cursor-pointer border-none"
+                  >
+                    {loadingReset ? "Updating Password..." : "Reset Password"}
+                  </button>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+      {loading && (
+        <div className="fixed inset-0 z-[999] bg-gradient-to-b from-neutral-900/60 to-neutral-900/60 via-neutral-900/30 backdrop-blur-md flex items-center justify-center">
+          <div className="bg-transparent px-6 py-4 rounded-2xl  items-center text-center">
+            <p className="text-4xl font-bold text-neutral-800 dark:text-neutral-200">Logging in...</p>
+            <AiOutlineLoading3Quarters className="text-indigo-500 text-6xl animate-spin mt-5 font-semibold"/>
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 }

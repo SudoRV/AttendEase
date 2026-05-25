@@ -14,6 +14,7 @@ import {
   FiBriefcase,
   FiBookOpen
 } from 'react-icons/fi';
+import { AiOutlineLoading3Quarters } from "react-icons/ai";
 
 import LandingHeader from "./LandingHeader";
 import LandingFooter from "./LandingFooter";
@@ -21,6 +22,8 @@ import LandingFooter from "./LandingFooter";
 function RegisterPage() {
   const { buildUrl } = AppStates();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+
 
   const [selectedRole, setSelectedRole] = useState('');
   const [isEmailValid, setEmailValid] = useState(null);
@@ -43,7 +46,10 @@ function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     setIsSubmitting(true);
+    await new Promise(resolve => setTimeout(resolve, 10));
+
 
     try {
       const response = await fetch(buildUrl("/register"), {
@@ -87,6 +93,7 @@ function RegisterPage() {
       console.error("Registration error:", error);
     } finally {
       setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
@@ -437,7 +444,7 @@ function RegisterPage() {
           {/* Core Action Submit Handling Button */}
           <button
             type="submit"
-            disabled={!(isEmailValid && isIDValid) || isSubmitting}
+            disabled={!(isEmailValid && isIDValid) || isSubmitting || loading}
             className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 border-none select-none mt-4
               ${isEmailValid && isIDValid && !isSubmitting
                 ? "bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/10 active:scale-[0.99]"
@@ -462,6 +469,14 @@ function RegisterPage() {
     </div>
 
     <LandingFooter />
+    {loading && (
+      <div className="fixed inset-0 z-[999] bg-gradient-to-b from-neutral-900/60 to-neutral-900/60 via-neutral-900/30 backdrop-blur-md flex items-center justify-center">
+        <div className="bg-transparent px-6 py-4 rounded-2xl  items-center text-center">
+          <p className="text-4xl font-bold text-neutral-800 dark:text-neutral-200">Redirecting to Login</p>
+          <AiOutlineLoading3Quarters className="text-indigo-500 text-6xl animate-spin mt-5 font-semibold"/>
+        </div>
+      </div>
+    )}
     </div>
   );
 }

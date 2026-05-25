@@ -79,6 +79,11 @@ export default function AttendanceDashboard() {
         localStorage.setItem("user_creds", JSON.stringify(user_creds));
         setUserData(user_creds);
       }
+      alert("Configuration saved successfully! Please Log back in to refresh data.");
+      localStorage.removeItem("user_creds");
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 1000);
     }
   };
 
@@ -207,26 +212,26 @@ export default function AttendanceDashboard() {
   }
 
   return (
-    <div className="bg-slate-50 p-2 flex justify-center width-container mx-auto">
+    <div className="bg-slate-50 dark:bg-neutral-950/40 p-6 flex justify-center w-full rounded-3xl">
         <div className="attendance-data">
-            <div className="mb-6">
-                <h1 className="text-3xl font-black text-slate-800">Smart Setup</h1>
-                <p className="text-slate-500 mt-1">Sync your academic records effortlessly.</p>
+            <div className="mb-6 text-center">
+                <h1 className="text-3xl font-black text-slate-800 dark:text-slate-200">Smart Setup</h1>
+                <p className="text-slate-600 dark:text-slate-400 mt-1">Sync your academic records effortlessly.</p>
             </div>
 
-            <div className="bg-slate-900 rounded-3xl mb-2 shadow-2xl p-4">
+            <div className="bg-indigo-200 dark:bg-neutral-900 rounded-3xl m-4 shadow-2xl p-4">
                 <div className="flex justify-between items-center mb-3">
-                    <span className="text-indigo-400 font-bold tracking-tighter uppercase text-xs">JS Console Script</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-bold tracking-tighter uppercase text-sm">JS Console Script</span>
                     <button onClick={copyCode} className="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-1 rounded-lg text-sm font-bold transition-all">
                         <FiCopy size={16} />COPY
                     </button>
                 </div>
-                <p className="text-slate-400 text-sm leading-5 italic line-clamp-3">
+                <p className="text-neutral-800 dark:text-neutral-400 text-sm leading-5 italic line-clamp-3 m-4">
                     {injectionCode}
                 </p>
             </div>
 
-            <div className=" width-container bg-white p-2 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+            <div className="m-4 width-full bg-slate-100 dark:bg-neutral-900 px-6 py-4 rounded-3xl shadow-sm border border-slate-100 space-y-4">
                 <InputField label="Student Name" value={form.name} editable={false} />
                 <InputField label="Roll Number" value={form.roll} editable={false} />
                 <div className="h-px bg-slate-100 my-4" />
@@ -240,35 +245,35 @@ export default function AttendanceDashboard() {
 
                 <div className="space-y-4">
                     <div onClick={() => setShowSemesterPicker(true)} className="cursor-pointer">
-                        <p className="text-slate-500 text-xs font-bold uppercase ml-1 mb-1">Semester</p>
-                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex justify-between items-center">
-                            <span className="text-slate-800 font-medium">Semester {form.durationId}</span>
-                            <span className="text-indigo-600 font-bold text-sm">Change</span>
+                        <p className="text-slate-500 dark:text-slate-200 text-sm font-bold uppercase ml-1 mb-1">Semester</p>
+                        <div className="bg-slate-50 dark:bg-neutral-800/50 border border-slate-200 p-4 rounded-2xl flex justify-between items-center">
+                            <span className="text-slate-800 dark:text-slate-200 font-medium">Semester {form.durationId}</span>
+                            <span className="text-indigo-600 dark:text-indigo-400 font-bold text-sm">Change</span>
                         </div>
                     </div>
 
                     <div onClick={() => setShowMonthPicker(true)} className="cursor-pointer">
-                        <p className="text-slate-500 text-xs font-bold uppercase ml-1 mb-1">Start Month</p>
-                        <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex justify-between items-center">
-                            <span className="text-slate-800 font-medium">{new Date(2024, form.startMonth || 0, 1).toLocaleString('en-GB', { month: 'long' })}</span>
-                            <span className="text-indigo-600 font-bold text-sm">Change</span>
+                        <p className="text-slate-500 dark:text-slate-200 text-sm font-bold uppercase ml-1 mb-1">Start Month</p>
+                        <div className="bg-slate-50 dark:bg-neutral-800/50 border border-slate-200 p-4 rounded-2xl flex justify-between items-center">
+                            <span className="text-slate-800 dark:text-slate-200 font-medium">{new Date(2024, form.startMonth || 0, 1).toLocaleString('en-GB', { month: 'long' })}</span>
+                            <span className="text-indigo-600 dark:text-indigo-400 font-bold text-sm">Change</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <button onClick={handlePaste} className="w-full mt-6 py-4 rounded-2xl border-2 border-dashed border-indigo-200 text-indigo-600 font-bold hover:bg-indigo-50 transition-colors">
+            <button onClick={handlePaste} className="w-full mt-6 py-4 rounded-2xl bg-indigo-100 dark:bg-indigo-600 border-2 border-dashed border-indigo-200 dark:border-indigo-100 text-indigo-600 dark:text-indigo-100 font-bold hover:bg-indigo-400 hover:text-slate-100 dark:hover:bg-slate-200 dark:hover:text-slate-800 dark:transition-colors">
                 Paste from Clipboard
             </button>
 
-            <button onClick={handleSubmit} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white mt-4 p-5 rounded-2xl shadow-xl font-bold text-lg transition-transform active:scale-95">
+            <button onClick={handleSubmit} className="w-full bg-indigo-600 hover:bg-indigo-900 text-white mt-4 p-5 rounded-2xl shadow-xl font-bold text-lg transition-transform active:scale-95">
                 Continue to Dashboard
             </button>
 
             {/* Simple Modals for Web */}
             {(showSemesterPicker || showMonthPicker) && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center">
-                    <div className="bg-white w-full max-w-sm rounded-t-[40px] sm:rounded-[40px] p-8 shadow-2xl animate-slide-up">
+                <div onClick={() => {setShowSemesterPicker(false); setShowMonthPicker(false);}} className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center">
+                    <div onClick={(e) => e.stopPropagation()} className="bg-white dark:bg-neutral-800 w-full max-w-sm rounded-t-[40px] sm:rounded-[40px] p-8 shadow-2xl animate-slide-up">
                         <h3 className="text-xl font-bold text-center mb-6">{showSemesterPicker ? "Select Semester" : "Select Month"}</h3>
                         <div className="grid grid-cols-4 gap-3">
                             {(showSemesterPicker ? [1,2,3,4,5,6,7,8,9,10] : [0,1,2,3,4,5,6,7,8,9,10,11]).map(num => (
@@ -281,14 +286,18 @@ export default function AttendanceDashboard() {
                                     }}
                                     className={`h-12 rounded-xl font-bold transition-all ${
                                         (showSemesterPicker ? form.durationId : form.startMonth) === num.toString() 
-                                        ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                        ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-100 text-slate-700 hover:bg-slate-400"
                                     }`}
                                 >
                                     {showSemesterPicker ? num : new Date(2024, num, 1).toLocaleString('en-GB', { month: 'short' })}
                                 </button>
                             ))}
                         </div>
-                        <button onClick={() => {setShowSemesterPicker(false); setShowMonthPicker(false);}} className="w-full mt-8 p-4 text-red-500 font-bold">Cancel</button>
+                        <button 
+                        onClick={() => {setShowSemesterPicker(false); setShowMonthPicker(false);}} 
+                        className="w-full mt-8 p-4 text-red-500 font-bold rounded-xl bg-slate-100 hover:bg-red-600 hover:text-white transition-colors">
+                          Cancel
+                        </button>
                     </div>
                 </div>
             )}
@@ -300,14 +309,19 @@ export default function AttendanceDashboard() {
 function InputField({ label, value, onChange, editable = true, placeholder }) {
   return (
     <div className="flex flex-col gap-1 w-full">
-      <label className="text-slate-500 text-[10px] font-bold uppercase ml-1">{label}</label>
+      <label className="text-slate-600 dark:text-slate-100 text-sm font-bold uppercase ml-1 mb-1">{label}</label>
       <input
         type="text"
         value={value}
         readOnly={!editable}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`p-4 rounded-2xl border outline-none transition-all ${editable ? 'bg-white border-slate-200 text-slate-800 focus:border-indigo-400' : 'bg-slate-50 border-transparent text-slate-400 font-medium cursor-not-allowed'}`}
+        className={
+          `p-4 rounded-2xl border outline-none transition-all 
+          ${editable ? 
+            'font-bold bg-white dark:bg-neutral-800 border-slate-200 dark:border-slate-600 text-slate-800 dark:text-neutral-300 focus:border-indigo-600 dark:focus:border-indigo-400' 
+            :
+            'bg-slate-50 dark:bg-neutral-700 border-transparent text-neutral-800/80 dark:text-neutral-500 font-medium cursor-not-allowed'}`}
       />
     </div>
   );
