@@ -233,13 +233,13 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
         onRequestClose={() => setNotificationModalVisible(false)}
       >
         <SafeAreaView className="flex-1 bg-white">
-          <View className="flex-1 p-4 pb-2">
+          <View className="flex-1 p-4 py-3 pb-2">
 
             {/* Modal Header */}
             <View className="flex-row justify-between items-center pb-4 border-b border-slate-100 mb-4">
               <View>
-                <Text className="text-xl font-extrabold text-slate-800 tracking-tight">System Activity Logs</Text>
-                <Text className="text-sm text-slate-400 mt-0.5">Captured local network notices</Text>
+                <Text className="text-2xl font-extrabold text-slate-800 tracking-tight">Notifications</Text>
+                <Text className="text-slate-400">Captured notification & alerts</Text>
               </View>
 
               <View className="flex-row items-center gap-2.5">

@@ -79,11 +79,6 @@ export default function AttendanceDashboard() {
         localStorage.setItem("user_creds", JSON.stringify(user_creds));
         setUserData(user_creds);
       }
-      alert("Configuration saved successfully! Please Log back in to refresh data.");
-      localStorage.removeItem("user_creds");
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 1000);
     }
   };
 

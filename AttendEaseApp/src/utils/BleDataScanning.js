@@ -3,6 +3,7 @@ import { BleManager } from 'react-native-ble-plx';
 import { Buffer } from 'buffer';
 import { scopes, reverseScopes, decToHex, hexToDec } from "../constant/scopes";
 import { getDBConnection } from '../database/database';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 1. Instantiate the manager globally so it persists across renders
 export const bleManager = new BleManager();
@@ -85,10 +86,10 @@ function processNotification(companyIdHex, uuid, major, minor) {
   const olderNotifications = database.execute("select * from notifications where notification_id = ?", [notification_id]).rows.length;
 
   console.log("Older notifications count:", olderNotifications)
-  if (olderNotifications > 0){
+  if (olderNotifications > 0) {
     console.log("notification already exists with id: ", notification_id);
     return;
-  }; 
+  };
 
   // ----------------------------------------------------
   // YOUR CORE LOGIC HERE
@@ -133,8 +134,8 @@ function processNotification(companyIdHex, uuid, major, minor) {
         })}`
       }`
 
-      title = "Class Cancellation";
-      body = message;
+    title = "Class Cancellation";
+    body = message;
   }
 
   // class substitution
@@ -188,7 +189,7 @@ function processNotification(companyIdHex, uuid, major, minor) {
       }
 
       // 3. Append the clean, decoded string to your title
-      if(dataType === 1){
+      if (dataType === 1) {
         announcement.title += decodedString;
       } else {
         announcement.body += decodedString;
@@ -224,7 +225,14 @@ function processNotification(companyIdHex, uuid, major, minor) {
 }
 
 // 4. The Scanner Engine: Handles time-slicing and data extraction
-export async function processScanner() {
+export async function startScanning() {
+  const smartScanStateRaw = await AsyncStorage.getItem("smart_scan_state");
+  const smartScanState = JSON.parse(smartScanStateRaw);
+
+  const hour = new Date().getHours();
+
+  if(smartScanState && (hour < 8 || hour > 18)) return;
+
   if (scannerInterval) return;
 
   // 1. Check permissions BEFORE starting the interval processing engine
@@ -234,59 +242,49 @@ export async function processScanner() {
     return;
   }
 
-  scannerInterval = setInterval(() => {
-    const currentMinute = new Date().getMinutes();
+  if (!isScanning) {
+    isScanning = true;
+    console.log("Scanner: Active cycle. Starting scan...");
 
-    // Temporal toggle pattern (adjust 'currentMinute % 1' rule if using specific intervals)
-    if (currentMinute % 1 === 0) {
-      if (!isScanning) {
-        isScanning = true;
-        console.log("Scanner: Active cycle. Starting scan...");
+    // processNotification("0xFFFF", "41545445-2BCF-4090-0002-6ECB41DEB000", "1280", "51210");
 
-        processNotification("0xFFFF", "41545445-2BCF-4090-0002-6ECB41DEB000", "1280", "51210");
+    setTimeout(() => {
+      // processNotification("0xFFFF", "41545445-2BCF-4090-0002-6ECB41DEB000", "1280", "51210");
+    }, 2000);
 
-        setTimeout(() => {
-          processNotification("0xFFFF", "41545445-2BCF-4090-0002-6ECB41DEB000", "1280", "51210");
-        }, 2000);
-
-        bleManager.startDeviceScan(null, { allowDuplicates: true }, (error, device) => {
-          if (error) {
-            console.error("Scan error:", error);
-            return;
-          }
-
-          if (device && device.manufacturerData) {
-            const hexData = base64ToHex(device.manufacturerData);
-
-            // Your script expects standard iBeacon layout length matching
-            if (hexData.length >= 48) {
-              const companyIdHex = hexData.substring(0, 4).toUpperCase();
-              const uuidStr = hexData.substring(8, 40);
-              const majorHex = hexData.substring(40, 44);
-              const minorHex = hexData.substring(44, 48);
-
-              const formattedUuid = `${uuidStr.slice(0, 8)}-${uuidStr.slice(8, 12)}-${uuidStr.slice(12, 16)}-${uuidStr.slice(16, 20)}-${uuidStr.slice(20)}`;
-              const major = parseInt(majorHex, 16);
-              const minor = parseInt(minorHex, 16);
-
-              processNotification(companyIdHex, formattedUuid, major, minor);
-            }
-          } else {
-            // console.log("device without mf data", device)
-          }
-        });
+    bleManager.startDeviceScan(null, { allowDuplicates: true }, (error, device) => {
+      if (error) {
+        console.error("Scan error:", error);
+        return;
       }
-    } else {
-      if (isScanning) {
-        console.log("Scanner: Off cycle. Stopping scan...");
-        bleManager.stopDeviceScan();
-        isScanning = false;
+
+      if (device && device.manufacturerData) {
+        const hexData = base64ToHex(device.manufacturerData);
+
+        // Your script expects standard iBeacon layout length matching
+        if (hexData.length >= 48) {
+          const companyIdHex = hexData.substring(0, 4).toUpperCase();
+          const uuidStr = hexData.substring(8, 40);
+          const majorHex = hexData.substring(40, 44);
+          const minorHex = hexData.substring(44, 48);
+
+          const formattedUuid = `${uuidStr.slice(0, 8)}-${uuidStr.slice(8, 12)}-${uuidStr.slice(12, 16)}-${uuidStr.slice(16, 20)}-${uuidStr.slice(20)}`;
+          const major = parseInt(majorHex, 16);
+          const minor = parseInt(minorHex, 16);
+
+          processNotification(companyIdHex, formattedUuid, major, minor);
+        }
+      } else {
+        // console.log("device without mf data", device)
       }
-    }
-  }, 2000);
+    });
+  }
 }
 
-
+export function stopScanning() {
+  bleManager.stopDeviceScan();
+  isScanning = false;
+}
 
 
 

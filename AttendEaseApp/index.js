@@ -83,8 +83,9 @@ const onMessageReceived = async (remoteMessage) => {
     saveNotification(null, {notification_id: remoteMessage.messageId, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body});
   }
   // propagate message via ble advertise
-  const bleOn = await AsyncStorage.getItem("ble_state");
-  if (bleOn) BleDataPropagation(remoteMessage);
+  const bleOnRaw = await AsyncStorage.getItem("ble_state");
+  const bleOn = JSON.parse(bleOnRaw);
+  // if (!!bleOn) BleDataPropagation(remoteMessage);
 
   if (remoteMessage.data?.type === 'MORNING_SCHEDULE') {
     const channelId = await morningScheduleChannel();

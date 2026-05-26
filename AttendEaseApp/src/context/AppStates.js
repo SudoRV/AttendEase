@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import requestFcmToken from "../utils/requestFcmToken";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import BleDataPropagation from "../utils/BleDataPropagation";
-import { processScanner } from "../utils/BleDataScanning";
+import { startScanning } from "../utils/BleDataScanning";
 import { getDBConnection, saveNotification } from "../database/database";
 
 /* =====================
@@ -182,6 +182,22 @@ export const GlobalProvider = ({ children }) => {
       }
     };
     loadStoredUser();
+
+    // load ble state
+    async function checkBleState() {
+      const ble_on = await AsyncStorage.getItem("ble_state");
+      if (ble_on) {
+        try {
+          const parsedValue = JSON.parse(ble_on);
+          setBleOn(parsedValue);
+          return parsedValue;
+        } catch (e) {
+          setBleOn(false);
+          return false;
+        }
+      }
+    }
+    checkBleState();
   }, []);
 
   /* =====================
@@ -232,6 +248,11 @@ export const GlobalProvider = ({ children }) => {
     }
   };
 
+  // useEffect(() => {
+  //   // scan ble notification 
+  //   if (!!bleOn) startScanning();
+  // }, [bleOn])
+
   useEffect(() => {
     if (!userData?.email) return;
     setLogout(false);
@@ -242,12 +263,6 @@ export const GlobalProvider = ({ children }) => {
     // save fcm token
     saveFcmToken(userData);
 
-    // scan ble notification 
-    const hour = new Date().getHours();
-    if (bleOn && hour > 8 && hour < 18) {
-      processScanner();
-    }
-
     // listen for new message
     // 1. Get the modular messaging instance
     const messagingInstance = getMessaging();
@@ -257,15 +272,14 @@ export const GlobalProvider = ({ children }) => {
       console.log('A new FCM message arrived!', JSON.stringify(remoteMessage));
       // save to local database
 
-      console.log(remoteMessage.data.type)
       if (remoteMessage.data.type !== "ANNOUNCEMENT") {
         saveNotification(database, { notification_id: remoteMessage.messageId, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body });
       }
 
       // propagate notification
-      if (bleOn) {
-        BleDataPropagation(userData, database, remoteMessage);
-      }
+      // if (bleOn) {
+      //   BleDataPropagation(userData, database, remoteMessage);
+      // }
 
       // Refresh data silently!
       loadTimetable(userData);
