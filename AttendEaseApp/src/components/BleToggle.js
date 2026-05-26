@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,8 @@ import {
 } from 'react-native';
 
 import NetInfo from '@react-native-community/netinfo';
-import { BleManager, State } from 'react-native-ble-plx';
+import BleManager from 'react-native-ble-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { processScanner } from "../utils/BleDataScanning";
 
 async function requestBLEPermissions() {
   if (Platform.OS !== 'android') return true;
@@ -52,11 +51,19 @@ async function hasInternetAccess() {
   }
 }
 
+async function enableBluetooth() {
+  try {
+    await BleManager.enableBluetooth();
+    return true;
+  } catch (e) {
+    console.log('Bluetooth Enable Error:', e);
+    return false;
+  }
+}
+
 export default function BleToggle({ bleOn, setBleOn }) {
   const [networkAvailable, setNetworkAvailable] = useState(true);
-
-  // Instantiate BleManager once using useMemo so it persists across renders
-  const manager = useMemo(() => new BleManager(), []);
+  const [smartScan, setSmartScan] = useState(false); // ✅ Added smart scan state
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -65,86 +72,72 @@ export default function BleToggle({ bleOn, setBleOn }) {
       );
     });
 
-    async function checkBleState() {
-      const ble_on = await AsyncStorage.getItem("ble_state");
-      if (ble_on) {
-        try {
-          const parsedValue = JSON.parse(ble_on);
-          handleToggle(parsedValue);
-        } catch (e) {
-          handleToggle(false);
+    async function loadStoredConfigs() {
+      try {
+        const storedBleState = await AsyncStorage.getItem("ble_state");
+        const storedSmartScan = await AsyncStorage.getItem("smart_scan_state");
+
+        if (storedSmartScan) {
+          setSmartScan(JSON.parse(storedSmartScan));
         }
+
+        if (storedBleState) {
+          const parsedBle = JSON.parse(storedBleState);
+          if (parsedBle) {
+            // Re-run toggle logic on startup if it was previously saved as ON
+            handleToggle(true, JSON.parse(storedSmartScan) || false);
+          }
+        }
+      } catch (e) {
+        console.log("Error loading config:", e);
       }
     }
-    checkBleState();
+    loadStoredConfigs();
 
-    // Clean up BleManager when component unmounts to free native channels
-    return () => {
-      unsubscribe();
-      manager.destroy();
-    };
-  }, [manager]);
+    return () => unsubscribe();
+  }, []);
 
-  const enableBluetoothSafe = async () => {
-    try {
-      const currentState = await manager.state();
-
-      if (currentState === State.PoweredOn) {
-        return true;
-      }
-
-      if (Platform.OS === 'android') {
-        // ble-plx custom direct hardware switch engine for Android
-        await manager.enable();
-        return true;
-      } else {
-        // iOS Strategy: Apple prevents code from flipping the physical switch.
-        // We warn the user to toggle it open via Control Center.
-        Alert.alert(
-          'Bluetooth Disabled',
-          'Please turn on Bluetooth from your iOS Control Center or Settings to active offline notifications.'
-        );
-        return false;
-      }
-    } catch (e) {
-      console.log('Bluetooth Activation Error:', e);
-      return false;
-    }
-  };
-
-  const handleToggle = async (value) => {
+  // ✅ Fixed handleToggle to properly handle the UI switch states and Smart Scan filters
+  const handleToggle = async (value, currentSmartScanMode = smartScan) => {
     await AsyncStorage.setItem("ble_state", JSON.stringify(value));
+    setBleOn(value);
 
+    // If turning OFF, stop execution here
     if (!value) {
-      setBleOn(false);
       return;
     }
 
-    const online = await hasInternetAccess();
+    await hasInternetAccess();
 
     const permissionGranted = await requestBLEPermissions();
     if (!permissionGranted) {
       Alert.alert('Permissions Required', 'Bluetooth permissions are required.');
-      setBleOn(false);
+      setBleOn(false); // Snap switch back to off
       return;
     }
 
-    const bluetoothEnabled = await enableBluetoothSafe();
+    const bluetoothEnabled = await enableBluetooth();
     if (!bluetoothEnabled) {
-      setBleOn(false);
+      Alert.alert('Bluetooth Required', 'Please enable Bluetooth to continue.');
+      setBleOn(false); // Snap switch back to off
       return;
     }
+  };
 
-    const hour = new Date().getHours();
-    if (hour > 8 && hour < 18) {
-      processScanner();
+  // ✅ Handled the new Smart Scan switch updates
+  const handleSmartScanToggle = async (value) => {
+    setSmartScan(value);
+    await AsyncStorage.setItem("smart_scan_state", JSON.stringify(value));
+    
+    // If the master BLE feature is already running, immediately re-run state evaluation
+    if (bleOn) {
+      handleToggle(true, value);
     }
-    setBleOn(true);
   };
 
   return (
-    <View className="">
-      {/* Header */}
+    <View className="space-y-4">
+      {/* Primary Switch: Offline Notifications */}
       <View className="flex-row items-center justify-between">
         <View className="flex-1 pr-4">
           <Text className="text-base font-semibold text-zinc-900">
@@ -157,7 +150,7 @@ export default function BleToggle({ bleOn, setBleOn }) {
 
         <Switch
           value={bleOn}
-          onValueChange={handleToggle}
+          onValueChange={(val) => handleToggle(val)}
           trackColor={{
             false: '#D4D4D8',
             true: '#86EFAC',
@@ -166,20 +159,45 @@ export default function BleToggle({ bleOn, setBleOn }) {
         />
       </View>
 
-      {/* BLE Status */}
-      <View className="mt-5 flex-row items-center">
-        <View className={`w-3 h-3 rounded-full ${bleOn ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
-        <Text className={`ml-2 text-base font-medium ${bleOn ? 'text-emerald-700' : 'text-zinc-500'}`}>
-          {bleOn ? 'BLE Active' : 'BLE Disabled'}
-        </Text>
+      {/* ✅ New Switch: Smart Scan Toggle Selection */}
+      <View className="flex-row items-center justify-between border-t border-zinc-100 pt-4">
+        <View className="flex-1 pr-4">
+          <Text className="text-base font-semibold text-zinc-900">
+            Smart Scan
+          </Text>
+          <Text className="text-base text-zinc-500 mt-1 leading-5">
+            Only scans during college timing (8:00 AM – 6:00 PM) to conserve battery.
+          </Text>
+        </View>
+
+        <Switch
+          value={smartScan}
+          onValueChange={handleSmartScanToggle}
+          trackColor={{
+            false: '#D4D4D8',
+            true: '#86EFAC',
+          }}
+          thumbColor={smartScan ? '#16A34A' : '#F4F4F5'}
+        />
       </View>
 
-      {/* Network Status */}
-      <View className="mt-3 flex-row items-center">
-        <View className={`w-3 h-3 rounded-full ${networkAvailable ? 'bg-sky-500' : 'bg-red-500'}`} />
-        <Text className={`ml-2 text-base font-medium ${networkAvailable ? 'text-sky-700' : 'text-red-600'}`}>
-          {networkAvailable ? 'Internet Available' : 'No Internet Access'}
-        </Text>
+      {/* Status Details Footer */}
+      <View className="border-t border-zinc-100 pt-4 space-y-2">
+        {/* BLE Status */}
+        <View className="flex-row items-center">
+          <View className={`w-3 h-3 rounded-full ${bleOn ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
+          <Text className={`ml-2 text-base font-medium ${bleOn ? 'text-emerald-700' : 'text-zinc-500'}`}>
+            {bleOn ? 'BLE Active' : 'BLE Disabled'}
+          </Text>
+        </View>
+
+        {/* Network Status */}
+        <View className="flex-row items-center">
+          <View className={`w-3 h-3 rounded-full ${networkAvailable ? 'bg-sky-500' : 'bg-red-500'}`} />
+          <Text className={`ml-2 text-base font-medium ${networkAvailable ? 'text-sky-700' : 'text-red-600'}`}>
+            {networkAvailable ? 'Internet Available' : 'No Internet Access'}
+          </Text>
+        </View>
       </View>
     </View>
   );
