@@ -1,9 +1,7 @@
 import {
     FiDownload as Download,
-    FiSmartphone as Smartphone,
     FiExternalLink as ExternalLink,
     FiStar as Star,
-    FiShield as Shield,
     FiZap as Zap,
     FiLayers as Layers,
     FiMonitor
@@ -55,10 +53,10 @@ export default function DownloadApp() {
                         <div className="flex items-center justify-center gap-6 pt-2 text-zinc-500 dark:text-zinc-500 text-xs font-semibold uppercase tracking-widest">
                             <div className="flex items-center gap-1.5">
                                 <Star size={14} className="text-amber-500 fill-amber-500" />
-                                <span>4.9 App Rating</span>
+                                <span>4.9 User Rating</span>
                             </div>
                             <div className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-800" />
-                            <div>Over 50k+ Installs</div>
+                            <div>Over 15+ Installs</div>
                         </div>
                     </div>
 
@@ -89,9 +87,10 @@ export default function DownloadApp() {
                                     Scan the QR code with your device camera or tap the button below to download safely from the Google Play Store.
                                 </p>
                                 <a
-                                    href="https://play.google.com/store"
+                                    href="/downloads/Attendease_Placeholder.apk"
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    download="Attendease_App"
                                     className="flex items-center justify-center gap-2.5 w-full bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white font-semibold py-3.5 px-4 rounded-xl transition-all duration-200 shadow-lg shadow-indigo-600/20 dark:shadow-none"
                                 >
                                     <Download size={18} />
@@ -104,6 +103,11 @@ export default function DownloadApp() {
                         {/* iOS Card */}
                         <div className="group relative bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <div className="absolute inset-0 z-20 bg-slate-950/70 backdrop-blur-[2px] flex items-center justify-center overflow-hidden">
+                                <div className="absolute w-screen z-30 rotate-[30deg] bg-gradient-to-r from-indigo-200 to-indigo-200 via-indigo-800 text-white font-bold text-xl tracking-widest py-2 text-center shadow-xl uppercase">
+                                    Coming Soon
+                                </div>
+                            </div>                            
                             <div className="bg-slate-900 dark:bg-slate-950 p-8 flex items-center justify-center relative">
                                 <div className="w-40 h-40 bg-white rounded-2xl p-3 shadow-inner relative group-hover:scale-105 transition-transform duration-300">
                                     {/* <img src={iOS_QR} alt="iOS App Download QR Code" className='w-full h-full' /> */}
