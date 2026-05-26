@@ -140,6 +140,9 @@ function LoginPage() {
         setUserData(data.user_creds);
         navigate('/dashboard');
       }
+      else {
+        alert(data.message || "Login failed. Please check your credentials and try again.");
+      }
     } catch (error) {
       console.error("Login error:", error);
     } finally {

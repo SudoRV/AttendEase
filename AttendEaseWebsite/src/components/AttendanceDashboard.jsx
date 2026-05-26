@@ -79,6 +79,7 @@ export default function AttendanceDashboard() {
         localStorage.setItem("user_creds", JSON.stringify(user_creds));
         setUserData(user_creds);
       }
+      alert("Configuration saved successfully!");
     }
   };
 
