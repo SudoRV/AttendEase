@@ -11,6 +11,9 @@ import BleDataPropagation from './src/utils/BleDataPropagation';
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
 
+import { saveNotification } from './src/database/database';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const isProduction = true;
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
@@ -19,7 +22,8 @@ const BASE_URL = isProduction
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
 // 1. Helper function for the channel
-const morningScheduleChannel = async () => {r
+const morningScheduleChannel = async () => {
+  r
   return await notifee.createChannel({
     id: 'daily_class_alerts',
     name: 'Morning Class Alerts',
@@ -74,8 +78,13 @@ const pushNotifications = async () => {
 // 2. Define the background message handler
 const onMessageReceived = async (remoteMessage) => {
   // console.log('Background Message Received:', remoteMessage.data);
-  // propagate message
-  BleDataPropagation(remoteMessage);
+  // save notifications 
+  if (remoteMessage.data.type !== "ANNOUNCEMENT") {
+    saveNotification(null, {notification_id: remoteMessage.messageId, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body});
+  }
+  // propagate message via ble advertise
+  const bleOn = await AsyncStorage.getItem("ble_state");
+  if (bleOn) BleDataPropagation(remoteMessage);
 
   if (remoteMessage.data?.type === 'MORNING_SCHEDULE') {
     const channelId = await morningScheduleChannel();

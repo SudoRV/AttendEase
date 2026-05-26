@@ -9,7 +9,7 @@ import { getDBConnection, saveNotification } from "../database/database";
 /* =====================
    ENV CONFIG
 ===================== */
-const isProduction = false;
+const isProduction = true;
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP
@@ -243,7 +243,10 @@ export const GlobalProvider = ({ children }) => {
     saveFcmToken(userData);
 
     // scan ble notification 
-    // processScanner();
+    const hour = new Date().getHours();
+    if (bleOn && hour > 8 && hour < 18) {
+      processScanner();
+    }
 
     // listen for new message
     // 1. Get the modular messaging instance
@@ -253,10 +256,14 @@ export const GlobalProvider = ({ children }) => {
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
       console.log('A new FCM message arrived!', JSON.stringify(remoteMessage));
       // save to local database
-      saveNotification(database, {notificatiopn_id: remoteMessage.messageId, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body})
-      
+
+      console.log(remoteMessage.data.type)
+      if (remoteMessage.data.type !== "ANNOUNCEMENT") {
+        saveNotification(database, { notification_id: remoteMessage.messageId, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body });
+      }
+
       // propagate notification
-      if(bleOn){
+      if (bleOn) {
         BleDataPropagation(userData, database, remoteMessage);
       }
 

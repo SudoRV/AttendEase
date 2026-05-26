@@ -143,23 +143,22 @@ app.post("/reset-password", async (req, res) => {
   const { email, old_password, new_password, otp: userOtp, type } = req.body;
 
   const [user] = await pool.query("select * from users where email = ?", [email]);
-  // console.log(user);
 
   if (user?.length === 0) {
-    return res.status(400).json({ success: false, message: "user doesn't exists" });
+    return res.status(400).json({ success: false, message: "User doesn't exists" });
   }
 
   if (type === "change") {
     const isMatch = await bcrypt.compare(old_password, user[0].password_hash);
 
-    if (!isMatch) return res.json({ success: false, message: "password not matched" });
+    if (!isMatch) return res.json({ success: false, message: "Password not matched" });
 
     const new_password_hash = await bcrypt.hash(new_password, 10);
 
     // update the databse
     const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
 
-    if (response.affectedRows > 0) return res.json({ success: true, message: "password changed successfully" });
+    if (response.affectedRows > 0) return res.json({ success: true, message: "Password changed successfully" });
 
     res.json({ success: false, message: "Internal server error" });
   }
@@ -248,7 +247,7 @@ app.post("/reset-password", async (req, res) => {
       // This ensures that even if SMTP times out, you return JSON, not a 502 HTML page
       return res.status(500).json({
         success: false,
-        message: "Mail server timeout or DB error",
+        message: "Mail server timeout.",
         error: error.message
       });
     }
@@ -267,7 +266,7 @@ app.post("/reset-password", async (req, res) => {
     // update the databse
     const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
 
-    if (response.affectedRows > 0) return res.json({ success: true, message: "password reset successfully" });
+    if (response.affectedRows > 0) return res.json({ success: true, message: "Password reset successfully" });
 
     res.json({ success: false, message: "Internal server error" });
   }
@@ -944,8 +943,11 @@ app.get("/announcements", async (req, res) => {
       AND expires_at > ?
       AND (
         (
-            (JSON_CONTAINS(target_year, JSON_ARRAY(?), '$.years') OR JSON_CONTAINS(target_year, JSON_ARRAY('all'), '$.years'))
+            (JSON_CONTAINS(target_year, JSON_ARRAY(?), '$.years') 
+            OR JSON_CONTAINS(target_year, JSON_ARRAY('all'), '$.years'))
+
             AND (JSON_CONTAINS(target_branch, JSON_ARRAY(?), '$.branches') OR JSON_CONTAINS(target_branch, JSON_ARRAY('all'), '$.branches'))
+            
             AND (JSON_CONTAINS(target_section, JSON_ARRAY(?), '$.sections') OR JSON_CONTAINS(target_section, JSON_ARRAY('all'), '$.sections'))
         )
         OR JSON_EXTRACT(created_by, '$.id') = ?

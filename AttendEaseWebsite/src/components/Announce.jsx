@@ -9,6 +9,7 @@ import {
   FiArrowRight
 } from "react-icons/fi";
 import { useTheme } from '../context/ThemeContext';
+import { useEffect } from "react";
 
 const YEAR_OPTIONS = [
   { value: "all", label: "All Years" },
@@ -44,6 +45,14 @@ export default function Announce() {
   const [targetYears, setTargetYears] = useState([]);
   const [targetBranches, setTargetBranches] = useState([]);
   const [targetSections, setTargetSections] = useState([]);
+
+  const [scope, setScope] = useState("students");
+
+  useEffect(() => {
+    setTargetYears([]);
+    setTargetBranches([]);
+    setTargetSections([]);
+  }, [scope])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -158,8 +167,6 @@ export default function Announce() {
       fontWeight: '500'
     })
   };
-
-  const [scope, setScope] = useState("students")
 
   return (
     <div className="max-w-xl sm:max-w-full mx-auto bg-white dark:bg-neutral-950/40 border border-neutral-200/50 dark:border-neutral-900 mr-2 p-2 px-6 sm:p-8 sm:py-4 rounded-3xl transition-colors duration-300 antialiased">

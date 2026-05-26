@@ -1,35 +1,30 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  Dimensions,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-} from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withRepeat,
-  Easing
-} from 'react-native-reanimated';
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, ScrollView, Dimensions, TouchableOpacity, Modal, TextInput, ActivityIndicator, Image, } from "react-native";
+
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, Easing } from 'react-native-reanimated';
+
+import { useNavigation } from "@react-navigation/native";
+
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AttendanceDashboard from "../components/AttendanceDashbboard";
 import NotSignedIn from "../components/NotSignedIn";
 import { AppStates } from "../context/AppStates";
 import Selector from "../components/ui/Selector";
+import PullToRefresh from "../components/ui/PullToRefresh";
 
 const { width, height } = Dimensions.get("window");
 
 const TimeTableScreen = () => {
+  const navigation = useNavigation();
   const { classes, userData, teacherLeaveHistory, loadTimetable, buildUrl } = AppStates();
 
   const [rotated, setRotated] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedTimetable, setSelectedTimetable] = useState({});
   const [loadingTimetable, setLoadingTimetable] = useState(false);
+
+  // --- NEW STATE FOR ROOT BOOTSTRAPPING LOCK ---
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Modal Control States
   const [contextModalVisible, setContextModalVisible] = useState(false);
@@ -43,6 +38,8 @@ const TimeTableScreen = () => {
   const [currentActionOption, setCurrentActionOption] = useState(""); // "insert", "edit", or "delete"
   const [formData, setFormData] = useState({});
 
+  const attendanceRef = useRef(null);
+
   const defaultTimeSlots = [
     "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM",
     "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM",
@@ -52,6 +49,24 @@ const TimeTableScreen = () => {
   // Single truth definition for active data array mapping
   const activeTimetableSource = selectedTimetable?.day ? selectedTimetable : classes;
   const activeClassesArray = activeTimetableSource?.classes || [];
+
+  // --- INITIAL BOOTSTRAP SYNC CALL ---
+  useEffect(() => {
+    const bootstrapDataPipeline = async () => {
+      try {
+        // Run initial data population on mount
+        if (!classes || Object.keys(classes).length === 0) {
+          await loadTimetable(userData);
+        }
+      } catch (err) {
+        console.error("Bootstrapping failed:", err);
+      } finally {
+        // Open the app viewport smoothly
+        setIsInitialLoading(false);
+      }
+    };
+    bootstrapDataPipeline();
+  }, []);
 
   // Triggered when any timetable card is long-pressed
   const handleLongPress = (item, index) => {
@@ -195,7 +210,7 @@ const TimeTableScreen = () => {
     scale.value = withRepeat(withTiming(1.05, config), -1, true);
   }, []);
 
-  // --- REFRESH SPIN LOGIC (FIXED DETACHED MUTATION RUNNER) ---
+  // --- REFRESH SPIN LOGIC ---
   const spinValue = useSharedValue(0);
   const spinAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${spinValue.value}deg` }]
@@ -235,10 +250,73 @@ const TimeTableScreen = () => {
     }
   }
 
+  async function refreshHomepage(params) {
+    refreshTimetable();
+    if (userData?.role === "Student" && attendanceRef.current) {
+      attendanceRef.current.refreshData();
+    }
+  }
+
+  // ==========================================================================
+  // 🌟 FULL-HEIGHT BRAND SPLASH LOADER (VISIBLE UNTIL TIMETABLE LOADS)
+  // ==========================================================================
+  const [redirected, setRedirected] = useState(false);
+  useEffect(() => {
+    if(userData?.role) setRedirected(false);
+  }, [userData])
+
+  if(redirected) return <NotSignedIn />
+
+  else if (
+    isInitialLoading ||
+    !activeTimetableSource ||
+    Object.keys(activeTimetableSource).length === 0
+  ) {
+    
+    if(!isInitialLoading && !!userData?.role === false){
+      setTimeout(() => {
+        setRedirected(true);
+        navigation.navigate("Profile");
+      }, 3000)
+    }   
+    
+    return (
+      <View className="flex-1 bg-white items-center justify-center w-full h-full pt-[3.5rem]">
+        <View className="items-center flex-col gap-3">
+          <Image
+            source={require('../images/icon-512.png')}
+            className="w-20 h-20"
+            resizeMode="contain"
+          />
+
+          <Text className="text-4xl font-black tracking-tight text-neutral-800">
+            Attend<Text className="text-indigo-600">Ease</Text>
+          </Text>
+
+          {
+            !isInitialLoading && !!userData?.role === false ? (
+              <>
+                <Text className="text-red-500 font-medium tracking-wide">User Not LoggedIn</Text>
+                <Text>Redirecting to login...</Text>
+              </>
+            ) : (
+              <Text className="text-slate-400 text-sm font-medium tracking-wide mb-4">
+                Smart Academic Infrastructure
+              </Text>
+            )
+          }
+
+          <ActivityIndicator size="small" color="#4F46E5" />
+        </View>
+      </View>
+    );
+  }
+
+  // ================= STANDARD VIEW MOUNT =================
   return (
-    <>
-      <ScrollView className="flex-1 pt-14 bg-slate-100">
-        <Text className="text-[30px] font-bold ml-3 text-indigo-500">AttendEase</Text>
+    <PullToRefresh onRefresh={refreshHomepage}>
+      <ScrollView className="flex-1 pt-14">
+        <Text className="text-[26px] font-bold ml-3 text-neutral-700">Attend<Text className="text-indigo-600">Ease</Text></Text>
 
         <TouchableOpacity
           className="absolute top-1 right-4 bg-white p-2 rounded-full elevation-5 z-20"
@@ -258,10 +336,10 @@ const TimeTableScreen = () => {
           style={
             rotated
               ? {
-                width: height - 210,
+                width: height - 120,
                 height: width,
-                marginTop: 125,
-                transform: [{ rotate: "90deg" }, { translateY: 125 }]
+                marginTop: 120,
+                transform: [{ rotate: "90deg" }, { translateY: 120 }]
               }
               : undefined
           }
@@ -322,7 +400,6 @@ const TimeTableScreen = () => {
                     >
                       {item?.subject_id ? (
                         item.subject_name === "LUNCH" ? (
-                          /* COMPONENT PARITY PARSING FOR LUNCH CARDS */
                           <View className="w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-3 py-5 bg-neutral-50 border border-neutral-200/60 shadow-md">
                             <View className="p-2.5 bg-teal-50 rounded-xl shadow-sm mb-2">
                               <Ionicons name="restaurant-outline" size={30} color="#14b8a6" />
@@ -332,7 +409,6 @@ const TimeTableScreen = () => {
                             </Text>
                           </View>
                         ) : (
-                          /* STANDARD COMPONENT CARD DESIGN */
                           <View
                             className={`w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-3 py-3 shadow-md ${item?.cancelled && !item?.substitute_teacher_id
                               ? "bg-red-50 border border-red-200"
@@ -376,7 +452,6 @@ const TimeTableScreen = () => {
                           </View>
                         )
                       ) : (
-                        /* STANDARDIZED UNIFORM FREE CARD SLOTS */
                         <View className="w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-2.5 bg-white border border-dashed border-neutral-300 shadow-sm">
                           <Text className="font-bold text-neutral-400 text-sm">Free</Text>
                         </View>
@@ -388,10 +463,10 @@ const TimeTableScreen = () => {
             })}
           </ScrollView>
 
-          {userData?.role === "Student" && <AttendanceDashboard />}
+          {userData?.role === "Student" && <AttendanceDashboard ref={attendanceRef} />}
 
-          <View className={`bg-slate-200 dark:bg-neutral-900 m-4 p-5 rounded-2xl mb-16 shadow-sm border border-neutral-300/30 dark:border-neutral-800 ${rotated ? "flex-row justify-end" : ""}`}>
-            <View className={rotated ? "w-[65%]" : "space-y-2.5"}>
+          <View className={`bg-slate-100 dark:bg-neutral-900 m-4 p-5 rounded-2xl mb-16 shadow-sm border border-neutral-300/30 dark:border-neutral-800 ${rotated ? "flex-row justify-end" : ""}`}>
+            <View className="space-y-2.5">
               <Text className="font-bold text-base text-slate-800 dark:text-neutral-100">
                 System Overview & Guidelines
               </Text>
@@ -606,7 +681,7 @@ const TimeTableScreen = () => {
                   </View>
                 </View>
 
-                <View>
+                <View className>
                   <Text className="text-base font-semibold text-slate-500 mb-1">Branch Name</Text>
                   <TextInput
                     value={formData.branch_name}
@@ -639,7 +714,7 @@ const TimeTableScreen = () => {
           </View>
         </View>
       </Modal>
-    </>
+    </PullToRefresh>
   );
 };
 

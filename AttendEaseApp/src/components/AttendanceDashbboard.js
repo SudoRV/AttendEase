@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useImperativeHandle, forwardRef } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Alert,
   Modal,
   SafeAreaView,
-  ActivityIndicator // 🔹 Added this
+  ActivityIndicator 
 } from "react-native";
 import RNRestart from 'react-native-restart';
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -19,14 +19,37 @@ import AttendanceTable from "./ui/AttendanceTable";
 import { AppStates } from "../context/AppStates";
 
 const injectionCode = `javascript:(()=>{
-    const get = n => document.querySelector(\`[name=\${n}]\`)?.value || "";
-    const data = ["CollegeId","StudentAdmissionId","CourseId","BranchId"].reduce((o,k)=>(o[k]=get(k),o),{});
-    if (Object.values(data).some(v => !v)) return alert("Fill attendance page first");
-    const text = JSON.stringify(data, null, 2);
-    navigator.clipboard?.writeText(text).then(() => alert("✅ Copied!\\n" + text));
+  // 1. Fixed: Used normal single quotes and string concatenation to bypass backtick parsing errors
+  const get = n => document.querySelector('[name=' + n + ']')?.value || "";
+  const data = ["CollegeId","StudentAdmissionId","CourseId","BranchId"].reduce((o,k)=>(o[k]=get(k),o),{});
+  if (Object.values(data).some(v => !v)) return alert("❌ Fill attendance page first");
+  const text = JSON.stringify(data, null, 2);
+
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.setAttribute('readonly', '');
+  el.style.position = 'absolute';
+  el.style.left = '-9999px'; 
+  document.body.appendChild(el);
+  el.select();
+  el.setSelectionRange(0, 99999); 
+
+  try {
+      const success = document.execCommand('copy');
+      if (success) {
+          alert("✅ Copied!\\n" + text); // 2. Fixed: Escaped the newline character (\\n) so it passes through the string correctly
+      } else {
+          throw new Error("ExecCommand failed");
+      }
+  } catch (err) {
+      alert("❌ Automatic copy failed. Object printed to developer console.");
+      console.log("Attendance Data:", data);
+  }
+  document.body.removeChild(el);
 })();`;
 
-export default function AttendanceDashboard() {
+const AttendanceDashboard = forwardRef((props, ref) => {
+
   const { userData, buildUrl, classes, loadTimetable, setUserData } = AppStates();
   const [hasConfig, setHasConfig] = useState(false);
   const [showSemesterPicker, setShowSemesterPicker] = useState(false);
@@ -73,7 +96,7 @@ export default function AttendanceDashboard() {
   };
 
   const handleSubmit = async () => {
-    if (Object.values(form).filter(f => !!f === false).length > 0) {
+    if (Object.values(form).filter(f => !!f === false)?.length > 0) {
       Alert.alert("Missing Info", "Please provide all ID fields.");
       return;
     }
@@ -94,12 +117,21 @@ export default function AttendanceDashboard() {
         const user_creds = { ...userData, collegeId: form?.collegeId, admissionId: form?.admissionId, courseId: form?.courseId, branchId: form?.branchId, semester: form?.durationId, start_month: form?.startMonth };
 
         AsyncStorage.setItem("user_creds", JSON.stringify(user_creds));
-
         setUserData(user_creds);
-        // RNRestart.Restart();
       }
     }
   };
+
+  useEffect(() => {
+    async function loadCachedAttendance() {
+      const raw_attendance_report = await AsyncStorage.getItem("attendance_report");
+      const attendance_report = JSON.parse(raw_attendance_report || "{}");
+
+      setAttendance(attendance_report?.attendance);
+    }
+
+    loadCachedAttendance();
+  }, [])
 
   async function loadAttendance(form) {
     setLoading(true); // 🔹 Start Loading
@@ -112,13 +144,20 @@ export default function AttendanceDashboard() {
         }
       })
       const data = await response.json();
-      setAttendance(data.attendance);
+      setAttendance(data?.attendance);
+      await AsyncStorage.setItem("attendance_report", JSON.stringify(data));
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false); // 🔹 Stop Loading
     }
   }
+
+  useImperativeHandle(ref, () => ({
+    refreshData: () => {
+      loadAttendance(form);
+    }
+  }));
 
   useEffect(() => {
     const utu_creds = {
@@ -129,7 +168,7 @@ export default function AttendanceDashboard() {
       courseId: userData.courseId?.toString() || "",
       branchId: userData.branchId?.toString() || "",
       durationId: userData.semester?.toString() || "",
-      startMonth: userData.start_month?.toString() || new Date().getMonth()
+      startMonth: userData.start_month?.toString() || ""
     };
     setForm(prev => ({ ...prev, ...utu_creds }));
     if (!userData?.admissionId) return;
@@ -139,11 +178,11 @@ export default function AttendanceDashboard() {
   }, [userData?.admissionId, selectedMonth?.month_id])
 
   function calculatSkipImpact(attendance, classes) {
-    return parseInt(attendance?.report?.total_classes_attended) / (parseInt(attendance?.report?.total_classes_held) + classes.length) * 100;
+    return parseInt(attendance?.report?.total_classes_attended) / (parseInt(attendance?.report?.total_classes_held) + classes?.length) * 100;
   }
 
   async function skipClass(attendance) {
-    if (!classes.classes || !attendance.attendance) return;
+    if (!classes?.classes || !attendance?.attendance) return;
 
     // todays classes skip impact
     const todayClasses = classes?.classes?.filter(c => c.subject_id?.trim() !== "" && c.cancelled === 0);
@@ -177,7 +216,7 @@ export default function AttendanceDashboard() {
 
   useEffect(() => {
     skipClass(attendance);
-  }, [attendance.attendance])
+  }, [attendance?.attendance])
 
   // ================= DASHBOARD VIEW =================
 
@@ -221,7 +260,7 @@ export default function AttendanceDashboard() {
             {loading ? (
               <View className="py-20 items-center justify-center bg-white mt-4 rounded-3xl border border-slate-100 border-dashed">
                 <ActivityIndicator size="large" color="#4f46e5" />
-                <Text className="mt-4 text-slate-400 font-bold uppercase text-[10px] tracking-widest">Updating Timetable...</Text>
+                <Text className="mt-4 text-slate-400 font-bold uppercase text-[10px] tracking-widest">Updating Attendance...</Text>
               </View>
             ) : (
               <AttendanceTable attendance={attendance} selectedMonth={selectedMonth} />
@@ -272,7 +311,7 @@ export default function AttendanceDashboard() {
         </View>
 
         {/* Script Section */}
-        <View className="bg-slate-900 p-5 rounded-3xl mb-4 shadow-2xl">
+        <View className="bg-slate-900 p-5 rounded-3xl mb-4 elevation-md">
           <View className="flex-row justify-between items-center mb-3">
             <Text className="text-indigo-400 font-bold tracking-tighter">JS CONSOLE SCRIPT</Text>
             <TouchableOpacity onPress={copyCode} className="bg-indigo-500 px-3 py-1 rounded-lg">
@@ -292,7 +331,7 @@ export default function AttendanceDashboard() {
         </TouchableOpacity>
 
         {/* Input Form */}
-        <View className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+        <View className="bg-white p-6 rounded-3xl elevation-sm border border-slate-100">
           <InputField label="Student Name" value={form.name} editable={false} />
           <InputField label="Roll Number" value={form.roll} editable={false} />
 
@@ -333,7 +372,7 @@ export default function AttendanceDashboard() {
             onPress={() => setShowSemesterPicker(true)}
             className="mb-4"
           >
-            <Text className="text-slate-500 text-xs font-bold uppercase ml-1 mb-1">Semester (current semester)</Text>
+            <Text className="text-slate-500 text-xs font-bold uppercase ml-1 mb-1">Current semester</Text>
             <View className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex-row justify-between items-center">
               <Text className="text-slate-800 font-medium">{form?.durationId ? `Semester ${form.durationId}` : "Select semester"}</Text>
               <Text className="text-indigo-600 font-bold">Change</Text>
@@ -344,9 +383,9 @@ export default function AttendanceDashboard() {
             onPress={() => setShowMonthPicker(true)}
             className="mb-4"
           >
-            <Text className="text-slate-500 text-xs font-bold uppercase ml-1 mb-1">Start Month</Text>
+            <Text className="text-slate-500 text-xs font-bold uppercase ml-1 mb-1">Semester Start Month  <Text className="text-red-500 text-sm">*</Text></Text>
             <View className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex-row justify-between items-center">
-              <Text className="text-slate-800 font-medium">{new Date(new Date().getFullYear(), form.startMonth || new Date().getMonth(), 1).toLocaleString('en-GB', { month: 'long' })}</Text>
+              <Text className="text-slate-800 font-medium">{form?.startMonth ? new Date(new Date().getFullYear(), form?.startMonth, 1).toLocaleString('en-GB', { month: 'long' }) : "Select start month..."}</Text>
               <Text className="text-indigo-600 font-bold">Change</Text>
             </View>
           </TouchableOpacity>
@@ -355,7 +394,7 @@ export default function AttendanceDashboard() {
 
         <TouchableOpacity
           onPress={handleSubmit}
-          className="bg-indigo-600 mt-8 p-5 rounded-2xl shadow-xl shadow-indigo-200"
+          className="bg-indigo-600 mt-8 p-5 rounded-2xl elevation-md"
         >
           <Text className="text-white text-center font-bold text-lg">Continue to Dashboard</Text>
         </TouchableOpacity>
@@ -415,7 +454,10 @@ export default function AttendanceDashboard() {
       </ScrollView>
     </SafeAreaView>
   );
-}
+})
+
+export default AttendanceDashboard;
+
 
 // 🔹 Reusable Components
 function InputField({ label, value, onChange, editable = true, placeholder }) {
@@ -436,7 +478,7 @@ function InputField({ label, value, onChange, editable = true, placeholder }) {
 
 function StatCard({ title, value, color, width }) {
   return (
-    <View className={`${width} bg-white p-5 rounded-3xl shadow-sm border border-slate-50`}>
+    <View className={`${width} bg-white p-5 rounded-3xl elevation-sm border border-slate-50`}>
       <Text className={`text-2xl font-black ${color}`}>{value}</Text>
       <Text className="text-slate-400 text-xs font-bold uppercase mt-1">{title}</Text>
     </View>
@@ -460,7 +502,7 @@ const RiskReport = ({ skipReport }) => {
 
       {/* ⚠️ GLOBAL RISK CARD */}
       <View
-        className={`w-full p-5 rounded-[28px] border-b-4 mb-6 shadow-sm 
+        className={`w-full p-5 rounded-[28px] border-b-4 mb-6 elevation-md 
         ${isAtRisk ? "bg-red-50 border-red-500" : "bg-emerald-50 border-emerald-500"}`}
       >
         <View className="flex-row items-center gap-3 mb-2">
@@ -474,10 +516,12 @@ const RiskReport = ({ skipReport }) => {
 
         <View className="flex-row items-baseline">
           <Text className={`text-3xl font-black ${isAtRisk ? "text-red-600" : "text-emerald-600"}`}>
-            {skipReport?.gloabl?.balanceFactor}
+            {Math.abs(skipReport?.global?.balanceFactor || 0)}
           </Text>
           <Text className="ml-2 text-slate-500 font-medium">
-            Classes needed for safety
+            {skipReport?.global?.balanceFactor > 0
+              ? "Classes to reach Safe Zone"
+              : "Classes above Danger zone"}
           </Text>
         </View>
       </View>
@@ -488,7 +532,7 @@ const RiskReport = ({ skipReport }) => {
       <View className="flex-row gap-3">
 
         {/* TODAY TILE */}
-        <View className="flex-1 bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
+        <View className="flex-1 bg-white p-4 rounded-3xl border border-slate-100 elevation-sm">
           <View className="flex-row items-center gap-2 mb-3">
             <Ionicons name="today-outline" size={18} color="#6366f1" />
             <Text className="text-slate-400 font-bold uppercase text-[12px] tracking-widest">Today</Text>
@@ -502,7 +546,7 @@ const RiskReport = ({ skipReport }) => {
         </View>
 
         {/* NEXT DAY TILE */}
-        <View className="flex-1 bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
+        <View className="flex-1 bg-white p-4 rounded-3xl border border-slate-100 elevation-sm">
           <View className="flex-row items-center gap-2 mb-3">
             <Ionicons name="calendar-outline" size={18} color="#6366f1" />
             <Text className="text-slate-400 font-bold uppercase text-[12px] tracking-widest">Next Day</Text>

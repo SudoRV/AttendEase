@@ -97,7 +97,7 @@ function RegisterPage({ onSwitch }) {
   };
 
   return (
-    <ScrollView className="flex-1 px-4 bg-gray-50">
+    <ScrollView className="flex-1 px-4">
       {/* TITLE */}
       <View className="items-center mt-16 mb-8">
         <Text className="text-3xl font-extrabold text-indigo-600">
@@ -109,7 +109,7 @@ function RegisterPage({ onSwitch }) {
       </View>
 
       {/* CARD */}
-      <View className="bg-white rounded-2xl shadow-lg p-6 mb-10">
+      <View className="bg-white rounded-2xl elevation-md p-6 mb-10">
         <Text className="text-2xl font-bold text-center mb-1">
           Create Account
         </Text>

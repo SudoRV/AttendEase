@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,14 +9,14 @@ import {
 } from 'react-native';
 
 import NetInfo from '@react-native-community/netinfo';
-import BleManager from 'react-native-ble-manager';
+import { BleManager, State } from 'react-native-ble-plx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { processScanner } from "../utils/BleDataScanning";
 
 async function requestBLEPermissions() {
   if (Platform.OS !== 'android') return true;
 
   try {
-    // Android 12+
     if (Platform.Version >= 31) {
       const granted = await PermissionsAndroid.requestMultiple([
         PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
@@ -25,16 +25,12 @@ async function requestBLEPermissions() {
       ]);
 
       return (
-        granted['android.permission.BLUETOOTH_SCAN'] ===
-        PermissionsAndroid.RESULTS.GRANTED &&
-        granted['android.permission.BLUETOOTH_CONNECT'] ===
-        PermissionsAndroid.RESULTS.GRANTED &&
-        granted['android.permission.BLUETOOTH_ADVERTISE'] ===
-        PermissionsAndroid.RESULTS.GRANTED
+        granted['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted['android.permission.BLUETOOTH_ADVERTISE'] === PermissionsAndroid.RESULTS.GRANTED
       );
     }
 
-    // Android < 12
     const granted = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
     );
@@ -49,23 +45,9 @@ async function requestBLEPermissions() {
 async function hasInternetAccess() {
   try {
     const state = await NetInfo.fetch();
-
-    return (
-      state.isConnected === true &&
-      state.isInternetReachable === true
-    );
+    return state.isConnected === true && state.isInternetReachable === true;
   } catch (e) {
     console.log('Network Error:', e);
-    return false;
-  }
-}
-
-async function enableBluetooth() {
-  try {
-    await BleManager.enableBluetooth();
-    return true;
-  } catch (e) {
-    console.log('Bluetooth Enable Error:', e);
     return false;
   }
 }
@@ -73,15 +55,16 @@ async function enableBluetooth() {
 export default function BleToggle({ bleOn, setBleOn }) {
   const [networkAvailable, setNetworkAvailable] = useState(true);
 
+  // Instantiate BleManager once using useMemo so it persists across renders
+  const manager = useMemo(() => new BleManager(), []);
+
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
       setNetworkAvailable(
-        state.isConnected === true &&
-        state.isInternetReachable === true
+        state.isConnected === true && state.isInternetReachable === true
       );
     });
 
-    // check for old ble config
     async function checkBleState() {
       const ble_on = await AsyncStorage.getItem("ble_state");
       if (ble_on) {
@@ -95,51 +78,67 @@ export default function BleToggle({ bleOn, setBleOn }) {
     }
     checkBleState();
 
-    return () => unsubscribe();
-  }, []);
+    // Clean up BleManager when component unmounts to free native channels
+    return () => {
+      unsubscribe();
+      manager.destroy();
+    };
+  }, [manager]);
+
+  const enableBluetoothSafe = async () => {
+    try {
+      const currentState = await manager.state();
+
+      if (currentState === State.PoweredOn) {
+        return true;
+      }
+
+      if (Platform.OS === 'android') {
+        // ble-plx custom direct hardware switch engine for Android
+        await manager.enable();
+        return true;
+      } else {
+        // iOS Strategy: Apple prevents code from flipping the physical switch.
+        // We warn the user to toggle it open via Control Center.
+        Alert.alert(
+          'Bluetooth Disabled',
+          'Please turn on Bluetooth from your iOS Control Center or Settings to active offline notifications.'
+        );
+        return false;
+      }
+    } catch (e) {
+      console.log('Bluetooth Activation Error:', e);
+      return false;
+    }
+  };
 
   const handleToggle = async (value) => {
-    // save to localstorage
     await AsyncStorage.setItem("ble_state", JSON.stringify(value));
 
-    // OFF
     if (!value) {
       setBleOn(false);
       return;
     }
 
-    // Check Network
     const online = await hasInternetAccess();
 
-    // if (online) {
-    //   Alert.alert(
-    //     'Internet Available',
-    //     'BLE mesh is mainly useful during no-network situations.'
-    //   );
-    // }
-
-    // Request Permissions
     const permissionGranted = await requestBLEPermissions();
-
     if (!permissionGranted) {
-      Alert.alert(
-        'Permissions Required',
-        'Bluetooth permissions are required.'
-      );
+      Alert.alert('Permissions Required', 'Bluetooth permissions are required.');
+      setBleOn(false);
       return;
     }
 
-    // Enable Bluetooth
-    const bluetoothEnabled = await enableBluetooth();
-
+    const bluetoothEnabled = await enableBluetoothSafe();
     if (!bluetoothEnabled) {
-      Alert.alert(
-        'Bluetooth Required',
-        'Please enable Bluetooth to continue.'
-      );
+      setBleOn(false);
       return;
     }
 
+    const hour = new Date().getHours();
+    if (hour > 8 && hour < 18) {
+      processScanner();
+    }
     setBleOn(true);
   };
 
@@ -151,7 +150,6 @@ export default function BleToggle({ bleOn, setBleOn }) {
           <Text className="text-base font-semibold text-zinc-900">
             Offline Notifications
           </Text>
-
           <Text className="text-base text-zinc-500 mt-1 leading-5">
             Receive important alerts even without internet access.
           </Text>
@@ -170,35 +168,17 @@ export default function BleToggle({ bleOn, setBleOn }) {
 
       {/* BLE Status */}
       <View className="mt-5 flex-row items-center">
-        <View
-          className={`w-3 h-3 rounded-full ${bleOn ? 'bg-emerald-500' : 'bg-zinc-400'
-            }`}
-        />
-
-        <Text
-          className={`ml-2 text-base font-medium ${bleOn ? 'text-emerald-700' : 'text-zinc-500'
-            }`}
-        >
+        <View className={`w-3 h-3 rounded-full ${bleOn ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
+        <Text className={`ml-2 text-base font-medium ${bleOn ? 'text-emerald-700' : 'text-zinc-500'}`}>
           {bleOn ? 'BLE Active' : 'BLE Disabled'}
         </Text>
       </View>
 
       {/* Network Status */}
       <View className="mt-3 flex-row items-center">
-        <View
-          className={`w-3 h-3 rounded-full ${networkAvailable ? 'bg-sky-500' : 'bg-red-500'
-            }`}
-        />
-
-        <Text
-          className={`ml-2 text-base font-medium ${networkAvailable
-            ? 'text-sky-700'
-            : 'text-red-600'
-            }`}
-        >
-          {networkAvailable
-            ? 'Internet Available'
-            : 'No Internet Access'}
+        <View className={`w-3 h-3 rounded-full ${networkAvailable ? 'bg-sky-500' : 'bg-red-500'}`} />
+        <Text className={`ml-2 text-base font-medium ${networkAvailable ? 'text-sky-700' : 'text-red-600'}`}>
+          {networkAvailable ? 'Internet Available' : 'No Internet Access'}
         </Text>
       </View>
     </View>

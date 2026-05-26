@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -27,9 +27,17 @@ export default function Announce() {
   const [targetBranches, setTargetBranches] = useState([]);
   const [targetSections, setTargetSections] = useState([]);
 
+  const [scope, setScope] = useState("students")
+
   const [expiryDate, setExpiryDate] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+
+  useEffect(() => {
+    setTargetYears([]);
+    setTargetBranches([]);
+    setTargetSections([]);
+  }, [scope])
 
   const toggleSelection = (value, list, setter) => {
     setter(
@@ -50,13 +58,15 @@ export default function Announce() {
       body,
       created_by: {
         name: userData?.name,
-        id: userData?.teacher_id
+        id: userData?.teacher_id,
+        user_id: userData?.user_id
       },
+      scope,
       target_year: targetYears,
       target_branch: targetBranches,
       target_section: targetSections,
       status: "Active",
-      expires_at: formatDate(expiryDate || new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1))
+      expires_at: formatDate(expiryDate || new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1))
     };
 
     try {
@@ -103,16 +113,14 @@ export default function Announce() {
               onPress={() =>
                 toggleSelection(item, selected, setter)
               }
-              className={`px-4 py-2 rounded-lg border ${
-                active
-                  ? "bg-indigo-600 border-indigo-600"
-                  : "bg-slate-100 border-slate-300"
-              }`}
+              className={`px-4 py-2 rounded-lg border ${active
+                ? "bg-indigo-600 border-indigo-600"
+                : "bg-slate-100 border-slate-300"
+                }`}
             >
               <Text
-                className={`font-medium ${
-                  active ? "text-white" : "text-slate-700"
-                }`}
+                className={`font-medium ${active ? "text-white" : "text-slate-700"
+                  }`}
               >
                 {item}
               </Text>
@@ -124,20 +132,10 @@ export default function Announce() {
   );
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 20 }} className="flex-1 px-5 pt-12">
-
-      {/* HEADER */}
-      <View className="mb-8">
-        <Text className="text-3xl font-bold text-slate-800">
-          New Announcement
-        </Text>
-        <Text className="text-slate-500 mt-2">
-          Notify students instantly with important updates.
-        </Text>
-      </View>
+    <ScrollView contentContainerStyle={{ paddingBottom: 20 }} className="flex-1 px-4 mt-4">
 
       {/* CARD */}
-      <View className="bg-white rounded-3xl p-6 shadow-lg">
+      <View className="bg-white rounded-3xl p-6 elevation-sm">
 
         {/* TITLE */}
         <View className="mb-6">
@@ -167,13 +165,55 @@ export default function Announce() {
           />
         </View>
 
-        <Text className="text-lg font-bold text-slate-800 mb-4">
-          Target Audience
-        </Text>
+        {/* SCOPE CONFIGURATION TOGGLES */}
+        <View className="mb-5 pt-4 border-t border-slate-100">
+          <Text className="font-bold uppercase tracking-wider text-slate-700 mb-2.5">
+            Target Audience Scope
+          </Text>
 
-        {renderMultiSelect("Years", YEARS, targetYears, setTargetYears)}
-        {renderMultiSelect("Branches", BRANCHES, targetBranches, setTargetBranches)}
-        {renderMultiSelect("Sections", SECTIONS, targetSections, setTargetSections)}
+          <View className="flex-row gap-4 px-1">
+            {/* Students Radio Selection Target */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setScope("students")}
+              className="flex-row items-center gap-2"
+            >
+              <Ionicons
+                name={scope === "students" ? "radio-button-on" : "radio-button-off"}
+                size={22}
+                color={scope === "students" ? "#4F46E5" : "#64748B"}
+              />
+              <Text className="text-sm text-slate-700 font-semibold">
+                Students
+              </Text>
+            </TouchableOpacity>
+
+            {/* Teachers Radio Selection Target */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setScope("teachers")}
+              className="flex-row items-center gap-2"
+            >
+              <Ionicons
+                name={scope === "teachers" ? "radio-button-on" : "radio-button-off"}
+                size={22}
+                color={scope === "teachers" ? "#4F46E5" : "#64748B"}
+              />
+              <Text className="text-sm text-slate-700 font-semibold">
+                Teachers
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+
+        {scope === "students" && (
+          <View className="bg-slate-50/60 border border-slate-100 p-4 rounded-2xl mb-4">
+            {renderMultiSelect("Years", YEARS, targetYears, setTargetYears)}
+            {renderMultiSelect("Branches", BRANCHES, targetBranches, setTargetBranches)}
+            {renderMultiSelect("Sections", SECTIONS, targetSections, setTargetSections)}
+          </View>
+        )}
 
         {/* EXPIRY */}
         <View className="mb-8">
@@ -240,32 +280,14 @@ export default function Announce() {
         <TouchableOpacity
           onPress={handleAnnounce}
           disabled={loading}
-          className={`py-4 rounded-xl ${
-            loading ? "bg-indigo-300" : "bg-indigo-600"
-          }`}
+          className={`py-4 rounded-xl ${loading ? "bg-indigo-300" : "bg-indigo-600"
+            }`}
         >
           <Text className="text-white text-center text-lg font-semibold">
             {loading ? "Publishing…" : "Publish Announcement"}
           </Text>
         </TouchableOpacity>
       </View>
-
-      {/* INFO */}
-      <View className="mt-8 mb-10 bg-white rounded-2xl p-5 shadow-sm">
-        <Text className="text-lg font-semibold text-slate-800 mb-3">
-          About Announcements
-        </Text>
-        <Text className="text-slate-600 mb-2">
-          • Visible instantly to selected students
-        </Text>
-        <Text className="text-slate-600 mb-2">
-          • Target filters determine recipients
-        </Text>
-        <Text className="text-slate-600">
-          • Expired announcements hide automatically
-        </Text>
-      </View>
-
     </ScrollView>
   );
 }

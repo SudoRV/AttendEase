@@ -20,100 +20,19 @@ export default function LoginPage({ onSwitch }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isEmailValid, setEmailValid] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  // Password Visibility Toggle States
+  
+  // Unified, descriptive status match mirroring profile screen layouts
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
   const [resetPassModalVisible, setResetPassModalVisible] = useState(false);
-  const [resetStep, setResetStep] = useState(1);
-
-  const [form, setForm] = useState({
-    email: "",
-    otp: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-
-  // Syncs main input email to recovery form context automatically on open
-  const openResetModal = () => {
-    setForm(prev => ({ ...prev, email: email }));
-    setResetPassModalVisible(true);
-  };
-
-  const closeModals = () => {
-    setResetPassModalVisible(false);
-    setResetStep(1);
-    setForm({ email: "", otp: "", newPassword: "", confirmPassword: "" });
-    setShowNewPassword(false);
-    setShowConfirmPassword(false);
-  };
-
-  const handlePasswordAction = async () => {
-    if (resetStep === 2) {
-      if (form.newPassword !== form.confirmPassword) {
-        return Alert.alert("Error", "Passwords do not match!");
-      }
-      if (form.newPassword.length < 6) {
-        return Alert.alert("Error", "Password must be at least 6 characters.");
-      }
-    }
-
-    setLoading(true);
-
-    try {
-      if (resetStep === 1) {
-        // REQUEST RESET (SEND OTP)
-        const response = await fetch(buildUrl("/reset-password"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: form?.email, type: "request_otp" }),
-        });
-
-        if (response.ok) {
-          Alert.alert("OTP Sent", "Check your email for the recovery code.");
-          setResetStep(2);
-        } else {
-          Alert.alert("Error", "Failed to send OTP.");
-        }
-      } else {
-        // SUBMIT RESET WITH OTP
-        const response = await fetch(buildUrl("/reset-password"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: form?.email,
-            otp: form.otp,
-            new_password: form.newPassword,
-            type: "verify_reset"
-          }),
-        });
-
-        if (response.ok) {
-          Alert.alert("Success", "Account recovered! Please login with your new password.", [
-            { text: "OK", onPress: () => setUserData(null) }
-          ]);
-          closeModals();
-        } else {
-          Alert.alert("Error", "Invalid OTP or request failed.");
-        }
-      }
-    } catch (error) {
-      Alert.alert("Network Error", "Check your connection and try again. " + error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   /* =====================
-      LOGIN SUBMIT
+       LOGIN SUBMIT
   ===================== */
   const handleSubmit = async () => {
     if (!email || !password) return;
 
-    setLoading(true);
+    setIsLoggingIn(true); // Engages full screen interactive blur lock overlay
 
     try {
       const response = await fetch(buildUrl("/login"), {
@@ -126,19 +45,25 @@ export default function LoginPage({ onSwitch }) {
 
       if (data?.user_creds) {
         await AsyncStorage.setItem("user_creds", JSON.stringify(data.user_creds));
-        setUserData(data.user_creds);
+        
+        // 🛠 Introduce a deliberate timeout delay block to completely mitigate jerky transitions
+        // and allow layout system hooks to register state data profiles seamlessly
+        setTimeout(() => {
+          setUserData(data.user_creds);
+          setIsLoggingIn(false);
+        }, 1800);
+      } else {
+        setIsLoggingIn(false);
+        Alert.alert("Login Failed", data.message || "Invalid credentials provided.");
       }
-
-      Alert.alert("Login", data.message);
     } catch (err) {
+      setIsLoggingIn(false);
       Alert.alert("Error", "Something went wrong " + err);
     }
-
-    setLoading(false);
   };
 
   /* =====================
-      EMAIL VALIDATION
+       EMAIL VALIDATION
   ===================== */
   const validateEmail = async (value) => {
     if (!value) {
@@ -171,7 +96,6 @@ export default function LoginPage({ onSwitch }) {
     return () => clearTimeout(timeout);
   }, [email]);
 
-  // Evaluates text field borders seamlessly via simple dynamic class tags
   const getEmailBorderClass = () => {
     if (isEmailValid === true) return "border-green-500";
     if (isEmailValid === false) return "border-red-500";
@@ -181,9 +105,9 @@ export default function LoginPage({ onSwitch }) {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      className="flex-1 justify-center bg-slate-100 p-2"
+      className="flex-1 justify-center p-2"
     >
-      <View className="bg-white p-6 rounded-xl shadow-md">
+      <View className="bg-white p-6 rounded-3xl elevation-md">
         <Text className="text-3xl font-extrabold text-indigo-600 text-center">AttendEase</Text>
         <Text className="text-center text-slate-500 mb-5">Smart academic communication</Text>
 
@@ -206,7 +130,7 @@ export default function LoginPage({ onSwitch }) {
         {/* LIVE EMAIL ERROR DIALOGUES */}
         <View className="mb-3 px-1">
           {isEmailValid === true && <Text className="text-green-600 text-xs font-medium">User exists</Text>}
-          {isEmailValid === false && <Text className="text-red-500 text-xs font-medium">User doesn’t exist</Text>}
+          {isEmailValid === false && <Text className="text-red-500 text-sm font-medium">User doesn’t exist</Text>}
         </View>
 
         {/* PRIMARY LOGIN PASSWORD ENTRY */}
@@ -224,21 +148,17 @@ export default function LoginPage({ onSwitch }) {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity onPress={openResetModal}>
+        <TouchableOpacity onPress={() => setResetPassModalVisible(true)}>
           <Text className="text-sm mb-4 ml-auto text-indigo-600 font-semibold">Reset password</Text>
         </TouchableOpacity>
 
         {/* COMPONENT TRANSACTION SUBMIT CONTAINER */}
         <TouchableOpacity
-          disabled={!isEmailValid || loading}
+          disabled={!isEmailValid || isLoggingIn}
           onPress={handleSubmit}
-          className={`py-3.5 rounded-xl items-center shadow-sm ${!isEmailValid ? 'bg-slate-400' : 'bg-indigo-600'}`}
+          className={`py-3.5 rounded-xl items-center elevation-sm ${!isEmailValid ? 'bg-slate-400' : 'bg-indigo-600'}`}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text className="text-white font-semibold text-base">Login</Text>
-          )}
+          <Text className="text-white font-semibold text-base">Login</Text>
         </TouchableOpacity>
 
         <View className="flex-row justify-center mt-4">
@@ -248,101 +168,225 @@ export default function LoginPage({ onSwitch }) {
           </TouchableOpacity>
         </View>
 
-        {/* 🛠 RECOVERY OPERATIONS SHEET CONTAINER */}
-        <Modal
+        {/* RECOVERY OPERATIONS SYSTEM MODAL SHEET */}
+        <ResetPasswordModal
           visible={resetPassModalVisible}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={closeModals}
-        >
-          <View className="flex-1 bg-black/50 justify-end">
-            <View className="bg-white rounded-t-[40px] p-6 pb-8 shadow-2xl border-t border-slate-100">
-              <View className="flex-row justify-between items-center mb-5">
-                <Text className="text-xl font-bold text-slate-800">Reset Password</Text>
-                <TouchableOpacity onPress={closeModals}>
-                  <Ionicons name="close-circle" size={30} color="#CBD5E1" />
-                </TouchableOpacity>
-              </View>
+          onClose={() => setResetPassModalVisible(false)}
+          initialEmail={email}
+          buildUrl={buildUrl}
+          setUserData={setUserData}
+        />
+      </View>
 
-              <View className="gap-y-3.5">
-                {resetStep === 1 ? (
-                  <>
-                    <View className="bg-slate-50 rounded-xl px-4 flex-row items-center border border-slate-200">
-                      <Ionicons name="mail-outline" size={18} color="#64748B" />
-                      <TextInput
-                        placeholder="Enter Email"
-                        value={form.email}
-                        onChangeText={(val) => setForm({ ...form, email: val })}
-                        className="flex-1 py-3.5 ml-3 text-slate-800"
-                      />
-                    </View>
-
-                    <Text className="text-slate-500 text-center text-xs leading-4 mb-1">
-                      We will send a one-time password to your registered email to verify your identity.
-                    </Text>
-                    <TouchableOpacity
-                      disabled={loading}
-                      onPress={handlePasswordAction}
-                      className="bg-indigo-600 py-3.5 rounded-xl items-center shadow-sm"
-                    >
-                      {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-base">Send OTP</Text>}
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    <View className="bg-slate-50 rounded-xl px-4 flex-row items-center border border-slate-200">
-                      <Ionicons name="keypad-outline" size={18} color="#64748B" />
-                      <TextInput
-                        placeholder="Enter OTP"
-                        keyboardType="number-pad"
-                        value={form.otp}
-                        onChangeText={(val) => setForm({ ...form, otp: val })}
-                        className="flex-1 py-3.5 ml-3 text-slate-800"
-                      />
-                    </View>
-
-                    <View className="bg-slate-50 rounded-xl px-4 flex-row items-center border border-slate-200">
-                      <Ionicons name="lock-closed-outline" size={18} color="#64748B" />
-                      <TextInput
-                        placeholder="New Password"
-                        secureTextEntry={!showNewPassword}
-                        value={form.newPassword}
-                        onChangeText={(val) => setForm({ ...form, newPassword: val })}
-                        className="flex-1 py-3.5 ml-3 text-slate-800"
-                      />
-                      <TouchableOpacity onPress={() => setShowNewPassword(prev => !prev)}>
-                        <Ionicons name={showNewPassword ? "eye-off-outline" : "eye-outline"} size={18} color="#64748B" />
-                      </TouchableOpacity>
-                    </View>
-
-                    <View className="bg-slate-50 rounded-xl px-4 flex-row items-center border border-slate-200">
-                      <Ionicons name="checkmark-circle-outline" size={18} color="#64748B" />
-                      <TextInput
-                        placeholder="Confirm Password"
-                        secureTextEntry={!showConfirmPassword}
-                        value={form.confirmPassword}
-                        onChangeText={(val) => setForm({ ...form, confirmPassword: val })}
-                        className="flex-1 py-3.5 ml-3 text-slate-800"
-                      />
-                      <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)}>
-                        <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={18} color="#64748B" />
-                      </TouchableOpacity>
-                    </View>
-
-                    <TouchableOpacity
-                      disabled={loading}
-                      onPress={handlePasswordAction}
-                      className="bg-indigo-600 py-3.5 rounded-xl mt-1 items-center shadow-sm"
-                    >
-                      {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-base">Reset Password</Text>}
-                    </TouchableOpacity>
-                  </>
-                )}
+      {/* 🔄 DYNAMIC GLOBAL LOGIN FULLSCREEN OVERLAY LOADING HOOK */}
+      {isLoggingIn && (
+        <Modal transparent={true} animationType="fade" visible={isLoggingIn}>
+          <View className="flex-1 bg-black/60 items-center justify-center">
+            <View className="bg-white p-6 rounded-3xl flex-col items-center justify-center space-y-4 elevation-2xl w-64">
+              <ActivityIndicator size="large" color="#4F46E5" />
+              <View className="space-y-1">
+                <Text className="text-slate-800 font-bold text-xl text-center">Authenticating</Text>
+                <Text className="text-slate-400 text-sm text-center">Synchronizing security profile context...</Text>
               </View>
             </View>
           </View>
         </Modal>
-      </View>
+      )}
     </KeyboardAvoidingView>
+  );
+}
+
+/* ==========================================================================
+   INLINE SUB-COMPONENT: RESET PASSWORD MODAL (DELAY OPTIMIZED)
+   ========================================================================== */
+function ResetPasswordModal({ visible, onClose, initialEmail, buildUrl, setUserData }) {
+  const [resetStep, setResetStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const [form, setForm] = useState({
+    email: "",
+    otp: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  useEffect(() => {
+    if (visible) {
+      setForm({ email: initialEmail, otp: "", newPassword: "", confirmPassword: "" });
+      setResetStep(1);
+    }
+  }, [visible, initialEmail]);
+
+  const closeAndReset = () => {
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+    setTimeout(() => {
+      onClose();
+    }, 150);
+  };
+
+  const handlePasswordAction = async () => {
+    if (resetStep === 2) {
+      if (form.newPassword !== form.confirmPassword) {
+        return Alert.alert("Error", "Passwords do not match!");
+      }
+      if (form.newPassword.length < 6) {
+        return Alert.alert("Error", "Password must be at least 6 characters.");
+      }
+    }
+
+    setLoading(true);
+
+    try {
+      if (resetStep === 1) {
+        const response = await fetch(buildUrl("/reset-password"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form?.email, type: "request_otp" }),
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+          Alert.alert("OTP Sent", "Check your email for the recovery code.");
+          setTimeout(() => {
+            setResetStep(2);
+          }, 300);
+        } else {
+          Alert.alert("Error", data.message);
+        }
+      } else {
+        const response = await fetch(buildUrl("/reset-password"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: form?.email,
+            otp: form.otp,
+            new_password: form.newPassword,
+            type: "verify_reset"
+          }),
+        });
+
+        const resData = await response.json();
+
+        if (response.ok) {
+          Alert.alert("Success", "Account recovered! Please login with your new password.", [
+            { 
+              text: "OK", 
+              onPress: () => {
+                setTimeout(() => {
+                  setUserData(null);
+                  closeAndReset();
+                }, 200);
+              } 
+            }
+          ]);
+        } else {
+          Alert.alert("Error", resData.message);
+        }
+      }
+    } catch (error) {
+      Alert.alert("Network Error", "Check your connection and try again. " + error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={closeAndReset}
+    >
+      <View className="flex-1 bg-black/50 justify-end">
+        <View className="bg-white rounded-t-[40px] p-6 pb-8 elevation-2xl border-t border-slate-100">
+          <View className="flex-row justify-between items-center mb-5">
+            <Text className="text-xl font-bold text-slate-800">Reset Password</Text>
+            <TouchableOpacity onPress={closeAndReset}>
+              <Ionicons name="close-circle" size={30} color="#CBD5E1" />
+            </TouchableOpacity>
+          </View>
+
+          <View className="gap-y-3.5">
+            {resetStep === 1 ? (
+              <>
+                <View className="bg-slate-50 rounded-xl px-4 flex-row items-center border border-slate-200">
+                  <Ionicons name="mail-outline" size={18} color="#64748B" />
+                  <TextInput
+                    placeholder="Enter Email"
+                    value={form.email}
+                    onChangeText={(val) => setForm(prev => ({ ...prev, email: val }))}
+                    className="flex-1 py-3.5 ml-3 text-slate-800"
+                  />
+                </View>
+
+                <Text className="text-slate-500 text-center text-xs leading-4 mb-1">
+                  We will send a one-time password to your registered email to verify your identity.
+                </Text>
+                
+                <TouchableOpacity
+                  disabled={loading}
+                  onPress={handlePasswordAction}
+                  className="bg-indigo-600 py-3.5 rounded-xl items-center elevation-sm"
+                >
+                  {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-base">Send OTP</Text>}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View className="bg-slate-50 rounded-xl px-4 flex-row items-center border border-slate-200">
+                  <Ionicons name="keypad-outline" size={18} color="#64748B" />
+                  <TextInput
+                    placeholder="Enter OTP"
+                    keyboardType="number-pad"
+                    value={form.otp}
+                    onChangeText={(val) => setForm(prev => ({ ...prev, otp: val }))}
+                    className="flex-1 py-3.5 ml-3 text-slate-800"
+                  />
+                </View>
+
+                <View className="bg-slate-50 rounded-xl px-4 flex-row items-center border border-slate-200">
+                  <Ionicons name="lock-closed-outline" size={18} color="#64748B" />
+                  <TextInput
+                    placeholder="New Password"
+                    secureTextEntry={!showNewPassword}
+                    value={form.newPassword}
+                    onChangeText={(val) => setForm(prev => ({ ...prev, newPassword: val }))}
+                    className="flex-1 py-3.5 ml-3 text-slate-800"
+                  />
+                  <TouchableOpacity onPress={() => setShowNewPassword(prev => !prev)}>
+                    <Ionicons name={showNewPassword ? "eye-off-outline" : "eye-outline"} size={18} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+
+                <View className="bg-slate-50 rounded-xl px-4 flex-row items-center border border-slate-200">
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#64748B" />
+                  <TextInput
+                    placeholder="Confirm Password"
+                    secureTextEntry={!showConfirmPassword}
+                    value={form.confirmPassword}
+                    onChangeText={(val) => setForm(prev => ({ ...prev, confirmPassword: val }))}
+                    className="flex-1 py-3.5 ml-3 text-slate-800"
+                  />
+                  <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)}>
+                    <Ionicons name={showConfirmPassword ? "eye-off-outline" : "eye-outline"} size={18} color="#64748B" />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  disabled={loading}
+                  onPress={handlePasswordAction}
+                  className="bg-indigo-600 py-3.5 rounded-xl mt-1 items-center elevation-sm"
+                >
+                  {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-base">Reset Password</Text>}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }

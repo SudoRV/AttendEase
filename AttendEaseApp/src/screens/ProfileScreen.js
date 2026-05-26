@@ -22,7 +22,10 @@ import BleToggle from "../components/BleToggle";
 export default function ProfileScreen() {
   const { userData, setUserData, buildUrl, setLogout, bleOn, setBleOn } = AppStates();
 
-  // --- NEW STATES FOR PASSWORD LOGIC ---
+  // --- LOGOUT LOADING STATE ---
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // --- PASSWORD ACTION STATES ---
   const [modalVisible, setModalVisible] = useState(false);
   const [authMode, setAuthMode] = useState(""); // "change" or "reset"
   const [loading, setLoading] = useState(false);
@@ -44,7 +47,7 @@ export default function ProfileScreen() {
     return <Auth />;
   }
 
-  // --- EXISTING LOGOUT LOGIC ---
+  // --- UPDATED LOGOUT METHOD WITH TRANSITION HOOKS ---
   async function logout() {
     Alert.alert("Confirm Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
@@ -52,28 +55,35 @@ export default function ProfileScreen() {
         text: "Logout",
         style: "destructive",
         onPress: async () => {
+          setIsLoggingOut(true); // Engages the global visual loading screen layer
           try {
+            // Delete device tokens cleanly across messaging channels
             await messaging().deleteToken();
+          } catch (tokenErr) {
+            console.log("Push Token release warning:", tokenErr);
+          }
+
+          try {
+            // Explicitly force wipe all local keys
             await AsyncStorage.clear();
             setUserData(null);
             setLogout(true);
             // RNRestart.Restart();
-
           } catch (err) {
-            Alert.alert("Error", "Failed to logout." + err);
+            Alert.alert("Error", "Failed to clear terminal identity profile: " + err);
           } finally {
+            // Ensure runtime context resets safely even on unexpected storage errors
             await AsyncStorage.clear();
             setUserData(null);
+            setIsLoggingOut(false);
           }
         }
       }
     ]);
   }
 
-  // --- NEW PASSWORD LOGIC ---
-
+  // --- PASSWORD MANIPULATION CRUD ---
   const handlePasswordAction = async () => {
-    // Basic validation
     if (authMode === "change" || (authMode === "reset" && resetStep === 2)) {
       if (form.newPassword !== form.confirmPassword) {
         return Alert.alert("Error", "Passwords do not match!");
@@ -87,7 +97,6 @@ export default function ProfileScreen() {
 
     try {
       if (authMode === "change") {
-        // CHANGE PASSWORD CALL
         const response = await fetch(buildUrl("/reset-password"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -111,22 +120,20 @@ export default function ProfileScreen() {
         }
       } else if (authMode === "reset") {
         if (resetStep === 1) {
-          // REQUEST RESET (SEND OTP)
           const response = await fetch(buildUrl("/reset-password"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: userData?.email, type: "request_otp" }),
           });
+          const resData = await response.json();
 
           if (response.ok) {
             Alert.alert("OTP Sent", "Check your email for the recovery code.");
             setResetStep(2);
           } else {
-            const data = await response.text();
-            Alert.alert("Error", "Failed to send OTP.");
+            Alert.alert("Error", resData.message);
           }
         } else {
-          // SUBMIT RESET WITH OTP
           const response = await fetch(buildUrl("/reset-password"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -137,6 +144,7 @@ export default function ProfileScreen() {
               type: "verify_reset"
             }),
           });
+          const resData = await response.json();
 
           if (response.ok) {
             Alert.alert("Success", "Account recovered! Please login with your new password.", [
@@ -144,12 +152,12 @@ export default function ProfileScreen() {
             ]);
             closeModals();
           } else {
-            Alert.alert("Error", "Invalid OTP or request failed.");
+            Alert.alert("Error", resData.message);
           }
         }
       }
     } catch (error) {
-      Alert.alert("Error", "Internal server error." + error);
+      Alert.alert("Error", "Internal server error. " + error);
     } finally {
       setLoading(false);
     }
@@ -166,7 +174,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View className="flex-1 bg-slate-100">
+    <View className="flex-1">
       <StatusBar
         barStyle="light-content"
         backgroundColor="rgba(0,0,0,0.2)"
@@ -175,7 +183,7 @@ export default function ProfileScreen() {
       />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
-        {/* 🔥 GRADIENT HEADER */}
+        {/* GRADIENT HEADER */}
         <LinearGradient
           colors={["#4F46E5", "#6366F1"]}
           start={{ x: 0, y: 1 }}
@@ -213,7 +221,7 @@ export default function ProfileScreen() {
           </View>
         </LinearGradient>
 
-        {/* 🔹 ACADEMIC */}
+        {/* ACADEMIC */}
         <GlassCard title="Academic Information" icon="school-outline">
           {userData?.role === "Student" ? (
             <>
@@ -230,13 +238,13 @@ export default function ProfileScreen() {
           )}
         </GlassCard>
 
-        {/* 🔹 ACCOUNT */}
+        {/* ACCOUNT */}
         <GlassCard title="Account Details" icon="person-circle-outline">
           <InfoRow label="Email" value={userData?.email} />
           <InfoRow label="Role" value={userData?.role} />
         </GlassCard>
 
-        {/* 🔹 SECURITY SETTINGS (LAST) */}
+        {/* SECURITY SETTINGS */}
         <GlassCard title="Security Settings" icon="shield-checkmark-outline">
           <TouchableOpacity
             onPress={() => { setAuthMode("change"); setModalVisible(true); }}
@@ -255,18 +263,17 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </GlassCard>
 
-        {/* BLE Mesh  */}
+        {/* BLE Mesh */}
         <GlassCard title="BLE Mesh Technology" icon="bluetooth">
           <BleToggle bleOn={bleOn} setBleOn={setBleOn} />
         </GlassCard>
-
       </ScrollView>
 
-      {/* 🔴 LOGOUT BUTTON */}
-      <View className="px-5 pb-6">
+      {/* LOGOUT BUTTON CONTAINER */}
+      <View className="px-5 py-3">
         <TouchableOpacity
           onPress={logout}
-          className="bg-white py-4 rounded-2xl flex-row items-center justify-center gap-2 shadow-md"
+          className="bg-white py-4 rounded-2xl flex-row items-center justify-center gap-2 border border-slate-200"
         >
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
           <Text className="text-red-500 text-base font-semibold">
@@ -275,7 +282,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 🛠 SECURITY MODAL */}
+      {/* INTERACTIVE SECURITY OPERATIONS CONTROL SHEET */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -293,7 +300,6 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* CHANGE PASSWORD FLOW */}
             {authMode === "change" && (
               <View className="gap-y-4">
                 <View className="bg-slate-100 rounded-2xl px-4 flex-row items-center border border-slate-200">
@@ -342,7 +348,6 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            {/* RESET PASSWORD FLOW */}
             {authMode === "reset" && (
               <View className="gap-y-4">
                 {resetStep === 1 ? (
@@ -407,17 +412,32 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* 🔄 DYNAMIC GLOBAL LOGOUT FULLSCREEN OVERLAY LOADING HOOK */}
+      {isLoggingOut && (
+        <Modal transparent={true} animationType="fade" visible={isLoggingOut}>
+          <View className="flex-1 bg-black/60 items-center justify-center">
+            <View className="bg-white p-6 rounded-3xl flex-col items-center justify-center space-y-4 shadow-2xl w-64">
+              <ActivityIndicator size="large" color="#4F46E5" />
+              <View className="space-y-1">
+                <Text className="text-slate-800 font-bold text-xl text-center">Logging Out</Text>
+                <Text className="text-slate-400 text-sm text-center">Clearing synchronized profile files...</Text>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
 
 /* ===================== */
-/* GLASS CARD */
+/* GLASS CARD Component */
 /* ===================== */
 function GlassCard({ title, icon, children }) {
   return (
-    <View className="mx-5 mt-6 bg-white/80 backdrop-blur p-5 rounded-3xl shadow-lg border border-white/40">
-      <View className="flex-row items-center mb-4 gap-2">
+    <View className="mx-5 mt-6 bg-neutral-100 backdrop-blur p-5 rounded-3xl elevation-md">
+      <View className="bg-transparent flex-row items-center mb-4 gap-2">
         <Ionicons name={icon} size={28} color="#4F46E5" />
         <Text className="text-lg font-semibold text-slate-800">
           {title}
@@ -429,7 +449,7 @@ function GlassCard({ title, icon, children }) {
 }
 
 /* ===================== */
-/* INFO ROW */
+/* INFO ROW Component   */
 /* ===================== */
 function InfoRow({ label, value }) {
   return (
