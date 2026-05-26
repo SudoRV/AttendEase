@@ -69,8 +69,10 @@ export default function PasswordSettings() {
         const result = await response.json();
 
         if (response.ok) {
-          alert("Password changed successfully.");
+          alert("Password changed successfully. Please log in again.");
+          localStorage.removeItem("user_creds");
           closeModal();
+          setTimeout(() => {window.location.href = "/login";}, 1000);
         } else {
           alert(result.message || "Failed to change password.");
         }
@@ -115,8 +117,10 @@ export default function PasswordSettings() {
           });
 
           if (response.ok) {
-            alert("Password reset successful.");
+            alert("Password reset successful. Please log in with your new password.");
+            localStorage.removeItem("user_creds");
             closeModal();
+            setTimeout(() => {window.location.href = "/login";}, 1000);
           } else {
             alert("Invalid OTP or reset failed.");
           }
