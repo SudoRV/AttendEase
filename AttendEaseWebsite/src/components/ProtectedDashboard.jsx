@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 import TeacherDashboard from "../pages/Teacher_Dashboard";
-import StudentDashboard from "../pages/Student_Dashboard";
+import StudentDashboard from "../pages/Student_Dashboard"; import RequestNotification from "./RequestNotification";
 
 export default function ProtectedDashboard() {
   const user_data = localStorage.getItem("user_creds");
@@ -13,11 +13,21 @@ export default function ProtectedDashboard() {
 
   // Role-based switching
   if (userCreds?.role === "Teacher") {
-    return <TeacherDashboard />;
+    return (
+      <>
+        <RequestNotification />
+        <TeacherDashboard />
+      </>
+    )
   }
 
   if (userCreds?.role === "Student") {
-    return <StudentDashboard />;
+    return (
+      <>
+        <RequestNotification />
+        <StudentDashboard />
+      </>
+    );
   }
 
   // Unknown role → redirect or show error
