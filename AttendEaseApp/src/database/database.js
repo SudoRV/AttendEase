@@ -104,9 +104,10 @@ export const isTableExists = (
   }
 };
 
-export function saveNotification(database, notification) {
+export async function saveNotification(database, notification) {
   try {
-    const result = database.execute(
+    // Add 'await' to ensure the database block finishes its write sequence completely
+    const result = await (database || db).execute(
       `
       INSERT OR IGNORE INTO notifications (
         notification_id,
@@ -126,17 +127,13 @@ export function saveNotification(database, notification) {
         notification.title || null,
         notification.body || null,
         0,
-        Date.now(),
+        Date.now(), // Correctly captures unix epoch timestamp in milliseconds
       ]
     );
-
+    
     return result;
   } catch (error) {
-    console.log(
-      'Insert notification error:',
-      error
-    );
-
+    console.error('Insert notification transaction error:', error);
     throw error;
   }
 }

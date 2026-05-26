@@ -18,7 +18,7 @@ export default function NotSignedIn() {
     >
       <View className="flex-1 items-center justify-center px-5 py-10">
 
-        <View className="w-full bg-white rounded-2xl p-6 shadow-md">
+        <View className="w-full bg-white rounded-2xl p-6 elevation-sm">
 
           {/* Header */}
           <Text className="text-xl font-semibold text-neutral-900 text-center">

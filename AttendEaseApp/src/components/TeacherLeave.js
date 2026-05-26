@@ -13,11 +13,12 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import dayjs from 'dayjs';
 
 import { AppStates } from "../context/AppStates";
+import PullToRefresh from "./ui/PullToRefresh";
 
 const TeacherLeave = ({ onClose }) => {
     const { userData, classes, loadTimetable, loadLeaves, buildUrl, teacherLeaveHistory, formatDate } = AppStates();
 
-    const [leaveType, setLeaveType] = useState("");
+    const [leaveType, setLeaveType] = useState("period");
     const [periods, setPeriods] = useState([]);
 
     const [fromDate, setFromDate] = useState(null);
@@ -93,7 +94,7 @@ const TeacherLeave = ({ onClose }) => {
 
 
     return (
-        <View className="flex-1 bg-slate-100">
+        <View className="flex-1">
 
             <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -123,7 +124,7 @@ const TeacherLeave = ({ onClose }) => {
                 </View>
 
                 {/* CARD */}
-                <View className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100">
+                <View className="bg-white rounded-3xl p-6 elevation-sm border border-slate-50/0">
 
                     <Text className="text-lg font-semibold text-neutral-600 mb-4">Select Leave Type</Text>
 
@@ -223,7 +224,7 @@ const TeacherLeave = ({ onClose }) => {
                     {/* SUBMIT */}
                     <TouchableOpacity
                         onPress={handleSubmit}
-                        className="mt-4 bg-indigo-600 py-4 rounded-2xl shadow-md"
+                        className="mt-4 bg-indigo-600 py-4 rounded-2xl"
                     >
                         <Text className="text-white text-center text-lg font-semibold">
                             Submit Leave
@@ -238,7 +239,8 @@ const TeacherLeave = ({ onClose }) => {
                     teacherLeaveHistory,
                     userData,
                     filter,
-                    setFilter
+                    setFilter,
+                    loadLeaves
                 )}
             </ScrollView>
 
@@ -283,39 +285,47 @@ const TeacherLeave = ({ onClose }) => {
             )}
 
             {/* MULTI SELECT MODAL */}
-            <Modal visible={modalVisible} animationType="slide">
-                <View className="flex-1 bg-white pt-14 px-4">
+            <Modal visible={modalVisible} animationType="slide" transparent={true}>
+                <View className="flex-1 bg-black/40">
+                    <View className="mt-auto min-h-[45%] p-5 bg-white rounded-t-[30px]">
 
-                    <View className="flex-row justify-between items-center mb-6">
-                        <Text className="text-xl font-bold">Select Classes</Text>
-                        <TouchableOpacity onPress={() => setModalVisible(false)}>
-                            <Text className="text-indigo-600 font-medium">Done</Text>
-                        </TouchableOpacity>
+                        <View className="flex-row justify-between items-center mb-6 pb-4 border-b border-neutral-200">
+                            <Text className="text-xl font-bold">Select Classes</Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                <Text className="text-indigo-600 font-medium text-lg">Done</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text className="text-center py-8 text-base">
+                            {
+                                classes?.classes
+                                ?.filter(c => c.subject_id !== undefined && c.subject_id?.trim() !== "")?.length === 0 && "No available subjects."
+                            }
+                        </Text>
+
+                        <ScrollView>
+                            {classes?.classes
+                                ?.filter(c => c.subject_id !== undefined && c.subject_id?.trim() !== "")
+                                ?.map((c, index) => {
+                                    const selected = periods.find(p => p.subject_id === c.subject_id);
+
+                                    return (
+                                        <TouchableOpacity
+                                            key={index}
+                                            onPress={() => togglePeriod(c)}
+                                            className={`p-4 rounded-2xl mb-3 border ${selected
+                                                ? "bg-indigo-50 border-indigo-200"
+                                                : "bg-slate-50 border-slate-200"
+                                                }`}
+                                        >
+                                            <Text className="font-medium text-slate-800">
+                                                Period {c.period_id}: {c.subject_name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                        </ScrollView>
                     </View>
-
-                    <ScrollView>
-                        {classes?.classes
-                            ?.filter(c => c.subject_id !== undefined && c.subject_id?.trim() !== "")
-                            ?.map((c, index) => {
-                                const selected = periods.find(p => p.subject_id === c.subject_id);
-
-                                return (
-                                    <TouchableOpacity
-                                        key={index}
-                                        onPress={() => togglePeriod(c)}
-                                        className={`p-4 rounded-2xl mb-3 border ${selected
-                                            ? "bg-indigo-50 border-indigo-200"
-                                            : "bg-slate-50 border-slate-200"
-                                            }`}
-                                    >
-                                        <Text className="font-medium text-slate-800">
-                                            {c.period_id}: {c.subject_id} - {c.subject_name}
-                                        </Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                    </ScrollView>
-
                 </View>
             </Modal>
 
@@ -352,7 +362,8 @@ const renderTeacherLeaves = (
     teacherLeaveHistory = [],
     userData,
     filter,
-    setFilter
+    setFilter,
+    loadLeaves
 ) => {
 
     const { buildUrl } = AppStates();
@@ -484,49 +495,53 @@ const renderTeacherLeaves = (
 
             {/* CARDS */}
             <ScrollView showsVerticalScrollIndicator={false}>
-                {filteredLeaves.length === 0 && (
-                    <Text className="text-center text-gray-400 mt-10">
-                        No leave records found
-                    </Text>
-                )}
 
-                {filteredLeaves.map((item, index) => (
-                    <TouchableOpacity
-                        key={`${item.applicable_from}-${index}`}
+                <PullToRefresh onRefresh={loadLeaves}>
 
-                        onPress={() => setIsSubstitutorVisible(prev => ({ visible: !prev?.visible, teacher_id: item?.teacher_id }))}
+                    {filteredLeaves.length === 0 && (
+                        <Text className="text-center text-gray-400 mt-10">
+                            No leave records found
+                        </Text>
+                    )}
 
-                        activeOpacity={0.8}
-                    >
-                        <View
-                            className="bg-white mb-4 p-4 rounded-3xl shadow"
+                    {filteredLeaves.map((item, index) => (
+                        <TouchableOpacity
+                            key={`${item.applicable_from}-${index}`}
+
+                            onPress={() => setIsSubstitutorVisible(prev => ({ visible: !prev?.visible, teacher_id: item?.teacher_id }))}
+
+                            activeOpacity={0.8}
                         >
-                            <Text className="text-base font-semibold text-gray-800">
-                                {item.name}
-                            </Text>
-
-                            <Text className="text-gray-500 mt-1">
-                                {formatDate(item.applicable_from)} {
-                                    new Date(item.applicable_from).setHours(0, 0, 0, 0) !== new Date(item.applicable_to).setHours(0, 0, 0, 0) && `→ ${formatDate(item.applicable_to)}`
-                                }
-                            </Text>
-
-                            <View className="flex-row items-end justify-between">
-                                <Text className={`mt-3 self-start px-3 py-1 rounded-full ${item.status === "Approved"
-                                    ? "bg-green-600"
-                                    : item.status === "Pending"
-                                        ? "bg-yellow-500"
-                                        : "bg-red-500"
-                                    }  text-white text-xs font-semibold`} >
-                                    {item.status}
+                            <View
+                                className="bg-gray-50 mb-4 p-4 rounded-3xl shadow border border-slate-200/40"
+                            >
+                                <Text className="text-base font-semibold text-gray-800">
+                                    {item.name}
                                 </Text>
 
-                                <Text className="text-blue-700">Check substitution</Text>
-                            </View>
+                                <Text className="text-gray-500 mt-1">
+                                    {formatDate(item.applicable_from)} {
+                                        new Date(item.applicable_from).setHours(0, 0, 0, 0) !== new Date(item.applicable_to).setHours(0, 0, 0, 0) && `→ ${formatDate(item.applicable_to)}`
+                                    }
+                                </Text>
 
-                        </View>
-                    </TouchableOpacity>
-                ))}
+                                <View className="flex-row items-end justify-between">
+                                    <Text className={`mt-3 self-start px-3 py-1 rounded-full ${item.status === "Approved"
+                                        ? "bg-green-600"
+                                        : item.status === "Pending"
+                                            ? "bg-yellow-500"
+                                            : "bg-red-500"
+                                        }  text-white text-xs font-semibold`} >
+                                        {item.status}
+                                    </Text>
+
+                                    <Text className="text-blue-700">Check substitution</Text>
+                                </View>
+
+                            </View>
+                        </TouchableOpacity>
+                    ))}
+                </PullToRefresh>
             </ScrollView>
 
             {/* substitute modal */}

@@ -9,6 +9,7 @@ import {
   Pressable,
   Alert,
   Animated,
+  RefreshControl,
 } from "react-native";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { AppStates } from "../context/AppStates";
@@ -30,6 +31,7 @@ const StudentLeaveManagement = () => {
   const [leavesCount, setLeavesCount] = useState(0);
   const [currentClass, setCurrentClass] = useState(classes.classes?.find(c => c.isCurrentPeriod) || {});
   const [showAvailability, setShowAvailability] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -74,7 +76,7 @@ const StudentLeaveManagement = () => {
               role: userData.role,
               teacher_id: userData.teacher_id,
               teacher_name: userData.name
-            }, 
+            },
           }
         )
       });
@@ -124,11 +126,11 @@ const StudentLeaveManagement = () => {
   };
 
   return (
-    <View className="flex-1 px-5 pt-14">
+    <View className="flex-1 px-4 pt-14">
 
       {/* Header */}
       <View className="mb-6">
-        <Text className="text-3xl font-bold text-slate-800">
+        <Text className="text-[26px] font-bold text-slate-800">
           Leave Management
         </Text>
         <Text className="text-slate-500 mt-2">
@@ -215,7 +217,7 @@ const StudentLeaveManagement = () => {
           </View>
         }
         renderItem={({ item, index }) => (
-          <View className="bg-white rounded-2xl p-4 px-5 mb-4 shadow-sm">
+          <View className="bg-gray-50 rounded-2xl p-4 px-5 mb-4 shadow border border-slate-200">
 
             <View className="flex-row justify-between items-start mb-2">
               <View>
@@ -267,6 +269,18 @@ const StudentLeaveManagement = () => {
 
           </View>
         )}
+
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={async () => {
+              await loadLeaves();
+            }}
+            progressViewOffset={-155}
+            tintColor="#4F46E5" // Indigo color for iOS spinner
+            colors={["#4F46E5"]} // Indigo color loop for Android spinner
+          />
+        }
       />
 
       {/* Modal */}
