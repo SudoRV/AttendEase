@@ -13,11 +13,33 @@ import AttendanceTable from "./AttendanceTable";
 import { AppStates } from "../services/states";
 
 const injectionCode = `javascript:(()=>{
-    const get = n => document.querySelector(\`[name=\${n}]\`)?.value || "";
-    const data = ["CollegeId","StudentAdmissionId","CourseId","BranchId"].reduce((o,k)=>(o[k]=get(k),o),{});
-    if (Object.values(data).some(v => !v)) return alert("Fill attendance page first");
-    const text = JSON.stringify(data, null, 2);
-    navigator.clipboard?.writeText(text).then(() => alert("✅ Copied!\\n" + text));
+  // 1. Fixed: Used normal single quotes and string concatenation to bypass backtick parsing errors
+  const get = n => document.querySelector('[name=' + n + ']')?.value || "";
+  const data = ["CollegeId","StudentAdmissionId","CourseId","BranchId"].reduce((o,k)=>(o[k]=get(k),o),{});
+  if (Object.values(data).some(v => !v)) return alert("❌ Fill attendance page first");
+  const text = JSON.stringify(data, null, 2);
+
+  const el = document.createElement('textarea');
+  el.value = text;
+  el.setAttribute('readonly', '');
+  el.style.position = 'absolute';
+  el.style.left = '-9999px'; 
+  document.body.appendChild(el);
+  el.select();
+  el.setSelectionRange(0, 99999); 
+
+  try {
+      const success = document.execCommand('copy');
+      if (success) {
+          alert("✅ Copied!\\n" + text); // 2. Fixed: Escaped the newline character (\\n) so it passes through the string correctly
+      } else {
+          throw new Error("ExecCommand failed");
+      }
+  } catch (err) {
+      alert("❌ Automatic copy failed. Object printed to developer console.");
+      console.log("Attendance Data:", data);
+  }
+  document.body.removeChild(el);
 })();`;
 
 export default function AttendanceDashboard() {
