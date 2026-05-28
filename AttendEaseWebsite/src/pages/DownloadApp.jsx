@@ -78,7 +78,7 @@ export default function DownloadApp() {
 
                                     <QRCode
                                         size={150}
-                                        value={buildUrl("/download-apk")}
+                                        value={buildUrl("/download-app")}
                                         ecLevel="H"
                                         qrStyle="squares"
 
