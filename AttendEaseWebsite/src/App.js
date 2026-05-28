@@ -15,10 +15,10 @@ import BrowserCheck from "./components/BrowserCheck";
 function App() {
   return (
     <BrowserCheck>
-        <ThemeProvider>
-          <GlobalProvider>
-                <BrowserRouter>
-              <Routes>
+      <ThemeProvider>
+        <GlobalProvider>
+          <BrowserRouter>
+            <Routes>
               {/* Landing Pages */}
               <Route path="/" element={<HomePage />} />
               <Route path="/about" element={<AboutPage />} />

@@ -45,7 +45,7 @@ const config2 = {
   waitForConnections: true,
 }
 
-const pool = mysql.createPool(config2);
+const pool = mysql.createPool(config);
 
 // nodemailer transporter
 // console.log(process.env.EMAIL, process.env.PASS)
@@ -77,6 +77,19 @@ transporter.verify(function (error, success) {
 app.get("/wake-me-up", (req, res) => {
   res.json({ success: true, message: "i already wokeup" });
 })
+
+// download apk
+app.get('/download-app', (req, res) => {
+  const apkPath = path.join(__dirname, 'static/apk', 'app-release.apk');
+
+  // res.download forces the browser/phone to download the file instead of trying to open it
+  res.download(apkPath, 'AttendEase.apk', (err) => {
+      if (err) {
+          console.error("Error sending APK file:", err);
+          res.status(500).send("Could not download the file.");
+      }
+  });
+});
 
 // get fcm token from client
 app.post("/save-fcm-token", async (req, res) => {
@@ -1081,20 +1094,6 @@ app.get("/fetch-attendance", async (req, res) => {
   // console.log(attendance)
   res.json({ attendance })
 })
-
-
-// download apk
-app.get('/download-app', (req, res) => {
-  const apkPath = path.join(__dirname, 'static/apk', 'app-release.apk');
-  
-  // res.download forces the browser/phone to download the file instead of trying to open it
-  res.download(apkPath, 'AttendEase.apk', (err) => {
-      if (err) {
-          console.error("Error sending APK file:", err);
-          res.status(500).send("Could not download the file.");
-      }
-  });
-});
 
 
 app.use('/schedule_images', express.static(path.join(__dirname, 'static/schedule_images'), {

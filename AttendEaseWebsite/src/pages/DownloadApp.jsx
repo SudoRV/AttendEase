@@ -8,11 +8,16 @@ import {
 } from "react-icons/fi";
 import { FaAndroid, FaApple } from "react-icons/fa";
 import { QrCode } from "lucide-react";
+import { QRCodeSVG } from 'qrcode.react';
+import { QRCode } from 'react-qrcode-logo';
+import { AppStates } from "../services/states";
 
 import LandingHeader from "../components/LandingHeader";
 import LandingFooter from "../components/LandingFooter";
 
 export default function DownloadApp() {
+    const { buildUrl } = AppStates();
+
     return (
         <div className="min-h-screen bg-[#f5f7fb] dark:bg-neutral-900 text-neutral-900 dark:text-white transition-colors duration-300">
 
@@ -68,9 +73,32 @@ export default function DownloadApp() {
                         <div className="group relative bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-b from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                             <div className="bg-slate-900 dark:bg-slate-950 p-8 flex items-center justify-center relative">
-                                <div className="w-40 h-40 bg-white rounded-2xl p-3 shadow-inner relative group-hover:scale-105 transition-transform duration-300">
-                                    {/* <img src={Android_QR} alt="Android App Download QR Code" className='w-full h-full' /> */}
-                                    <QrCode className="w-full h-full text-slate-900" strokeWidth={1.5} />
+                                <div className="bg-white rounded-2xl overflow-hidden shadow-inner relative group-hover:scale-105 transition-transform duration-300">
+                                    {/* <QrCode className="w-full h-full text-slate-900" strokeWidth={1.5} /> */}
+
+                                    <QRCode
+                                        size={150}
+                                        value={buildUrl("/download-apk")}
+                                        ecLevel="H"
+                                        qrStyle="squares"
+
+                                        // Exact eye formatting configuration supported by this package
+                                        eyeRadius={[
+                                            { // Top-Left Eye
+                                                outer: [10, 10, 10, 10],
+                                                inner: [5, 5, 5, 5],
+                                            },
+                                            { // Top-Right Eye
+                                                outer: [10, 10, 10, 10],
+                                                inner: [5, 5, 5, 5],
+                                            },
+                                            { // Bottom-Left Eye
+                                                outer: [10, 10, 10, 10],
+                                                inner: [5, 5, 5, 5],
+                                            }
+                                        ]}
+                                    />
+
                                 </div>
                             </div>
                             <div className="p-8 space-y-6 flex flex-col relative z-10">
@@ -87,10 +115,10 @@ export default function DownloadApp() {
                                     Scan the QR code with your device camera or tap the button below to download safely from the Google Play Store.
                                 </p>
                                 <a
-                                    href="/downloads/Attendease_Placeholder.apk"
+                                    href={buildUrl("/download-app")}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    download="Attendease_App"
+                                    download="AttendEase.apk"
                                     className="flex items-center justify-center gap-2.5 w-full bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white font-semibold py-3.5 px-4 rounded-xl transition-all duration-200 shadow-lg shadow-indigo-600/20 dark:shadow-none"
                                 >
                                     <Download size={18} />
@@ -107,7 +135,7 @@ export default function DownloadApp() {
                                 <div className="absolute w-screen z-30 rotate-[30deg] bg-gradient-to-r from-indigo-200 to-indigo-200 via-indigo-800 text-white font-bold text-xl tracking-widest py-2 text-center shadow-xl uppercase">
                                     Coming Soon
                                 </div>
-                            </div>                            
+                            </div>
                             <div className="bg-slate-900 dark:bg-slate-950 p-8 flex items-center justify-center relative">
                                 <div className="w-40 h-40 bg-white rounded-2xl p-3 shadow-inner relative group-hover:scale-105 transition-transform duration-300">
                                     {/* <img src={iOS_QR} alt="iOS App Download QR Code" className='w-full h-full' /> */}
