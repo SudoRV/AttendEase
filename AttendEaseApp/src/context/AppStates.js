@@ -5,11 +5,14 @@ import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import BleDataPropagation from "../utils/BleDataPropagation";
 import { startScanning } from "../utils/BleDataScanning";
 import { getDBConnection, saveNotification } from "../database/database";
+import { useColorScheme } from 'nativewind';
+// import changeNavigationBarColor from 'react-native-navigation-bar-color';
 
 /* =====================
    ENV CONFIG
 ===================== */
 const isProduction = true;
+const THEME_STORAGE_KEY = '@user_theme_preference';
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP
@@ -37,7 +40,50 @@ export const GlobalProvider = ({ children }) => {
   const [logout, setLogout] = useState(false);
   const [bleOn, setBleOn] = useState(false);
 
+  const { colorScheme, setColorScheme } = useColorScheme();
+  const [themePreference, setThemePreference] = useState('system');
+  const [loadingTheme, setLoadingTheme] = useState(true);
+  const [isDark, setIsDark] = useState(null);
+
   const database = getDBConnection();
+
+  // Load saved theme from storage on app bootup
+  useEffect(() => {
+    async function loadSavedTheme() {
+      try {
+        const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+        if (savedTheme) {
+          setThemePreference(savedTheme);
+          setColorScheme(savedTheme); 
+          setIsDark(savedTheme === "dark");
+          // await changeNavigationBarColor(
+          //   savedTheme === "dark" ? '#171717' : '#ffffff', 
+          //   !isDark, 
+          //   true
+          // );
+        } else {
+          setThemePreference('system');
+          setColorScheme('system');
+        }
+      } catch (e) {
+        console.error("Failed to load theme preference", e);
+      } finally {
+        setLoadingTheme(false);
+      }
+    }
+    loadSavedTheme();
+  }, []);
+
+  const updateTheme = async (newMode) => {
+    setThemePreference(newMode);
+    setColorScheme(newMode);
+    // await changeNavigationBarColor(
+    //   isDark ? '#171717' : '#ffffff', 
+    //   !isDark, 
+    //   true
+    // );
+    await AsyncStorage.setItem(THEME_STORAGE_KEY, newMode);
+  };
 
   // highlight current period
   function runAtWholeHour(fn) {
@@ -66,7 +112,7 @@ export const GlobalProvider = ({ children }) => {
     // set saved classes
     const savedClasses = await AsyncStorage.getItem("classes");
     if (!!savedClasses) {
-      setClasses(JSON.parse(savedClasses));
+      // setClasses(JSON.parse(savedClasses));
     }
 
     if (!userCreds) return;
@@ -97,7 +143,7 @@ export const GlobalProvider = ({ children }) => {
         return json.timetable;
       }
 
-      data.classes = data.classes?.map(d => {
+      data.classes = data?.classes?.map(d => {
         if (d?.period_id > 4) {
           return {
             ...d,
@@ -289,6 +335,7 @@ export const GlobalProvider = ({ children }) => {
     // load whole week timetable and save it in database
     async function saveTimetable() {
       const timetable = await loadTimetable(userData, "null");
+      if(!timetable) return;
 
       if (Object.keys(timetable).length > 1) {
         Object.keys(timetable).forEach(day => {
@@ -365,7 +412,9 @@ export const GlobalProvider = ({ children }) => {
         teacherLeaveHistory,
         logout, setLogout,
         formatDate,
-        bleOn, setBleOn
+        bleOn, setBleOn,
+        colorScheme,
+        themePreference, updateTheme
       }}
     >
       {children}

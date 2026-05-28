@@ -140,7 +140,7 @@ export default function BleToggle({ bleOn, setBleOn }) {
       {/* Primary Switch: Offline Notifications */}
       <View className="flex-row items-center justify-between">
         <View className="flex-1 pr-4">
-          <Text className="text-base font-semibold text-zinc-900">
+          <Text className="text-base font-semibold text-zinc-900 dark:text-neutral-300">
             Offline Notifications
           </Text>
           <Text className="text-base text-zinc-500 mt-1 leading-5">
@@ -160,9 +160,9 @@ export default function BleToggle({ bleOn, setBleOn }) {
       </View>
 
       {/* ✅ New Switch: Smart Scan Toggle Selection */}
-      <View className="flex-row items-center justify-between border-t border-zinc-100 pt-4">
+      <View className="flex-row items-center justify-between border-t border-zinc-100 dark:border-neutral-600 pt-4">
         <View className="flex-1 pr-4">
-          <Text className="text-base font-semibold text-zinc-900">
+          <Text className="text-base font-semibold text-zinc-900 dark:text-neutral-300">
             Smart Scan
           </Text>
           <Text className="text-base text-zinc-500 mt-1 leading-5">
@@ -182,7 +182,7 @@ export default function BleToggle({ bleOn, setBleOn }) {
       </View>
 
       {/* Status Details Footer */}
-      <View className="border-t border-zinc-100 pt-4 space-y-2">
+      <View className="border-t border-zinc-100 dark:border-neutral-600 pt-4 space-y-2">
         {/* BLE Status */}
         <View className="flex-row items-center">
           <View className={`w-3 h-3 rounded-full ${bleOn ? 'bg-emerald-500' : 'bg-zinc-400'}`} />

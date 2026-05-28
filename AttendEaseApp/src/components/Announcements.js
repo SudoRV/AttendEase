@@ -6,7 +6,6 @@ import {
   Modal,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
   RefreshControl
 } from "react-native";
 
@@ -181,7 +180,7 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
       {/* Header Container Layout Row */}
       <View className="flex-row justify-between items-center mb-6">
         {type !== "announcer" && (
-          <Text className="text-3xl font-bold text-slate-800 tracking-tight">
+          <Text className="text-3xl font-bold text-slate-800 dark:text-neutral-300 tracking-tight">
             Announcements
           </Text>
         )}
@@ -202,8 +201,8 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View className="flex-1 items-center justify-center mt-10">
-            <Text className="text-slate-400 font-medium">
+          <View className="items-center justify-center">
+            <Text className="text-slate-400 font-medium py-20">
               No announcements available
             </Text>
           </View>
@@ -225,26 +224,27 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
       />
 
 
-      {/* 🔔 FULL-HEIGHT LOCAL NOTIFICATIONS MODAL SHEET */}
+      {/* 🔔 LOCAL NOTIFICATIONS MODAL SHEET */}
       <Modal
         visible={notificationModalVisible}
-        transparent={false} // Removed transparency to capture standard device canvas dimensions
+        transparent={false}
         animationType="slide"
         onRequestClose={() => setNotificationModalVisible(false)}
       >
-        <SafeAreaView className="flex-1 bg-white">
+        {/* Root layout canvas wrapper responds dynamically to app styling variables */}
+        <View className="flex-1 bg-white dark:bg-neutral-900">
           <View className="flex-1 p-4 py-3 pb-2">
 
             {/* Modal Header */}
-            <View className="flex-row justify-between items-center pb-4 border-b border-slate-100 mb-4">
+            <View className="flex-row justify-between items-center pb-4 border-b border-slate-100 dark:border-neutral-800/60 mb-4">
               <View>
-                <Text className="text-2xl font-extrabold text-slate-800 tracking-tight">Notifications</Text>
-                <Text className="text-slate-400">Captured notification & alerts</Text>
+                <Text className="text-2xl font-extrabold text-slate-800 dark:text-neutral-50 tracking-tight">Notifications</Text>
+                <Text className="text-slate-400 dark:text-neutral-400">Captured notification & alerts</Text>
               </View>
 
               <View className="flex-row items-center gap-2.5">
-                <TouchableOpacity onPress={() => setNotificationModalVisible(false)} className="p-1">
-                  <Ionicons name="close-circle" size={32} color="#CBD5E1" />
+                <TouchableOpacity onPress={() => setNotificationModalVisible(false)} className="p-1 active:opacity-80">
+                  <Ionicons name="close-circle" size={32}  color={"#ccc"} className="dark:!text-neutral-300" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -255,28 +255,27 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
                 <ActivityIndicator size="large" color="#4F46E5" />
               </View>
             ) : (
-              <View className="w-full">
+              <View className="w-full flex-1">
 
+                {/* Action Header Controls Row */}
                 <View className="w-full flex-row justify-end gap-2">
                   {notifications.some(n => n.is_read === 0) && (
                     <TouchableOpacity
                       onPress={markAllAsRead}
-                      className="bg-indigo-50 px-3 py-1.5 rounded-xl mb-4"
+                      className="bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1.5 rounded-xl mb-4 active:opacity-80"
                     >
-                      <Text className="text-sm font-bold text-indigo-600">Mark all read</Text>
+                      <Text className="text-sm font-bold text-indigo-600 dark:text-indigo-400">Mark all read</Text>
                     </TouchableOpacity>
                   )}
 
-                  {
-                    notifications.length > 0 && (
-                      <TouchableOpacity
-                        onPress={clearAllNotifications}
-                        className="bg-neutral-100 px-3 py-1.5 rounded-xl mb-4"
-                      >
-                        <Text className="text-sm font-bold text-red-500">Clear all</Text>
-                      </TouchableOpacity>
-                    )
-                  }
+                  {notifications.length > 0 && (
+                    <TouchableOpacity
+                      onPress={clearAllNotifications}
+                      className="bg-neutral-100 dark:bg-neutral-800 px-3 py-1.5 rounded-xl mb-4 active:opacity-80"
+                    >
+                      <Text className="text-sm font-bold text-red-500 dark:text-red-400">Clear all</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 <FlatList
@@ -285,9 +284,9 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={{ paddingBottom: 24 }}
                   ListEmptyComponent={
-                    <View className="flex-1 items-center justify-center pt-32">
-                      <Ionicons name="notifications-off-outline" size={48} color="#CBD5E1" />
-                      <Text className="text-slate-400 text-sm mt-3 font-semibold">No recent activity updates found</Text>
+                    <View className="flex-1 items-center justify-center py-[60%]">
+                      <Ionicons name="notifications-off-outline" size={48} color="#ccc" className="dark:!text-neutral-300" />
+                      <Text className="text-gray-500 dark:text-neutral-400 text-base mt-3 font-semibold">No recent activity updates found</Text>
                     </View>
                   }
                   renderItem={({ item }) => {
@@ -300,12 +299,13 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
 
                     return (
                       <View
-                        className={`p-4 rounded-2xl mb-3 border flex-row items-start gap-3 transition-all ${item.is_read === 0
-                          ? "bg-indigo-50/50 border-indigo-100/80"
-                          : "bg-slate-50/60 border-slate-100/80"
+                        className={`p-4 rounded-2xl mb-3 border flex-row items-start gap-3 ${item.is_read === 0
+                            ? "bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100/80 dark:border-indigo-900/40"
+                            : "bg-slate-50/60 dark:bg-neutral-950/40 border-slate-100/80 dark:border-neutral-800/60"
                           }`}
                       >
-                        <View className={`p-2 rounded-xl mt-0.5 ${item.source === 'BLE' ? 'bg-teal-100/60' : 'bg-amber-100/60'}`}>
+                        {/* Status Source Badge Circle */}
+                        <View className={`p-2 rounded-xl mt-0.5 ${item.source === 'BLE' ? 'bg-teal-100/60 dark:bg-teal-950/40' : 'bg-amber-100/60 dark:bg-amber-950/40'}`}>
                           <Ionicons
                             name={item.source === 'BLE' ? 'bluetooth' : 'cloud-done-outline'}
                             size={16}
@@ -313,21 +313,22 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
                           />
                         </View>
 
+                        {/* Body Copy Block */}
                         <View className="flex-1 space-y-1">
                           <View className="flex-row justify-between items-center w-full">
-                            <Text className={`text-lg tracking-tight flex-1 mr-2 ${item.is_read === 0 ? 'font-bold text-slate-800' : 'font-semibold text-slate-600'}`}>
+                            <Text className={`text-lg tracking-tight flex-1 mr-2 ${item.is_read === 0 ? 'font-bold text-slate-800 dark:text-neutral-50' : 'font-semibold text-slate-600 dark:text-neutral-300'}`}>
                               {item.title || "Broadcast Trigger"}
                             </Text>
                             {item.is_read === 0 && (
-                              <View className="w-2 h-2 rounded-full bg-indigo-600" />
+                              <View className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-blue-400" />
                             )}
                           </View>
 
-                          <Text className="text-sm text-slate-500">
+                          <Text className="text-sm text-slate-500 dark:text-neutral-400">
                             {item.body}
                           </Text>
 
-                          <Text className="text-[12px] text-right text-slate-400 font-light pt-1">
+                          <Text className="text-[12px] text-right text-slate-400 dark:text-neutral-500 font-light pt-1">
                             {logDate}
                           </Text>
                         </View>
@@ -340,18 +341,17 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
                       refreshing={loadingNotifications}
                       onRefresh={async () => {
                         await loadLocalNotifications();
-                      }}             
-                      progressViewOffset={-50} 
-                      tintColor="#4F46E5" // Indigo color for iOS spinner
-                      colors={["#4F46E5"]} // Indigo color loop for Android spinner
+                      }}
+                      progressViewOffset={-50}
+                      tintColor="#4F46E5"
+                      colors={["#4F46E5"]}
                     />
                   }
-
                 />
               </View>
             )}
           </View>
-        </SafeAreaView>
+        </View>
       </Modal>
     </View>
   );

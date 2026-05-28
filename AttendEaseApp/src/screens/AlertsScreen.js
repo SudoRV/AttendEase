@@ -53,12 +53,12 @@ const AlertsScreen = () => {
     return (
       <View className="flex-1 pt-12">
         {/* Dynamic Teacher Action Dashboard Header */}
-        <View className="flex-row items-center justify-between px-5 pt-4 pb-3 border-b border-slate-200 bg-white shadow-sm">
+        <View className="flex-row items-center justify-between px-5 pt-4 pb-3 border-b border-slate-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm">
           <View>
-            <Text className="text-xl font-bold text-slate-800">
+            <Text className="text-xl font-bold text-slate-800 dark:text-neutral-300">
               {isCreatingAnnouncement ? "Create Announcement" : "Notice Board"}
             </Text>
-            <Text className="text-slate-400">
+            <Text className="text-slate-400 dark:text-neutral-400">
               {isCreatingAnnouncement ? "Draft notice for students" : "Review sent disclosures"}
             </Text>
           </View>

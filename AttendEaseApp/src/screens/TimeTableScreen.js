@@ -11,6 +11,7 @@ import NotSignedIn from "../components/NotSignedIn";
 import { AppStates } from "../context/AppStates";
 import Selector from "../components/ui/Selector";
 import PullToRefresh from "../components/ui/PullToRefresh";
+import TeacherLeave from "../components/TeacherLeave";
 
 const { width, height } = Dimensions.get("window");
 
@@ -19,7 +20,7 @@ const TimeTableScreen = () => {
   const { classes, userData, teacherLeaveHistory, loadTimetable, buildUrl } = AppStates();
 
   const [rotated, setRotated] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(classes?.day || new Date().toLocaleString("en-Gb", { weekday: "long" }));
   const [selectedTimetable, setSelectedTimetable] = useState({});
   const [loadingTimetable, setLoadingTimetable] = useState(false);
 
@@ -246,6 +247,8 @@ const TimeTableScreen = () => {
     } else {
       setLoadingTimetable(true);
       await loadTimetable(userData);
+      setSelectedDay(null);
+      setSelectedTimetable({});
       setLoadingTimetable(false);
     }
   }
@@ -261,27 +264,26 @@ const TimeTableScreen = () => {
   // 🌟 FULL-HEIGHT BRAND SPLASH LOADER (VISIBLE UNTIL TIMETABLE LOADS)
   // ==========================================================================
   const [redirected, setRedirected] = useState(false);
+  let notLoggedInTimer;
+
   useEffect(() => {
-    if(userData?.role) setRedirected(false);
+    if (userData?.role) setRedirected(false);
+    if(notLoggedInTimer) clearTimeout(notLoggedInTimer);
   }, [userData])
 
-  if(redirected) return <NotSignedIn />
+  if (redirected) return <NotSignedIn />
 
-  else if (
-    isInitialLoading ||
-    !activeTimetableSource ||
-    Object.keys(activeTimetableSource).length === 0
-  ) {
-    
-    if(!isInitialLoading && !!userData?.role === false){
-      setTimeout(() => {
+  else if (isInitialLoading) {
+
+    if (!isInitialLoading && !!userData?.role === false) {
+      notLoggedInTimer = setTimeout(() => {
         setRedirected(true);
         navigation.navigate("Profile");
       }, 3000)
-    }   
-    
+    }
+
     return (
-      <View className="flex-1 bg-white items-center justify-center w-full h-full pt-[3.5rem]">
+      <View className="flex-1 bg-white dark:bg-neutral-900 items-center justify-center w-full h-full pt-3.5">
         <View className="items-center flex-col gap-3">
           <Image
             source={require('../images/icon-512.png')}
@@ -289,24 +291,24 @@ const TimeTableScreen = () => {
             resizeMode="contain"
           />
 
-          <Text className="text-4xl font-black tracking-tight text-neutral-800">
-            Attend<Text className="text-indigo-600">Ease</Text>
+          <Text className="text-4xl font-black tracking-tight text-neutral-800 dark:text-neutral-50">
+            Attend<Text className="text-indigo-600 dark:text-blue-500">Ease</Text>
           </Text>
 
           {
             !isInitialLoading && !!userData?.role === false ? (
               <>
-                <Text className="text-red-500 font-medium tracking-wide">User Not LoggedIn</Text>
-                <Text>Redirecting to login...</Text>
+                <Text className="text-red-500 dark:text-red-400 font-medium tracking-wide">User Not LoggedIn</Text>
+                <Text className="text-slate-800 dark:text-neutral-200">Redirecting to login...</Text>
               </>
             ) : (
-              <Text className="text-slate-400 text-sm font-medium tracking-wide mb-4">
+              <Text className="text-slate-400 dark:text-neutral-400 text-sm font-medium tracking-wide mb-4">
                 Smart Academic Infrastructure
               </Text>
             )
           }
 
-          <ActivityIndicator size="small" color="#4F46E5" />
+          <ActivityIndicator size="small" color={"#4F46E5"} />
         </View>
       </View>
     );
@@ -316,16 +318,17 @@ const TimeTableScreen = () => {
   return (
     <PullToRefresh onRefresh={refreshHomepage}>
       <ScrollView className="flex-1 pt-14">
-        <Text className="text-[26px] font-bold ml-3 text-neutral-700">Attend<Text className="text-indigo-600">Ease</Text></Text>
+        <Text className="text-[26px] font-bold ml-3 text-neutral-700 dark:text-neutral-50">Attend<Text className="text-indigo-600">Ease</Text></Text>
 
         <TouchableOpacity
-          className="absolute top-1 right-4 bg-white p-2 rounded-full elevation-5 z-20"
+          className="absolute top-1 right-4 bg-white dark:bg-transparent p-2 rounded-full elevation-5 z-20"
           onPress={() => setRotated(prev => !prev)}
         >
           <Ionicons
             name="phone-portrait-outline"
             size={22}
             color="#333"
+            className="dark:!text-neutral-50"
             style={{ transform: [{ rotate: rotated ? "90deg" : "0deg" }] }}
           />
         </TouchableOpacity>
@@ -346,6 +349,7 @@ const TimeTableScreen = () => {
         >
           <View className="w-full px-4 flex-row justify-between items-center gap-4 mt-2">
             <Selector
+              value={selectedDay || classes.day}
               defaultOption={{
                 label: classes.day || new Date().toLocaleString("en-Gb", { weekday: "long" }),
                 value: classes.day || new Date().toLocaleString("en-Gb", { weekday: "long" })
@@ -361,13 +365,13 @@ const TimeTableScreen = () => {
               ]}
               onChange={(option) => { setSelectedDay(option.value) }}
               styleSelector={"w-fit min-w-[35%] bg-transparent text-lg"}
-              selectedStyle={"text-2xl font-bold"}
+              selectedStyle={"text-2xl font-bold dark:text-neutral-50"}
               styleButton={"p-2"}
             />
 
             <TouchableOpacity className="px-2" onPress={refreshTimetable}>
               <Animated.View style={spinAnimatedStyle}>
-                <Ionicons name="refresh" size={22} />
+                <Ionicons name="refresh" size={22} className="dark:!text-neutral-50" />
               </Animated.View>
             </TouchableOpacity>
           </View>
@@ -384,7 +388,7 @@ const TimeTableScreen = () => {
 
               return (
                 <View key={index} className="w-[120px] items-center gap-2 mr-3 mt-3 pb-3">
-                  <View className="bg-neutral-700 w-full p-2.5 rounded-xl shadow-lg">
+                  <View className="bg-neutral-800 w-full p-2.5 rounded-xl shadow-lg">
                     <Text className="text-white text-sm font-semibold text-center">{time}</Text>
                   </View>
 
@@ -400,7 +404,7 @@ const TimeTableScreen = () => {
                     >
                       {item?.subject_id ? (
                         item.subject_name === "LUNCH" ? (
-                          <View className="w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-3 py-5 bg-neutral-50 border border-neutral-200/60 shadow-md">
+                          <View className="w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-3 py-5 bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/60 dark:border-neutral-500/60 shadow-md">
                             <View className="p-2.5 bg-teal-50 rounded-xl shadow-sm mb-2">
                               <Ionicons name="restaurant-outline" size={30} color="#14b8a6" />
                             </View>
@@ -411,8 +415,8 @@ const TimeTableScreen = () => {
                         ) : (
                           <View
                             className={`w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-3 py-3 shadow-md ${item?.cancelled && !item?.substitute_teacher_id
-                              ? "bg-red-50 border border-red-200"
-                              : item?.substitute_teacher_id ? "bg-neutral-50 border border-teal-500/40" : "bg-indigo-500"
+                              ? "bg-red-50 dark:bg-neutral-800/40 border border-red-200 dark:border-red-200/40"
+                              : item?.substitute_teacher_id ? "bg-neutral-50 dark:bg-neutral-800/40 border border-teal-500/40" : "bg-indigo-500"
                               }`}
                           >
                             {!!item?.cancelled && (
@@ -452,7 +456,7 @@ const TimeTableScreen = () => {
                           </View>
                         )
                       ) : (
-                        <View className="w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-2.5 bg-white border border-dashed border-neutral-300 shadow-sm">
+                        <View className="w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-2.5 bg-white dark:bg-neutral-800/40 border border-dashed border-neutral-300 dark:border-neutral-600 shadow-sm">
                           <Text className="font-bold text-neutral-400 text-sm">Free</Text>
                         </View>
                       )}
@@ -461,29 +465,16 @@ const TimeTableScreen = () => {
                 </View>
               );
             })}
+
           </ScrollView>
 
           {userData?.role === "Student" && <AttendanceDashboard ref={attendanceRef} />}
 
-          <View className={`bg-slate-100 dark:bg-neutral-900 m-4 p-5 rounded-2xl mb-16 shadow-sm border border-neutral-300/30 dark:border-neutral-800 ${rotated ? "flex-row justify-end" : ""}`}>
-            <View className="space-y-2.5">
-              <Text className="font-bold text-base text-slate-800 dark:text-neutral-100">
-                System Overview & Guidelines
-              </Text>
-
-              <Text className="text-sm leading-5 text-slate-600 dark:text-neutral-400">
-                • <Text className="font-semibold">Quick Actions:</Text> Long-press any timetable slot to {userData.role === "teacher" && "manage schedules (Insert, Edit, Delete) or"} review consolidated teacher leave tracking logs.
-              </Text>
-
-              <Text className="text-sm leading-5 text-slate-600 dark:text-neutral-400">
-                • <Text className="font-semibold">Data Accuracy:</Text> AttendEase leverages automated verification networks to sync real-time database modifications. While the system architecture targets maximum uptime and accurate scheduling data, temporary synchronization delays or data mismatches may occasionally occur due to offline local states or network variations.
-              </Text>
-
-              <Text className="text-sm leading-5 text-slate-600 dark:text-neutral-400">
-                • <Text className="font-semibold">Precedence:</Text> In the event of an internal discrepancy, official physical department notices and institutional coordinator declarations override digital application data.
-              </Text>
-            </View>
-          </View>
+          {
+            userData?.role === "Teacher" && (
+              <TeacherLeave />
+            )
+          }
 
         </ScrollView>
       </ScrollView>

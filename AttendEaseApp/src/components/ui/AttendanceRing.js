@@ -33,7 +33,7 @@ const AttendanceRing = ({ attendancePercent = 0 }) => {
             cx={size / 2}
             cy={size / 2}
             r={radius}
-            stroke="#f1f5f9" // slate-100
+            stroke="#dcdcdc80"
             strokeWidth={strokeWidth}
             fill="none"
           />
@@ -53,7 +53,7 @@ const AttendanceRing = ({ attendancePercent = 0 }) => {
 
         {/* Center Text (Positioned Absolutely) */}
         <View className="absolute items-center justify-center">
-          <Text className="text-4xl font-black text-slate-800">
+          <Text className="text-4xl font-black text-slate-800 dark:text-neutral-200">
             {attendancePercent}%
           </Text>
           <Text className={`text-[10px] font-bold uppercase tracking-widest ${status.textClass}`}>

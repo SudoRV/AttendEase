@@ -15,7 +15,7 @@ import dayjs from 'dayjs';
 import { AppStates } from "../context/AppStates";
 import PullToRefresh from "./ui/PullToRefresh";
 
-const TeacherLeave = ({ onClose }) => {
+const TeacherLeave = () => {
     const { userData, classes, loadTimetable, loadLeaves, buildUrl, teacherLeaveHistory, formatDate } = AppStates();
 
     const [leaveType, setLeaveType] = useState("period");
@@ -94,7 +94,7 @@ const TeacherLeave = ({ onClose }) => {
 
 
     return (
-        <View className="flex-1">
+        <View className="flex-1 bg-white dark:bg-neutral-950/60 mt-6 rounded-t-[30px]">
 
             <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -104,32 +104,24 @@ const TeacherLeave = ({ onClose }) => {
                 {/* HEADER */}
                 <View className="mb-6">
                     <View className="flex-row justify-between items-center">
-                        <Text className="text-3xl font-bold text-slate-900">
+                        <Text className="text-3xl font-bold text-slate-900 dark:text-neutral-300">
                             Availability
                         </Text>
 
-                        <TouchableOpacity
-                            onPress={onClose}
-                            className="bg-slate-200 px-4 py-1.5 rounded-full"
-                        >
-                            <Text className="text-slate-700 font-medium">
-                                Close
-                            </Text>
-                        </TouchableOpacity>
                     </View>
 
-                    <Text className="text-slate-500 mt-1">
+                    <Text className="text-slate-500 dark:text-neutral-300 mt-1">
                         Mark your unavailability for classes
                     </Text>
                 </View>
 
                 {/* CARD */}
-                <View className="bg-white rounded-3xl p-6 elevation-sm border border-slate-50/0">
+                <View className="bg-white dark:bg-neutral-900 rounded-3xl p-6 elevation-sm dark:elevation-none dark:shadow-md border border-slate-50/0">
 
-                    <Text className="text-lg font-semibold text-neutral-600 mb-4">Select Leave Type</Text>
+                    <Text className="text-lg font-semibold text-neutral-600 dark:text-neutral-300 mb-4">Select Leave Type</Text>
 
                     {/* LEAVE TYPE SEGMENT */}
-                    <View className="bg-slate-100 rounded-full p-1 flex-row mb-6">
+                    <View className="bg-slate-100 dark:bg-neutral-800 rounded-full p-1 flex-row mb-6">
                         {["period", "day", "duration"].map(type => (
                             <TouchableOpacity
                                 key={type}
@@ -142,7 +134,7 @@ const TeacherLeave = ({ onClose }) => {
                                 <Text
                                     className={`text-center text-lg font-medium ${leaveType === type
                                         ? "text-white"
-                                        : "text-slate-600"
+                                        : "text-slate-600 dark:text-neutral-400"
                                         }`}
                                 >
                                     {type}
@@ -158,9 +150,9 @@ const TeacherLeave = ({ onClose }) => {
 
                             <TouchableOpacity
                                 onPress={() => setModalVisible(true)}
-                                className="bg-slate-50 border border-slate-200 p-4 rounded-2xl mb-4"
+                                className="bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 p-4 rounded-2xl mb-4"
                             >
-                                <Text className="text-slate-800">
+                                <Text className="text-slate-800 dark:text-neutral-400 text-base">
                                     {periods.length
                                         ? `${periods.length} classes selected`
                                         : "Tap to select classes"}
@@ -172,7 +164,7 @@ const TeacherLeave = ({ onClose }) => {
                                     {periods.map((p, i) => (
                                         <View
                                             key={i}
-                                            className="bg-indigo-100 px-3 py-1 rounded-full"
+                                            className="bg-indigo-100 dark:bg-neutral-800 px-3 py-1 rounded-full"
                                         >
                                             <Text className="text-indigo-600 text-sm font-medium">
                                                 {p.subject_id}
@@ -181,18 +173,6 @@ const TeacherLeave = ({ onClose }) => {
                                     ))}
                                 </View>
                             )}
-
-                            {/* <DateField
-                                label="From Date"
-                                value={format(fromDate)}
-                                onPress={() => setShowFrom(true)}
-                            />
-
-                            <DateField
-                                label="To Date"
-                                value={format(toDate)}
-                                onPress={() => setShowTo(true)}
-                            /> */}
                         </>
                     )}
 
@@ -287,23 +267,23 @@ const TeacherLeave = ({ onClose }) => {
             {/* MULTI SELECT MODAL */}
             <Modal visible={modalVisible} animationType="slide" transparent={true}>
                 <View className="flex-1 bg-black/40">
-                    <View className="mt-auto min-h-[45%] p-5 bg-white rounded-t-[30px]">
+                    <View className="mt-auto min-h-[50%] p-5 bg-white dark:bg-neutral-900 rounded-t-[30px]">
 
-                        <View className="flex-row justify-between items-center mb-6 pb-4 border-b border-neutral-200">
-                            <Text className="text-xl font-bold">Select Classes</Text>
+                        <View className="flex-row justify-between items-center mb-6 pb-4 border-b border-neutral-200 dark:border-b-neutral-700">
+                            <Text className="text-xl font-bold dark:text-neutral-300">Select Classes</Text>
                             <TouchableOpacity onPress={() => setModalVisible(false)}>
                                 <Text className="text-indigo-600 font-medium text-lg">Done</Text>
                             </TouchableOpacity>
                         </View>
 
-                        <Text className="text-center py-8 text-base">
-                            {
-                                classes?.classes
-                                ?.filter(c => c.subject_id !== undefined && c.subject_id?.trim() !== "")?.length === 0 && "No available subjects."
-                            }
-                        </Text>
+                        {
+                            classes?.classes
+                                ?.filter(c => c.subject_id !== undefined && c.subject_id?.trim() !== "")?.length === 0 && (
+                                <Text>No available subjects.</Text>
+                            )
+                        }
 
-                        <ScrollView>
+                        <ScrollView className="">
                             {classes?.classes
                                 ?.filter(c => c.subject_id !== undefined && c.subject_id?.trim() !== "")
                                 ?.map((c, index) => {
@@ -314,11 +294,11 @@ const TeacherLeave = ({ onClose }) => {
                                             key={index}
                                             onPress={() => togglePeriod(c)}
                                             className={`p-4 rounded-2xl mb-3 border ${selected
-                                                ? "bg-indigo-50 border-indigo-200"
-                                                : "bg-slate-50 border-slate-200"
+                                                ? "bg-indigo-50 dark:bg-neutral-900/60 border-indigo-200 dark:border-indigo-500/40"
+                                                : "bg-slate-50 dark:bg-neutral-900 border-slate-200 dark:border-neutral-700"
                                                 }`}
                                         >
-                                            <Text className="font-medium text-slate-800">
+                                            <Text className="font-medium text-slate-800 dark:text-neutral-400">
                                                 Period {c.period_id}: {c.subject_name}
                                             </Text>
                                         </TouchableOpacity>
@@ -338,7 +318,7 @@ export default TeacherLeave;
 /* Reusable Date Field */
 
 const FieldLabel = ({ text }) => (
-    <Text className="text-slate-600 text-sm font-medium mb-2">
+    <Text className="text-slate-600 text-base dark:text-neutral-400 font-medium mb-2">
         {text}
     </Text>
 );
@@ -348,9 +328,9 @@ const DateField = ({ label, value, onPress }) => (
         <FieldLabel text={label} />
         <TouchableOpacity
             onPress={onPress}
-            className="bg-slate-50 border border-slate-200 p-4 rounded-2xl"
+            className="bg-slate-50 dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 p-4 rounded-2xl"
         >
-            <Text className="text-slate-800 text-base">
+            <Text className="text-slate-800 dark:text-neutral-400 text-base">
                 {value}
             </Text>
         </TouchableOpacity>
@@ -376,7 +356,9 @@ const renderTeacherLeaves = (
                 );
 
             default:
-                return teacherLeaveHistory;
+                return teacherLeaveHistory.filter(
+                    (leave) => leave.teacher_id !== userData?.teacher_id
+                );
         }
     })();
 
@@ -469,7 +451,7 @@ const renderTeacherLeaves = (
     return (
         <View className="flex-1 w-full">
 
-            <Text className="text-2xl font-bold mt-6">Leave History</Text>
+            <Text className="text-2xl font-bold mt-6 dark:text-neutral-300">Leave History</Text>
             {/* FILTER TABS */}
             <View className="flex-row justify-start gap-2 my-4">
                 {["Mine", "All"].map((tab) => (
@@ -478,13 +460,13 @@ const renderTeacherLeaves = (
                         onPress={() => setFilter(tab)}
                         className={`px-5 py-2 rounded-full ${filter === tab
                             ? "bg-indigo-600"
-                            : "bg-gray-200"
+                            : "bg-gray-200 dark:bg-neutral-800"
                             }`}
                     >
                         <Text
                             className={`font-semibold ${filter === tab
                                 ? "text-white"
-                                : "text-gray-700"
+                                : "text-gray-700 dark:text-neutral-400"
                                 }`}
                         >
                             {tab}
@@ -496,7 +478,7 @@ const renderTeacherLeaves = (
             {/* CARDS */}
             <ScrollView showsVerticalScrollIndicator={false}>
 
-                <PullToRefresh onRefresh={loadLeaves}>
+                <PullToRefresh inverted={true} onRefresh={loadLeaves}>
 
                     {filteredLeaves.length === 0 && (
                         <Text className="text-center text-gray-400 mt-10">
@@ -513,9 +495,9 @@ const renderTeacherLeaves = (
                             activeOpacity={0.8}
                         >
                             <View
-                                className="bg-gray-50 mb-4 p-4 rounded-3xl shadow border border-slate-200/40"
+                                className="bg-gray-50 dark:bg-neutral-950/20 mb-4 p-4 rounded-3xl shadow border border-slate-200/40 dark:border-neutral-700/40"
                             >
-                                <Text className="text-base font-semibold text-gray-800">
+                                <Text className="text-base font-semibold text-gray-800 dark:text-neutral-400">
                                     {item.name}
                                 </Text>
 
@@ -535,7 +517,7 @@ const renderTeacherLeaves = (
                                         {item.status}
                                     </Text>
 
-                                    <Text className="text-blue-700">Check substitution</Text>
+                                    <Text className="text-indigo-600">Check substitution</Text>
                                 </View>
 
                             </View>
@@ -547,18 +529,16 @@ const renderTeacherLeaves = (
             {/* substitute modal */}
             <Modal visible={!!isSubstitutorVisible?.visible}
                 animationType="slide">
-                <View className="p-4">
+                <View className="flex-1 p-4 bg-white dark:bg-neutral-900">
                     <View className="flex-row items-center justify-between">
-                        <Text className="text-2xl font-bold text-neutral-800">Substitute Class</Text>
+                        <Text className="text-2xl font-bold text-neutral-800 dark:text-neutral-300">Substitute Class</Text>
 
-                        <TouchableOpacity onPress={() => setIsSubstitutorVisible(prev => ({ visible: false, teacher_id: null }))}>
-                            <View>
-                                <Ionicons name="close" size={22} />
-                            </View>
+                        <TouchableOpacity onPress={() => setIsSubstitutorVisible(prev => ({ visible: false, teacher_id: null }))} className="p-0.5 px-3 bg-neutral-700 dark:bg-neutral-700 rounded-full">
+                            <Ionicons name="close" color={"#ccc"} size={22} />
                         </TouchableOpacity>
                     </View>
 
-                    <Text className="text-gray-500">
+                    <Text className="text-gray-500 dark:text-neutral-400 mt-2">
                         Select a class from the list below to attend the class as substitute teacher.
                     </Text>
 
@@ -569,19 +549,16 @@ const renderTeacherLeaves = (
                                 const isSubstituted = !!clas.substitute_teacher_id;
 
                                 return (
-                                    <TouchableOpacity
+                                    <View
                                         key={clas.id}
-                                        // Logic: Disable if a substitute is already assigned
-                                        disabled={!!clas.substitute_teacher_id}
-                                        onPress={() => handleSelectClass(clas, "acquired")}
                                         className={`p-4 rounded-3xl elevation-md ${clas.substitute_teacher_id
-                                            ? 'bg-gray-100 opacity-80' // Muted background for substituted classes
-                                            : 'bg-white active:bg-blue-50'
+                                            ? 'bg-gray-100 dark:bg-neutral-800 opacity-80' // Muted background for substituted classes
+                                            : 'bg-white dark:bg-neutral-950/60'
                                             } mb-6`}
                                     >
                                         <View className="flex-row justify-between items-center mb-2">
                                             <View className="flex-1">
-                                                <Text className={`text-lg font-bold ${clas.substitute_teacher_id ? 'text-gray-500' : 'text-gray-800'
+                                                <Text className={`text-lg font-bold ${clas.substitute_teacher_id ? 'text-gray-500' : 'text-gray-800 dark:text-neutral-300'
                                                     }`}>
                                                     {clas.subject_name}
                                                 </Text>
@@ -591,16 +568,16 @@ const renderTeacherLeaves = (
                                             </View>
 
                                             {/* Dynamic Badge Color */}
-                                            <View className={`${clas.substitute_teacher_id ? 'bg-gray-200' : 'bg-blue-100'
+                                            <View className={`${clas.substitute_teacher_id ? 'bg-gray-200 dark:bg-gray-500/40' : 'bg-blue-100 dark:bg-blue-500/40'
                                                 } px-3 py-1 rounded-full`}>
-                                                <Text className={`${clas.substitute_teacher_id ? 'text-gray-600' : 'text-blue-700'
+                                                <Text className={`${clas.substitute_teacher_id ? 'text-gray-600' : 'text-blue-700 '
                                                     } font-semibold text-xs`}>
                                                     Period {clas.period_id}
                                                 </Text>
                                             </View>
                                         </View>
 
-                                        <View className="flex-row justify-between mt-2 pt-2 border-t border-gray-100">
+                                        <View className="flex-row justify-between mt-2 pt-2 border-t border-gray-100 dark:border-neutral-700">
                                             <Text className="text-gray-500">
                                                 📍 Room {clas.room_number}
                                             </Text>
@@ -628,13 +605,17 @@ const renderTeacherLeaves = (
                                                 }
                                             </View>
                                         ) : (
-                                            <View className="mt-3 bg-blue-600 py-2 rounded-lg">
+                                            <TouchableOpacity
+                                                disabled={!!clas.substitute_teacher_id}
+                                                onPress={() => handleSelectClass(clas, "acquired")}
+                                                className="bg-blue-600 dark:bg-blue-400 rounded-xl py-2.5 mt-4"
+                                            >
                                                 <Text className="text-white text-center font-medium">
                                                     Acquire Class
                                                 </Text>
-                                            </View>
+                                            </TouchableOpacity>
                                         )}
-                                    </TouchableOpacity>
+                                    </View>
                                 );
                             })}
                         </View>

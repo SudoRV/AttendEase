@@ -1,7 +1,9 @@
 import React, { useEffect } from "react";
-import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Text, Pressable, Platform, SafeAreaView, View } from "react-native";
+import { Text, Pressable, Platform, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useColorScheme } from 'nativewind';
 
 import TimeTableScreen from "../screens/TimeTableScreen";
 import LeaveScreen from "../screens/LeaveScreen";
@@ -13,16 +15,22 @@ import AnimatedTabIcon from "../components/ui/AnimatedTabIcon";
 
 const Tab = createBottomTabNavigator();
 
-const AppTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: "#ffffff",
-  },
-};
-
 export default function AppNavigator({ onLogout }) {
   const { logout } = AppStates();
+  const insets = useSafeAreaInsets();
+  
+  // 1. Listen to NativeWind's active state ('light' | 'dark')
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  // 2. Generate a dynamic screen background container theme configuration
+  const DynamicAppTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
+      background: isDark ? "#171717" : "#ffffff", // neutral-900 vs white
+    },
+  };
 
   useEffect(() => {
     if (logout && onLogout) {
@@ -31,25 +39,29 @@ export default function AppNavigator({ onLogout }) {
   }, [logout]);
 
   return (
-    <View style={{ flex: 1}}>
-      <NavigationContainer theme={AppTheme}>
+    // Dynamic surrounding flexbox prevents viewport clipping glitches
+    <View style={{ flex: 1, backgroundColor: isDark ? "#171717" : "#ffffff" }}>
+      <NavigationContainer theme={DynamicAppTheme}>
         <Tab.Navigator
           screenOptions={({ route }) => ({
             headerShown: false,
             lazy: true,
-            freezeOnBlur: true,
-            detachInactiveScreens: true,
+            freezeOnBlur: false,
+            detachInactiveScreens: false,
 
             tabBarStyle: {
-              height: Platform.OS === 'ios' ? 88 : 70,
-              paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+              height: Platform.OS === 'ios' ? 88 : 60 + (insets.bottom > 0 ? insets.bottom : 8),
+              paddingBottom: Platform.OS === 'ios' ? 28 : (insets.bottom > 0 ? insets.bottom : 8),
               paddingTop: 0,
               paddingHorizontal: 10,
-              backgroundColor: '#ffffff',
+              
+              // 3. Dynamic Navigator Bar Palette Shifts
+              backgroundColor: isDark ? '#171717' : '#ffffff', 
               borderTopWidth: 1,
-              borderTopColor: '#f1f5f9',
-              elevation: 0, // Removes Android shadow clipping layout glitches
-              shadowOpacity: 0, // Removes iOS shadow clipping layout glitches
+              borderTopColor: isDark ? '#262626' : '#f1f5f9', 
+              
+              elevation: 0, 
+              shadowOpacity: 0, 
             },
 
             tabBarIcon: ({ focused, color, size }) => {
@@ -70,13 +82,16 @@ export default function AppNavigator({ onLogout }) {
               );
             },
 
-            tabBarActiveTintColor: "#4F6EF7",
-            tabBarInactiveTintColor: "#444",
+            // 4. Dynamic Tinting Shifts for Active Elements
+            tabBarActiveTintColor: isDark ? "#7086f8" : "#4F6EF7", 
+            tabBarInactiveTintColor: isDark ? "#ccc" : "#444444",
 
             tabBarLabel: ({ focused }) => (
               <Text
                 style={{
-                  color: focused ? "#4F6EF7" : "#444",
+                  color: focused 
+                    ? (isDark ? "#7086f8" : "#4F6EF7") 
+                    : (isDark ? "#ccc" : "#444444"),
                   fontWeight: focused ? "700" : "500",
                   fontSize: 14,
                   marginTop: 8

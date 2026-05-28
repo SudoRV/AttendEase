@@ -17,7 +17,7 @@ const BRANCHES = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
 const SECTIONS = ["A", "B", "C"];
 
 export default function Announce() {
-  const { userData, BASE_URL, formatDate } = AppStates();
+  const { userData, BASE_URL, formatDate, isDark } = AppStates();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -27,7 +27,7 @@ export default function Announce() {
   const [targetBranches, setTargetBranches] = useState([]);
   const [targetSections, setTargetSections] = useState([]);
 
-  const [scope, setScope] = useState("students")
+  const [scope, setScope] = useState("students");
 
   const [expiryDate, setExpiryDate] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -37,7 +37,7 @@ export default function Announce() {
     setTargetYears([]);
     setTargetBranches([]);
     setTargetSections([]);
-  }, [scope])
+  }, [scope]);
 
   const toggleSelection = (value, list, setter) => {
     setter(
@@ -94,13 +94,13 @@ export default function Announce() {
     } catch {
       Alert.alert("Error", "Network error.");
     } finally {
-      setLoading(false);
+      Loading(false);
     }
   }
 
   const renderMultiSelect = (label, data, selected, setter) => (
     <View className="mb-6">
-      <Text className="text-base font-semibold text-slate-700 mb-3">
+      <Text className="text-base font-bold text-zinc-800 dark:text-neutral-200 mb-3 tracking-tight">
         {label}
       </Text>
 
@@ -110,17 +110,20 @@ export default function Announce() {
           return (
             <TouchableOpacity
               key={item}
+              activeOpacity={0.7}
               onPress={() =>
-                toggleSelection(item, selected, setter)
+                ToggleSelection(item, selected, setter)
               }
-              className={`px-4 py-2 rounded-lg border ${active
-                ? "bg-indigo-600 border-indigo-600"
-                : "bg-slate-100 border-slate-300"
+              className={`px-4 py-2 rounded-xl border font-medium ${active
+                ? "bg-indigo-600 border-indigo-600 dark:bg-indigo-600 dark:border-indigo-500"
+                : "bg-zinc-50 border-zinc-200 dark:bg-neutral-900 dark:border-neutral-800"
                 }`}
             >
               <Text
-                className={`font-medium ${active ? "text-white" : "text-slate-700"
-                  }`}
+                className={`font-semibold text-base ${active 
+                  ? "text-white" 
+                  : "text-zinc-700 dark:text-neutral-300"
+                }`}
               >
                 {item}
               </Text>
@@ -132,105 +135,110 @@ export default function Announce() {
   );
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 20 }} className="flex-1 px-4 mt-4">
+    <ScrollView 
+      contentContainerStyle={{ paddingBottom: 30 }} 
+      className="flex-1 px-4 bg-zinc-50 dark:bg-neutral-900 mt-4"
+    >
+      {/* MAIN CONTAINER CARD */}
+      <View className="bg-white dark:bg-neutral-950/60 rounded-[30px] p-6 shadow-sm border border-zinc-100 dark:border-neutral-800/60">
 
-      {/* CARD */}
-      <View className="bg-white rounded-3xl p-6 elevation-sm">
-
-        {/* TITLE */}
+        {/* TITLE INPUT */}
         <View className="mb-6">
-          <Text className="text-lg font-semibold text-slate-700 mb-2">
+          <Text className="text-lg font-bold text-zinc-800 dark:text-neutral-200 mb-2 tracking-tight">
             Title
           </Text>
           <TextInput
             value={title}
             onChangeText={setTitle}
             placeholder="Enter announcement title"
-            className="px-4 py-3 border border-slate-300 rounded-xl text-base"
+            placeholderTextColor="#a1a1aa"
+            className="px-4 py-3.5 border border-zinc-200 dark:border-neutral-800 rounded-2xl bg-zinc-50/30 dark:bg-neutral-950 text-base font-medium text-zinc-900 dark:text-neutral-100"
           />
         </View>
 
-        {/* BODY */}
-        <View className="mb-8">
-          <Text className="text-lg font-semibold text-slate-700 mb-2">
+        {/* BODY MESSAGE INPUT */}
+        <View className="mb-6">
+          <Text className="text-lg font-bold text-zinc-800 dark:text-neutral-200 mb-2 tracking-tight">
             Message
           </Text>
           <TextInput
             value={body}
             onChangeText={setBody}
             placeholder="Write your announcement..."
+            placeholderTextColor="#a1a1aa"
             multiline
             textAlignVertical="top"
-            className="px-4 py-4 border border-slate-300 rounded-xl h-36 text-base"
+            className="px-4 py-4 border border-zinc-200 dark:border-neutral-800 rounded-2xl h-36 bg-zinc-50/30 dark:bg-neutral-950 text-base font-medium text-zinc-900 dark:text-neutral-100"
           />
         </View>
 
         {/* SCOPE CONFIGURATION TOGGLES */}
-        <View className="mb-5 pt-4 border-t border-slate-100">
-          <Text className="font-bold uppercase tracking-wider text-slate-700 mb-2.5">
+        <View className="mb-5 pt-5 border-t border-zinc-100 dark:border-neutral-800">
+          <Text className="font-bold text-sm uppercase tracking-wider text-zinc-400 dark:text-neutral-500 mb-3">
             Target Audience Scope
           </Text>
 
-          <View className="flex-row gap-4 px-1">
-            {/* Students Radio Selection Target */}
+          <View className="flex-row gap-x-6 px-1">
+            {/* Students Selection Target */}
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => setScope("students")}
-              className="flex-row items-center gap-2"
+              className="flex-row items-center gap-x-2"
             >
               <Ionicons
                 name={scope === "students" ? "radio-button-on" : "radio-button-off"}
                 size={22}
-                color={scope === "students" ? "#4F46E5" : "#64748B"}
+                color={scope === "students" ? "#4f46e5" : (isDark ? "#525252" : "#a1a1aa")}
               />
-              <Text className="text-sm text-slate-700 font-semibold">
+              <Text className={`text-base font-bold ${scope === "students" ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-500 dark:text-neutral-400"}`}>
                 Students
               </Text>
             </TouchableOpacity>
 
-            {/* Teachers Radio Selection Target */}
+            {/* Teachers Selection Target */}
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => setScope("teachers")}
-              className="flex-row items-center gap-2"
+              className="flex-row items-center gap-x-2"
             >
               <Ionicons
                 name={scope === "teachers" ? "radio-button-on" : "radio-button-off"}
                 size={22}
-                color={scope === "teachers" ? "#4F46E5" : "#64748B"}
+                color={scope === "teachers" ? "#4f46e5" : (isDark ? "#525252" : "#a1a1aa")}
               />
-              <Text className="text-sm text-slate-700 font-semibold">
+              <Text className={`text-base font-bold ${scope === "teachers" ? "text-indigo-600 dark:text-indigo-400" : "text-zinc-500 dark:text-neutral-400"}`}>
                 Teachers
               </Text>
             </TouchableOpacity>
           </View>
         </View>
 
-
+        {/* CONDITIONALLY RENDERED MULTISELECTS FOR STUDENTS */}
         {scope === "students" && (
-          <View className="bg-slate-50/60 border border-slate-100 p-4 rounded-2xl mb-4">
+          <View className="bg-zinc-50/50 dark:bg-neutral-900/30 border border-zinc-100 dark:border-neutral-800/40 p-4 rounded-2xl mb-6">
             {renderMultiSelect("Years", YEARS, targetYears, setTargetYears)}
             {renderMultiSelect("Branches", BRANCHES, targetBranches, setTargetBranches)}
             {renderMultiSelect("Sections", SECTIONS, targetSections, setTargetSections)}
           </View>
         )}
 
-        {/* EXPIRY */}
+        {/* EXPIRY DATE CONFIGURATION */}
         <View className="mb-8">
-          <Text className="text-base font-semibold text-slate-700 mb-2">
+          <Text className="text-lg font-bold text-zinc-800 dark:text-neutral-200 mb-2 tracking-tight">
             Expiry Date
           </Text>
 
           <TouchableOpacity
+            activeOpacity={0.7}
             onPress={() => setShowDatePicker(true)}
-            className="flex-row items-center justify-between px-4 py-3 border border-slate-300 rounded-xl"
+            className="flex-row items-center justify-between px-4 py-3.5 border border-zinc-200 dark:border-neutral-800 rounded-2xl bg-zinc-50/30 dark:bg-neutral-950"
           >
-            <Text className="text-base text-slate-700">
+            <Text className="text-base font-medium text-zinc-800 dark:text-neutral-200">
               {expiryDate
-                ? expiryDate.toLocaleString()
+                ? ExpiryDate.toLocaleString()
                 : "Select expiry date & time"}
             </Text>
-            <Ionicons name="calendar-outline" size={20} color="#475569" />
+            <Ionicons name="calendar-outline" size={18} color={isDark ? "#a3a3a3" : "#71717a"} />
           </TouchableOpacity>
 
           {showDatePicker && (
@@ -239,17 +247,17 @@ export default function Announce() {
               mode="date"
               display="default"
               onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
+                SetShowDatePicker(false);
                 if (selectedDate) {
                   const current = expiryDate || new Date();
                   current.setFullYear(
-                    selectedDate.getFullYear(),
-                    selectedDate.getMonth(),
-                    selectedDate.getDate()
+                    SelectedDate.getFullYear(),
+                    SelectedDate.getMonth(),
+                    SelectedDate.getDate()
                   );
-                  setExpiryDate(new Date(current));
+                  SetExpiryDate(new Date(current));
                   if (Platform.OS === "android") {
-                    setTimeout(() => setShowTimePicker(true), 200);
+                    SetTimeout(() => setShowTimePicker(true), 200);
                   }
                 }
               }}
@@ -262,28 +270,31 @@ export default function Announce() {
               mode="time"
               display="default"
               onChange={(event, selectedTime) => {
-                setShowTimePicker(false);
+                SetShowTimePicker(false);
                 if (selectedTime) {
                   const current = expiryDate || new Date();
                   current.setHours(
-                    selectedTime.getHours(),
-                    selectedTime.getMinutes()
+                    SelectedTime.getHours(),
+                    SelectedTime.getMinutes()
                   );
-                  setExpiryDate(new Date(current));
+                  SetExpiryDate(new Date(current));
                 }
               }}
             />
           )}
         </View>
 
-        {/* SUBMIT */}
+        {/* TRANSACTION SUBMIT BUTTON */}
         <TouchableOpacity
           onPress={handleAnnounce}
           disabled={loading}
-          className={`py-4 rounded-xl ${loading ? "bg-indigo-300" : "bg-indigo-600"
-            }`}
+          activeOpacity={0.8}
+          className={`py-4 rounded-2xl shadow-sm items-center ${loading 
+            ? "bg-indigo-300 dark:bg-indigo-800/50" 
+            : "bg-indigo-600 dark:bg-indigo-600"
+          }`}
         >
-          <Text className="text-white text-center text-lg font-semibold">
+          <Text className={`text-sm font-bold tracking-wide ${loading ? 'text-indigo-100' : 'text-white'}`}>
             {loading ? "Publishing…" : "Publish Announcement"}
           </Text>
         </TouchableOpacity>

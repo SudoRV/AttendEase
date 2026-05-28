@@ -8,7 +8,7 @@ export default function Auth() {
   const [mode, setMode] = useState("login");
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 w-full flex-col justify-center">
       {mode === "login" ? (
         <LoginPage onSwitch={() => setMode("register")} />
       ) : (
@@ -17,12 +17,3 @@ export default function Auth() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F1F5F9",
-    justifyContent: "center",
-    padding: 16
-  }
-});

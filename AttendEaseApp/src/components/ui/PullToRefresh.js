@@ -28,6 +28,8 @@ export default function PullToRefresh({ children, onRefresh }) {
                     tintColor="#4F46E5" // Indigo color for iOS spinner
                     colors={["#4F46E5"]}
                     progressViewOffset={80}
+
+                    
                 />
             }
         >

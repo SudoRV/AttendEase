@@ -42,15 +42,15 @@ const AttendanceTable = ({ attendance, selectedMonth }) => {
     }
 
     return (
-        <View className="flex-1 bg-white flex-row my-4 rounded-xl elevation-md overflow-hidden">
+        <View className="flex-1 bg-white dark:bg-neutral-900 flex-row my-4 rounded-xl elevation-md overflow-hidden">
             {/* subjects */}
-            <View className="flex flex-col bg-white w-24">
-                <View className="h-14 justify-center px-3 border-b border-r border-slate-100">
-                    <Text className="text-[12px] font-semibold text-slate-700 leading-4 text-center">SUBJECTS</Text>
+            <View className="flex flex-col bg-whitedark:bg-neutral-900 w-24">
+                <View className="h-14 justify-center px-3 border-b border-r border-slate-100 dark:border-slate-600">
+                    <Text className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 leading-4 text-center">SUBJECTS</Text>
                 </View>
                 {subjects.map((subject, index) => (
-                    <View key={"sub-col-" + subject} className="h-14 justify-center px-3 border-b border-r border-slate-100">
-                        <Text numberOfLines={2} className="text-[11px] font-semibold text-slate-700 leading-4">{subject}</Text>
+                    <View key={"sub-col-" + subject} className="h-14 justify-center px-3 border-b border-r border-slate-100 dark:border-slate-600">
+                        <Text numberOfLines={2} className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 leading-4">{subject}</Text>
                     </View>
                 ))}
             </View>
@@ -60,26 +60,26 @@ const AttendanceTable = ({ attendance, selectedMonth }) => {
                 ref={attendanceTableRef}
             >
                 <View className="flex flex-col">
-                    <View className="flex flex-row h-14 px-3 border-b border-slate-100 gap-2 items-center">
+                    <View className="flex flex-row h-14 px-3 border-b border-slate-100 dark:border-slate-600 gap-2 items-center">
                         {
                             subjectsObj[Object.keys(subjectsObj)[0]]?.attendance?.map((data, index) => (
                                 <View key={"date-" + (index+1)} className="w-10 h-10  justify-center items-center">
-                                    <Text className="text-[10px] font-black text-slate-400 uppercase">Day</Text>
-                                    <Text className="font-semibold text-neutral-700">{index + 1}</Text>
+                                    <Text className="text-[10px] font-black text-slate-400 dark:text-slate-200 uppercase">Day</Text>
+                                    <Text className="font-semibold text-neutral-700 dark:text-neutral-300">{index + 1}</Text>
                                 </View>
                             ))
                         }
 
                         <View className="w-10 h-10  justify-end items-center py-0.5">
-                            <Text className="font-semibold text-neutral-700 text-sm">HELD</Text>
+                            <Text className="font-semibold text-neutral-700 dark:text-slate-200 text-sm">HELD</Text>
                         </View>
 
                         <View className="w-10 h-10  justify-end items-center py-0.5">
-                            <Text className="font-semibold text-neutral-700 text-sm">ATTENDED</Text>
+                            <Text className="font-semibold text-neutral-700 dark:text-slate-200 text-sm">ATTENDED</Text>
                         </View>
 
                         <View className="w-10 h-10  justify-end items-center py-0.5">
-                            <Text className="font-semibold text-neutral-700 text-sm">%</Text>
+                            <Text className="font-semibold text-neutral-700 dark:text-slate-200 text-sm">%</Text>
                         </View>
                     </View>
 
@@ -87,7 +87,7 @@ const AttendanceTable = ({ attendance, selectedMonth }) => {
                         Object.keys(subjectsObj).map((subject, index) => (
                             <View
                                 key={subject + "attendence" + index}
-                                className="flex flex-row h-14 px-3 border-b border-slate-100 gap-2 items-center">
+                                className="flex flex-row h-14 px-3 border-b border-slate-100 dark:border-slate-600 gap-2 items-center">
                                 {
                                     subjectsObj[subject]?.attendance?.map((status, index) => (
                                         <RenderStatus key={subject+"- "+index} subject={subject} status={status} index={index} />
@@ -121,8 +121,8 @@ const RenderStatus = ({ subject, status, index }) => {
         <View key={subject + "-" + status + "-" + index} className="rounded-lg flex-col justify-center items-center py-1.5 gap-0.5">
             {
                 status.split(",").map((s, sindex) => (
-                    <View key={subject + "-" + index + "-" + sindex} className={`w-10 flex-1 justify-center items-center rounded-md ${s.trim() === "P" ? "bg-green-500" : s.trim() === "A" ? "bg-red-500" : s.trim() === "L" ? "bg-blue-500" : "bg-blue-50"}`}>
-                        <Text className={`text-xs ${s !== "NA" && "text-white font-semibold"}`}>{s === "NA" ? "-" : s}</Text>
+                    <View key={subject + "-" + index + "-" + sindex} className={`w-10 flex-1 justify-center items-center rounded-md ${s.trim() === "P" ? "bg-green-500" : s.trim() === "A" ? "bg-red-500" : s.trim() === "L" ? "bg-blue-500" : "bg-blue-50 dark:bg-neutral-600/20"}`}>
+                        <Text className={`text-xs dark:text-neutral-300 ${s !== "NA" && "text-white font-semibold"}`}>{s === "NA" ? "-" : s}</Text>
                     </View>
                 ))
             }

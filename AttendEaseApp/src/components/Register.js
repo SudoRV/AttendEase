@@ -9,10 +9,13 @@ import {
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useColorScheme } from 'nativewind';
 import { AppStates } from "../context/AppStates";
 
 function RegisterPage({ onSwitch }) {
   const { setUserData, buildUrl } = AppStates();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const [selectedRole, setSelectedRole] = useState("");
   const [isEmailValid, setEmailValid] = useState(null);
@@ -32,7 +35,7 @@ function RegisterPage({ onSwitch }) {
   });
 
   /* =====================
-      VALIDATION
+        VALIDATION
   ===================== */
   const validateField = async (field, value) => {
     try {
@@ -97,45 +100,50 @@ function RegisterPage({ onSwitch }) {
   };
 
   return (
-    <ScrollView className="flex-1 px-4">
+    <ScrollView
+      className="flex-1 px-6 bg-zinc-50 dark:bg-neutral-900"
+    >
       {/* TITLE */}
-      <View className="items-center mt-16 mb-8">
-        <Text className="text-3xl font-extrabold text-indigo-600">
+      <View className="items-center mt-20 pt-8">
+        <Text className="text-4xl font-black tracking-tight text-indigo-500">
           AttendEase
         </Text>
-        <Text className="text-sm text-gray-600 mt-1">
+        <Text className="text-base text-zinc-400 dark:text-neutral-400 mt-1 mb-6">
           Smart academic communication
         </Text>
       </View>
 
       {/* CARD */}
-      <View className="bg-white rounded-2xl elevation-md p-6 mb-10">
-        <Text className="text-2xl font-bold text-center mb-1">
+      <View className="bg-white dark:bg-neutral-950/60 rounded-[32px] shadow-md p-6 mb-10 border border-zinc-100 dark:border-neutral-800/60">
+        <Text className="text-2xl font-bold text-center mb-1 text-zinc-900 dark:text-neutral-50 tracking-tight">
           Create Account
         </Text>
-        <Text className="text-center text-gray-500 text-sm mb-6">
+        <Text className="text-center text-zinc-400 dark:text-neutral-400 text-sm mb-6">
           Register to continue
         </Text>
 
         {/* ROLE PICKER */}
-        <View className="border border-gray-300 rounded-xl mb-4 overflow-hidden">
+        <View className="border border-zinc-200 dark:border-neutral-800 rounded-2xl mb-4 overflow-hidden bg-zinc-50/50 dark:bg-neutral-950">
           <Picker
             selectedValue={selectedRole}
+            dropdownIconColor={isDark ? "#a3a3a3" : "#71717a"}
+            style={{ color: isDark ? "#f5f5f5" : "#18181b" }}
             onValueChange={(value) => {
               setSelectedRole(value);
               handleChange("role", value);
             }}
           >
-            <Picker.Item label="Select Role" value="" />
-            <Picker.Item label="Teacher" value="Teacher" />
-            <Picker.Item label="Student" value="Student" />
+            <Picker.Item label="Select Role" value="" style={{ color: isDark ? "#a3a3a3" : "#71717a", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+            <Picker.Item label="Teacher" value="Teacher" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+            <Picker.Item label="Student" value="Student" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
           </Picker>
         </View>
 
         {/* NAME */}
         <TextInput
           placeholder="Full Name"
-          className="border border-gray-300 rounded-xl px-4 py-3 mb-4"
+          placeholderTextColor="#a1a1aa"
+          className="border border-zinc-200 dark:border-neutral-800 rounded-2xl px-4 py-3.5 mb-4 text-zinc-900 dark:text-neutral-100 bg-zinc-50/50 dark:bg-neutral-950 font-medium text-base"
           value={formData.name}
           onChangeText={(v) => handleChange("name", v)}
         />
@@ -143,11 +151,12 @@ function RegisterPage({ onSwitch }) {
         {/* EMAIL */}
         <TextInput
           placeholder="Email"
-          className={`border rounded-xl px-4 py-3 mb-4 ${isEmailValid === false
-              ? "border-red-500"
-              : isEmailValid === true
-                ? "border-green-500"
-                : "border-gray-300"
+          placeholderTextColor="#a1a1aa"
+          className={`border rounded-2xl px-4 py-3.5 mb-4 text-zinc-900 dark:text-neutral-100 bg-zinc-50/50 dark:bg-neutral-950 font-medium text-base ${isEmailValid === false
+            ? "border-rose-500 dark:border-red-500"
+            : isEmailValid === true
+              ? "border-emerald-500 dark:border-green-500"
+              : "border-zinc-200 dark:border-neutral-800"
             }`}
           value={formData.email}
           onChangeText={(v) => handleChange("email", v)}
@@ -159,7 +168,8 @@ function RegisterPage({ onSwitch }) {
         {selectedRole === "Teacher" && (
           <TextInput
             placeholder="Teacher ID"
-            className="border border-gray-300 rounded-xl px-4 py-3 mb-4"
+            placeholderTextColor="#a1a1aa"
+            className="border border-zinc-200 dark:border-neutral-800 rounded-2xl px-4 py-3.5 mb-4 text-zinc-900 dark:text-neutral-100 bg-zinc-50/50 dark:bg-neutral-950 font-medium text-base"
             value={formData.teacher_id}
             onChangeText={(v) => handleChange("teacher_id", v)}
           />
@@ -168,47 +178,54 @@ function RegisterPage({ onSwitch }) {
         {/* STUDENT SPECIFIC */}
         {selectedRole === "Student" && (
           <>
-            <View className="border border-gray-300 rounded-xl mb-4 overflow-hidden">
+            <View className="border border-zinc-200 dark:border-neutral-800 rounded-2xl mb-4 overflow-hidden bg-zinc-50/50 dark:bg-neutral-950">
               <Picker
                 selectedValue={formData.branch_id}
+                dropdownIconColor={isDark ? "#a3a3a3" : "#71717a"}
+                style={{ color: isDark ? "#f5f5f5" : "#18181b" }}
                 onValueChange={(v) => handleChange("branch_id", v)}
               >
-                <Picker.Item label="Select Branch" value="" />
-                <Picker.Item label="Computer Science & Engineering" value="CSE" />
-                <Picker.Item label="AI/ML" value="AI" />
-                <Picker.Item label="Robotics & Automation" value="RA" />
-                <Picker.Item label="Mechanical Engineering" value="ME" />
-                <Picker.Item label="Civil Engineering" value="CE" />
-                <Picker.Item label="BCA" value="BCA" />
+                <Picker.Item label="Select Branch" value="" style={{ color: isDark ? "#a3a3a3" : "#71717a", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+                <Picker.Item label="Computer Science & Engineering" value="CSE" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+                <Picker.Item label="AI/ML" value="AI" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+                <Picker.Item label="Robotics & Automation" value="RA" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+                <Picker.Item label="Mechanical Engineering" value="ME" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+                <Picker.Item label="Civil Engineering" value="CE" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+                <Picker.Item label="BCA" value="BCA" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
               </Picker>
             </View>
 
-            <View className="border border-gray-300 rounded-xl mb-4 overflow-hidden">
+            <View className="border border-zinc-200 dark:border-neutral-800 rounded-2xl mb-4 overflow-hidden bg-zinc-50/50 dark:bg-neutral-950">
               <Picker
                 selectedValue={formData.year}
+                dropdownIconColor={isDark ? "#a3a3a3" : "#71717a"}
+                style={{ color: isDark ? "#f5f5f5" : "#18181b" }}
                 onValueChange={(v) => handleChange("year", v)}
               >
-                <Picker.Item label="Select Year" value="" />
-                <Picker.Item label="1st Year" value="1" />
-                <Picker.Item label="2nd Year" value="2" />
-                <Picker.Item label="3rd Year" value="3" />
-                <Picker.Item label="4th Year" value="4" />
-                <Picker.Item label="5th Year" value="5" />
+                <Picker.Item label="Select Year" value="" style={{ color: isDark ? "#a3a3a3" : "#71717a", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+                <Picker.Item label="1st Year" value="1" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+                <Picker.Item label="2nd Year" value="2" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+                <Picker.Item label="3rd Year" value="3" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+                <Picker.Item label="4th Year" value="4" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
+                <Picker.Item label="5th Year" value="5" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
               </Picker>
             </View>
 
             {/* SEMESTER PICKER (1-10) */}
-            <View className="border border-gray-300 rounded-xl mb-4 overflow-hidden">
+            <View className="border border-zinc-200 dark:border-neutral-800 rounded-2xl mb-4 overflow-hidden bg-zinc-50/50 dark:bg-neutral-950">
               <Picker
                 selectedValue={formData.semester}
+                dropdownIconColor={isDark ? "#a3a3a3" : "#71717a"}
+                style={{ color: isDark ? "#f5f5f5" : "#18181b" }}
                 onValueChange={(v) => handleChange("semester", v)}
               >
-                <Picker.Item label="Select Semester" value="" />
+                <Picker.Item label="Select Semester" value="" style={{ color: isDark ? "#a3a3a3" : "#71717a", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
                 {Array.from({ length: 10 }, (_, i) => (
                   <Picker.Item
                     key={i + 1}
                     label={`Semester ${i + 1}`}
                     value={(i + 1).toString()}
+                    style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }}
                   />
                 ))}
               </Picker>
@@ -217,7 +234,8 @@ function RegisterPage({ onSwitch }) {
             {/* SECTION INPUT (Auto-Capitalized) */}
             <TextInput
               placeholder="Section (e.g. A, B, C)"
-              className="border border-gray-300 rounded-xl px-4 py-3 mb-4"
+              placeholderTextColor="#a1a1aa"
+              className="border border-zinc-200 dark:border-neutral-800 rounded-2xl px-4 py-3.5 mb-4 text-zinc-900 dark:text-neutral-100 bg-zinc-50/50 dark:bg-neutral-950 font-medium text-base"
               value={formData.section}
               autoCapitalize="characters"
               onChangeText={(v) => handleChange("section", v)}
@@ -225,7 +243,8 @@ function RegisterPage({ onSwitch }) {
 
             <TextInput
               placeholder="Student ID"
-              className="border border-gray-300 rounded-xl px-4 py-3 mb-4"
+              placeholderTextColor="#a1a1aa"
+              className="border border-zinc-200 dark:border-neutral-800 rounded-2xl px-4 py-3.5 mb-4 text-zinc-900 dark:text-neutral-100 bg-zinc-50/50 dark:bg-neutral-950 font-medium text-base"
               value={formData.student_id}
               onChangeText={(v) => handleChange("student_id", v)}
             />
@@ -235,8 +254,9 @@ function RegisterPage({ onSwitch }) {
         {/* PASSWORD */}
         <TextInput
           placeholder="Password"
+          placeholderTextColor="#a1a1aa"
           secureTextEntry
-          className="border border-gray-300 rounded-xl px-4 py-3 mb-6"
+          className="border border-zinc-200 dark:border-neutral-800 rounded-2xl px-4 py-3.5 mb-6 text-zinc-900 dark:text-neutral-100 bg-zinc-50/50 dark:bg-neutral-950 font-medium text-base"
           value={formData.password}
           onChangeText={(v) => handleChange("password", v)}
         />
@@ -245,12 +265,13 @@ function RegisterPage({ onSwitch }) {
         <TouchableOpacity
           onPress={handleSubmit}
           disabled={!(isEmailValid && isIDValid)}
-          className={`py-3 rounded-xl ${isEmailValid && isIDValid
-              ? "bg-indigo-600"
-              : "bg-gray-400"
+          activeOpacity={0.8}
+          className={`py-4 rounded-2xl shadow-sm ${isEmailValid && isIDValid
+            ? "bg-zinc-900"
+            : "bg-zinc-200 dark:bg-neutral-800"
             }`}
         >
-          <Text className="text-white text-center font-semibold">
+          <Text className={isEmailValid && isIDValid ? "text-white text-center font-bold tracking-wide" : "text-zinc-400 dark:text-neutral-500 text-center font-bold tracking-wide"}>
             Register
           </Text>
         </TouchableOpacity>
@@ -258,12 +279,13 @@ function RegisterPage({ onSwitch }) {
         {/* SWITCH TO LOGIN */}
         <TouchableOpacity
           onSwitch={onSwitch}
-          className="mt-4"
+          className="mt-5"
           onPress={onSwitch}
+          activeOpacity={0.7}
         >
           <View className="flex-row text-center justify-center">
-            <Text>Already have an account? </Text>
-            <Text className="text-center font-semibold text-indigo-500 underline">
+            <Text className="text-base font-medium text-zinc-500 dark:text-neutral-400">Already have an account? </Text>
+            <Text className="text-base text-center font-bold text-zinc-900 dark:text-indigo-400 underline decoration-zinc-300">
               Login
             </Text>
           </View>

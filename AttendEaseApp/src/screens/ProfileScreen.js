@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
-import RNRestart from 'react-native-restart';
 import messaging from '@react-native-firebase/messaging';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
@@ -20,7 +19,7 @@ import Auth from "../components/Auth";
 import BleToggle from "../components/BleToggle";
 
 export default function ProfileScreen() {
-  const { userData, setUserData, buildUrl, setLogout, bleOn, setBleOn } = AppStates();
+  const { userData, setUserData, buildUrl, setLogout, bleOn, setBleOn, themePreference, updateTheme } = AppStates();
 
   // --- LOGOUT LOADING STATE ---
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -68,7 +67,6 @@ export default function ProfileScreen() {
             await AsyncStorage.clear();
             setUserData(null);
             setLogout(true);
-            // RNRestart.Restart();
           } catch (err) {
             Alert.alert("Error", "Failed to clear terminal identity profile: " + err);
           } finally {
@@ -248,9 +246,9 @@ export default function ProfileScreen() {
         <GlassCard title="Security Settings" icon="shield-checkmark-outline">
           <TouchableOpacity
             onPress={() => { setAuthMode("change"); setModalVisible(true); }}
-            className="flex-row justify-between items-center py-3 border-b border-slate-100"
+            className="flex-row justify-between items-center py-3 border-b border-slate-100 dark:border-neutral-600"
           >
-            <Text className="text-slate-600 font-medium">Change Password</Text>
+            <Text className="text-slate-600 dark:text-neutral-300 font-medium">Change Password</Text>
             <Ionicons name="chevron-forward" size={20} color="#6366F1" />
           </TouchableOpacity>
 
@@ -258,7 +256,7 @@ export default function ProfileScreen() {
             onPress={() => { setAuthMode("reset"); setModalVisible(true); }}
             className="flex-row justify-between items-center py-3"
           >
-            <Text className="text-slate-600 font-medium">Reset Password</Text>
+            <Text className="text-slate-600 dark:text-neutral-300 font-medium">Reset Password</Text>
             <Ionicons name="refresh-circle-outline" size={22} color="#6366F1" />
           </TouchableOpacity>
         </GlassCard>
@@ -267,17 +265,62 @@ export default function ProfileScreen() {
         <GlassCard title="BLE Mesh Technology" icon="bluetooth">
           <BleToggle bleOn={bleOn} setBleOn={setBleOn} />
         </GlassCard>
+
+        <GlassCard title="App Theme" icon="sunny-outline">
+          <Text className="text-gray-500 dark:text-neutral-400 mb-3">
+            Set app theme preference
+          </Text>
+
+          <View className="flex-row bg-gray-100 dark:bg-neutral-800 p-1 rounded-xl border border-gray-200/50 dark:border-neutral-700/50">
+            {/* System Option */}
+            <TouchableOpacity
+              onPress={() => updateTheme('system')}
+              className={`flex-1 py-2.5 rounded-lg items-center ${themePreference === "system" ? "bg-white" : ""}`}
+            >
+              <Text className={`text-base font-semibold ${themePreference === "system" ? "" : "dark:text-neutral-300"}`}>
+                📱 System
+              </Text>
+            </TouchableOpacity>
+
+            {/* Light Option */}
+            <TouchableOpacity
+              onPress={() => updateTheme('light')}
+              className={`flex-1 py-2.5 rounded-lg items-center ${themePreference === "light" ? "bg-white" : ""}`}
+            >
+              <Text className={`text-base font-semibold ${themePreference === "light" ? "" : "dark:text-neutral-300"}`}>
+                ☀️ Light
+              </Text>
+            </TouchableOpacity>
+
+            {/* Dark Option */}
+            <TouchableOpacity
+              onPress={() => updateTheme('dark')}
+              className={`flex-1 py-2.5 rounded-lg items-center ${themePreference === "dark" ? "bg-white" : ""}`}
+            >
+              <Text className={`text-base font-semibold ${themePreference === "dark" ? "" : "dark:text-neutral-300"}`}>
+                🌙 Dark
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </GlassCard>
+
       </ScrollView>
 
-      {/* LOGOUT BUTTON CONTAINER */}
-      <View className="px-5 py-3">
+      {/* LOGOUT TRIGGER */}
+      <View className="px-5 py-4 bg-slate-50/50 dark:bg-neutral-950/50 ">
         <TouchableOpacity
           onPress={logout}
-          className="bg-white py-4 rounded-2xl flex-row items-center justify-center gap-2 border border-slate-200"
+          style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+          className="bg-white dark:bg-neutral-900 py-4 rounded-2xl flex-row items-center justify-center gap-2.5 border border-slate-200 dark:border-neutral-700 shadow-sm active:bg-slate-50 dark:active:bg-neutral-800"
         >
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-          <Text className="text-red-500 text-base font-semibold">
-            Logout
+          <Ionicons
+            name="log-out-outline"
+            size={20}
+            color="#ffa1a1"
+            className="text-red-500 dark:text-red-400"
+          />
+          <Text className="text-red-500 dark:text-red-400 text-base font-bold tracking-wide">
+            Logout Account
           </Text>
         </TouchableOpacity>
       </View>
@@ -290,9 +333,9 @@ export default function ProfileScreen() {
         onRequestClose={closeModals}
       >
         <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-[40px] p-8 shadow-2xl">
+          <View className="bg-white dark:bg-neutral-900 rounded-t-[30px] p-8 shadow-2xl">
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-2xl font-bold text-slate-800">
+              <Text className="text-2xl font-bold text-slate-800 dark:text-neutral-300">
                 {authMode === "change" ? "Change Password" : "Reset Password"}
               </Text>
               <TouchableOpacity onPress={closeModals}>
@@ -302,36 +345,38 @@ export default function ProfileScreen() {
 
             {authMode === "change" && (
               <View className="gap-y-4">
-                <View className="bg-slate-100 rounded-2xl px-4 flex-row items-center border border-slate-200">
+                <View className="bg-slate-100 dark:bg-neutral-800 dark:text-neutral-300 rounded-2xl px-4 flex-row items-center border border-slate-200 dark:border-neutral-700">
                   <Ionicons name="lock-closed-outline" size={20} color="#64748B" />
                   <TextInput
                     placeholder="Old Password"
                     secureTextEntry={!showOldPassword}
-                    className="flex-1 py-4 ml-3 text-slate-800"
+                    className="flex-1 py-4 ml-3 text-slate-800 dark:text-neutral-300"
                     onChangeText={(val) => setForm({ ...form, oldPassword: val })}
                   />
                   <TouchableOpacity onPress={() => setShowOldPassword(prev => !prev)}>
                     <Ionicons name={showOldPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748B" />
                   </TouchableOpacity>
                 </View>
-                <View className="bg-slate-100 rounded-2xl px-4 flex-row items-center border border-slate-200">
+
+                <View className="bg-slate-100 dark:bg-neutral-800 dark:text-neutral-300 rounded-2xl px-4 flex-row items-center border border-slate-200 dark:border-neutral-700">
                   <Ionicons name="key-outline" size={20} color="#64748B" />
                   <TextInput
                     placeholder="New Password"
                     secureTextEntry={!showNewPassword}
-                    className="flex-1 py-4 ml-3 text-slate-800"
+                    className="flex-1 py-4 ml-3 text-slate-800 dark:text-neutral-300"
                     onChangeText={(val) => setForm({ ...form, newPassword: val })}
                   />
                   <TouchableOpacity onPress={() => setShowNewPassword(prev => !prev)}>
                     <Ionicons name={showNewPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748B" />
                   </TouchableOpacity>
                 </View>
-                <View className="bg-slate-100 rounded-2xl px-4 flex-row items-center border border-slate-200">
+
+                <View className="bg-slate-100 dark:bg-neutral-800 dark:text-neutral-300 rounded-2xl px-4 flex-row items-center border border-slate-200 dark:border-neutral-700">
                   <Ionicons name="checkmark-circle-outline" size={20} color="#64748B" />
                   <TextInput
                     placeholder="Confirm New Password"
                     secureTextEntry={!showConfirmPassword}
-                    className="flex-1 py-4 ml-3 text-slate-800"
+                    className="flex-1 py-4 ml-3 text-slate-800 dark:text-neutral-300"
                     onChangeText={(val) => setForm({ ...form, confirmPassword: val })}
                   />
                   <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)}>
@@ -352,7 +397,7 @@ export default function ProfileScreen() {
               <View className="gap-y-4">
                 {resetStep === 1 ? (
                   <>
-                    <Text className="text-slate-500 text-center leading-5 mb-2">
+                    <Text className="text-slate-500 dark:text-neutral-400 text-center leading-5 mb-2">
                       We will send a one-time password to your registered email to verify your identity.
                     </Text>
                     <TouchableOpacity
@@ -365,33 +410,35 @@ export default function ProfileScreen() {
                   </>
                 ) : (
                   <>
-                    <View className="bg-slate-100 rounded-2xl px-4 flex-row items-center border border-slate-200">
+                    <View className="bg-slate-100 dark:bg-neutral-800 dark:text-neutral-300 rounded-2xl px-4 flex-row items-center border border-slate-200 dark:border-neutral-700">
                       <Ionicons name="mail-outline" size={20} color="#64748B" />
                       <TextInput
                         placeholder="Enter OTP"
                         keyboardType="number-pad"
-                        className="flex-1 py-4 ml-3 text-slate-800"
+                        className="flex-1 py-4 ml-3 text-slate-800 dark:text-neutral-300"
                         onChangeText={(val) => setForm({ ...form, otp: val })}
                       />
                     </View>
-                    <View className="bg-slate-100 rounded-2xl px-4 flex-row items-center border border-slate-200">
+
+                    <View className="bg-slate-100 dark:bg-neutral-800 dark:text-neutral-300 rounded-2xl px-4 flex-row items-center border border-slate-200 dark:border-neutral-700">
                       <Ionicons name="key-outline" size={20} color="#64748B" />
                       <TextInput
                         placeholder="New Password"
                         secureTextEntry={!showNewPassword}
-                        className="flex-1 py-4 ml-3 text-slate-800"
+                        className="flex-1 py-4 ml-3 text-slate-800 dark:text-neutral-300"
                         onChangeText={(val) => setForm({ ...form, newPassword: val })}
                       />
                       <TouchableOpacity onPress={() => setShowNewPassword(prev => !prev)}>
                         <Ionicons name={showNewPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748B" />
                       </TouchableOpacity>
                     </View>
-                    <View className="bg-slate-100 rounded-2xl px-4 flex-row items-center border border-slate-200">
+
+                    <View className="bg-slate-100 dark:bg-neutral-800 dark:text-neutral-300 rounded-2xl px-4 flex-row items-center border border-slate-200 dark:border-neutral-700">
                       <Ionicons name="checkmark-circle-outline" size={20} color="#64748B" />
                       <TextInput
                         placeholder="Confirm Password"
                         secureTextEntry={!showConfirmPassword}
-                        className="flex-1 py-4 ml-3 text-slate-800"
+                        className="flex-1 py-4 ml-3 text-slate-800 dark:text-neutral-300"
                         onChangeText={(val) => setForm({ ...form, confirmPassword: val })}
                       />
                       <TouchableOpacity onPress={() => setShowConfirmPassword(prev => !prev)}>
@@ -416,12 +463,12 @@ export default function ProfileScreen() {
       {/* 🔄 DYNAMIC GLOBAL LOGOUT FULLSCREEN OVERLAY LOADING HOOK */}
       {isLoggingOut && (
         <Modal transparent={true} animationType="fade" visible={isLoggingOut}>
-          <View className="flex-1 bg-black/60 items-center justify-center">
-            <View className="bg-white p-6 rounded-3xl flex-col items-center justify-center space-y-4 shadow-2xl w-64">
-              <ActivityIndicator size="large" color="#4F46E5" />
-              <View className="space-y-1">
-                <Text className="text-slate-800 font-bold text-xl text-center">Logging Out</Text>
-                <Text className="text-slate-400 text-sm text-center">Clearing synchronized profile files...</Text>
+          <View className="flex-1 bg-black/40 items-center justify-center backdrop-blur-md">
+            <View className="bg-white dark:bg-neutral-900 p-8 rounded-[32px] flex-col items-center justify-center gap-y-4 shadow-xl w-64 border border-zinc-100 dark:border-neutral-800">
+              <ActivityIndicator size="large" color={"#4F46E5"} />
+              <View className="gap-y-1">
+                <Text className="text-zinc-900 dark:text-neutral-50 font-bold text-xl text-center tracking-tight">Logging Out</Text>
+                <Text className="text-zinc-400 dark:text-neutral-400 text-sm text-center leading-relaxed">Clearing synchronized profile files...</Text>
               </View>
             </View>
           </View>
@@ -436,10 +483,10 @@ export default function ProfileScreen() {
 /* ===================== */
 function GlassCard({ title, icon, children }) {
   return (
-    <View className="mx-5 mt-6 bg-neutral-100 backdrop-blur p-5 rounded-3xl elevation-md">
+    <View className="mx-5 mt-6 bg-neutral-100 dark:bg-neutral-900/40 border border-transparent dark:border-neutral-800 backdrop-blur p-5 rounded-3xl elevation-md dark:elevation-none dark:shadow-md">
       <View className="bg-transparent flex-row items-center mb-4 gap-2">
         <Ionicons name={icon} size={28} color="#4F46E5" />
-        <Text className="text-lg font-semibold text-slate-800">
+        <Text className="text-lg font-semibold text-slate-800 dark:text-neutral-300">
           {title}
         </Text>
       </View>
@@ -454,12 +501,12 @@ function GlassCard({ title, icon, children }) {
 function InfoRow({ label, value }) {
   return (
     <View className="flex-row justify-between items-center py-3 border-b border-slate-200 last:border-b-0">
-      <Text className="text-base text-slate-500">
+      <Text className="text-base text-slate-500 dark:text-neutral-300">
         {label}
       </Text>
       <Text
         numberOfLines={1}
-        className="text-base font-semibold text-slate-900 max-w-[60%] text-right"
+        className="text-base font-semibold text-slate-900 dark:text-neutral-300 max-w-[60%] text-right"
       >
         {value || "-"}
       </Text>

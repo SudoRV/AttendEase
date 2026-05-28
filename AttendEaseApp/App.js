@@ -5,11 +5,16 @@ import AppNavigator from "./src/navigation/AppNavigator";
 import { GlobalProvider } from "./src/context/AppStates";
 import PopupNotification from "./src/components/ui/PopupNotification";
 import notifee from '@notifee/react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useColorScheme } from "nativewind";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { getDBConnection } from "./src/database/database";
 
 // Firebase imports
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 
 import "./global.css";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const checkBattery = async () => {
   const settings = await notifee.getNotificationSettings();
@@ -24,9 +29,14 @@ const checkBattery = async () => {
 export default function App() {
   const [notification, setNotification] = useState(null);
   const [sessionKey, setSessionKey] = useState(0);
+  const { colorScheme } = useColorScheme();
+  const database = getDBConnection();
 
   const handleLogout = () => {
     // console.log(sessionKey)
+    AsyncStorage.clear();
+    database.execute("delete from timetable");
+    database.execute("delete from notifications");
     setSessionKey(prev => prev + 1);
   };
 
@@ -67,27 +77,31 @@ export default function App() {
   }, []);
 
   return (
-    <View className="flex-1">
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="rgba(0,0,0,0.2)"
-        translucent={true}
-        animated={true}
-      />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <View className="flex-1">
+          <StatusBar
+            barStyle={colorScheme === "dark" ? "light" : "dark-content"}
+            backgroundColor="transparent"
+            translucent={true}
+            animated={true}
+          />
 
-      {/* Your standard app tree */}
-      <GlobalProvider key={sessionKey} >
-        <AppNavigator onLogout={handleLogout} />
-      </GlobalProvider>
+          {/* Your standard app tree */}
+          <GlobalProvider key={sessionKey} >
+            <AppNavigator onLogout={handleLogout} />
+          </GlobalProvider>
 
-      {/* 🔴 GLOBAL POPUP: Only renders if notification state exists */}
-      {notification && (
-        <PopupNotification
-          title={notification.title}
-          body={notification.body}
-          onClose={() => setNotification(null)}
-        />
-      )}
-    </View>
+          {/* GLOBAL POPUP */}
+          {notification && (
+            <PopupNotification
+              title={notification.title}
+              body={notification.body}
+              onClose={() => setNotification(null)}
+            />
+          )}
+        </View>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
