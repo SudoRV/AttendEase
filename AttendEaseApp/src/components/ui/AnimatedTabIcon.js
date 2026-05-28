@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, memo } from "react";
 import { Animated } from "react-native";
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useColorScheme } from "nativewind";
 
 function AnimatedTabIcon({ focused, iconName, size, color }) {
   const animatedWidth = useRef(new Animated.Value(size)).current;
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   useEffect(() => {
     Animated.timing(animatedWidth, {
@@ -19,7 +22,7 @@ function AnimatedTabIcon({ focused, iconName, size, color }) {
         width: animatedWidth,
         height: size + 6,
         borderRadius: 999,
-        backgroundColor: focused ? "#E0E7FF" : "transparent",
+        backgroundColor: focused ? (isDark ? "#262b3e" : "#E0E7FF") : "transparent",
         alignItems: "center",
         justifyContent: "center",
         marginTop: 10

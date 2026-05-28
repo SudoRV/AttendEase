@@ -45,7 +45,7 @@ const config2 = {
   waitForConnections: true,
 }
 
-const pool = mysql.createPool(config);
+const pool = mysql.createPool(config2);
 
 // nodemailer transporter
 // console.log(process.env.EMAIL, process.env.PASS)
@@ -339,9 +339,6 @@ app.post("/register", async (req, res) => {
     res.json({ success: false, message: "Already Registered" })
   }
 })
-
-// reset password
-
 
 // fetch timetable
 app.get("/get-timetable", async (req, res) => {
@@ -1084,6 +1081,20 @@ app.get("/fetch-attendance", async (req, res) => {
   // console.log(attendance)
   res.json({ attendance })
 })
+
+
+// download apk
+app.get('/download-app', (req, res) => {
+  const apkPath = path.join(__dirname, 'static/apk', 'app-release.apk');
+  
+  // res.download forces the browser/phone to download the file instead of trying to open it
+  res.download(apkPath, 'AttendEase.apk', (err) => {
+      if (err) {
+          console.error("Error sending APK file:", err);
+          res.status(500).send("Could not download the file.");
+      }
+  });
+});
 
 
 app.use('/schedule_images', express.static(path.join(__dirname, 'static/schedule_images'), {
