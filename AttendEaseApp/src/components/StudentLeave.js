@@ -37,6 +37,7 @@ const StudentLeave = () => {
     if (!userData?.email) return;
     const leaves_by_month = await loadLeaves(leavesFilter);
 
+    // console.log(leavesFilter, leaves_by_month)
     if (leaves_by_month?.data?.length > 0) {
       setLeavesByMonth(leaves_by_month);
     } else {
@@ -145,7 +146,7 @@ const StudentLeave = () => {
                 Leave History
               </Text>
 
-              <TouchableOpacity className="mb-3 p-1 px-4 bg-indigo-500 dark:bg-blue-600 rounded-full active:opacity-90"
+              <TouchableOpacity className="mb-3 p-1 px-4 bg-indigo-500 rounded-full active:opacity-90"
                 onPress={() => setLatestLeaveModal(prev => !prev)}
               >
                 <Text className="text-white text-center text-[16px] font-medium">view all</Text>
@@ -156,7 +157,7 @@ const StudentLeave = () => {
               Leaves this month
             </Text>
 
-            <Text className="text-4xl font-bold text-indigo-600 dark:text-blue-400 mt-1">
+            <Text className="text-4xl font-bold text-indigo-500 mt-1">
               {leaveHistory?.length || 0}
             </Text>
           </View>
@@ -243,9 +244,11 @@ const StudentLeave = () => {
 
                         <Text className="text-lg font-bold text-neutral-700 dark:text-neutral-300 mt-2">Application</Text>
 
-                        <Text className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 p-2 rounded-xl mt-2 text-slate-800 dark:text-neutral-200">
-                          {latestLeaveSource?.data[latestLeaveCollapsed.index]?.application}
-                        </Text>
+                        <ScrollView className="max-h-60" showsVerticalScrollIndicator={false}>
+                          <Text className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 p-2 rounded-xl mt-2 text-slate-800 dark:text-neutral-200">
+                            {latestLeaveSource?.data[latestLeaveCollapsed.index]?.application}
+                          </Text>
+                        </ScrollView>
                       </View>
 
                       <View className="flex-row justify-between items-center my-6 mb-4">
@@ -253,6 +256,7 @@ const StudentLeave = () => {
 
                         {/* filter */}
                         <Selector
+                          value={leavesFilter.month}
                           defaultOption={{ label: new Date().toLocaleDateString("en-Gb", { month: "long" }), value: new Date().getMonth() }}
                           options={[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(m => ({ label: new Date(new Date().getFullYear(), m, 1).toLocaleDateString("en-Gb", { month: "long" }), value: m }))}
                           onChange={(filter) => setLeavesFilter({ ...filter, month: filter.value, set: false })}
@@ -282,7 +286,7 @@ const StudentLeave = () => {
                               </CustomButton>
                             ))
                           ) : (
-                            <Text className="text-neutral-600 dark:text-neutral-400 font-semibold text-lg text-center py-20">No leave found for {new Date(new Date().getFullYear(), leavesByMonth?.month || new Date().getMonth(), 1).toLocaleDateString("en-Gb", { month: "long" })}</Text>
+                            <Text className="text-neutral-600 dark:text-neutral-400 font-semibold text-lg text-center py-20">No leave found for {new Date(new Date().getFullYear(), leavesFilter.month || new Date().getMonth(), 1).toLocaleDateString("en-Gb", { month: "long" })}</Text>
                           )
                         }
                       </View>

@@ -80,7 +80,7 @@ app.get("/wake-me-up", (req, res) => {
 
 // download apk
 app.get('/download-app', (req, res) => {
-  const apkPath = path.join(__dirname, 'static/apk', 'app-release.apk');
+  const apkPath = path.join(__dirname, 'static/apk/v2.0.0', 'app-release.apk');
 
   // res.download forces the browser/phone to download the file instead of trying to open it
   res.download(apkPath, 'AttendEase.apk', (err) => {
@@ -736,7 +736,7 @@ app.post("/verify-leave", async (req, res) => {
   const { action, applicant, verifier } = req.body;
 
   const query = `update leaves l set l.status = ? where l.student_id = ? 
-  and exists (
+  and id = ? and exists (
     select 1
     from users u
     where u.teacher_id = ?
@@ -744,7 +744,7 @@ app.post("/verify-leave", async (req, res) => {
   )`
 
   try {
-    const [response] = await pool.query(query, [action, applicant?.student_id, verifier.teacher_id])
+    const [response] = await pool.query(query, [action, applicant?.student_id, applicant?.id, verifier.teacher_id])
 
     if (response.affectedRows > 0) {
       res.json({ success: true, message: "successfully " + action });
@@ -830,37 +830,32 @@ app.post("/teacher-availability", async (req, res) => {
   }
 
   try {
-    const response1 = await pool.query(query1, values1);
+    // check for duplicates for leave type period
+    const [leaveExists] = await pool.query("select * from leaves where teacher_id = ? and applicable_from = ? and applicable_to = ?", [applicant.teacher_id, from, to]);
+
+    if(leaveExists.length === 0) {
+      const response1 = await pool.query(query1, values1);
+    }
     const response2 = await pool.query(query2, values2);
 
     const currentDate = new Date(new Date().toDateString());
     const fromDate = new Date(new Date(from).toDateString());
     const toDate = new Date(new Date(to).toDateString());
 
-    // if (currentDate >= fromDate && currentDate <= toDate) {
-
-    // } else {
-    //   return res.json({
-    //     success: true,
-    //     message: "Leave saved successfully",
-    //   });
-    // }
 
     // send notification to affected class
     // fetch affetected class
-    let [classes] = await pool.query(`select distinct * from schedule where cancelled = 1 and teacher_id = ? and cancelled_from = ? AND day = ? order by year, period_id`, [applicant.teacher_id, new Date(from), new Date(from).toLocaleString("en-Gb", {
+    let [affectedClasses] = await pool.query(`select distinct * from schedule where cancelled = 1 and teacher_id = ? and cancelled_from = ? AND day = ? order by year, period_id`, [applicant.teacher_id, new Date(from), new Date(from).toLocaleString("en-Gb", {
       weekday: "long"
     })]);
 
-
     // notify affected students
     const notification = {};
-    classes.forEach((clas) => {
+    affectedClasses.forEach((clas) => {
       if (!notification[`${clas.branch_id}_${clas.year}_${clas.section}`]) {
         notification[`${clas.branch_id}_${clas.year}_${clas.section}`] = [clas];
       } else {
-        // passing to ignore multiple classes of same day
-        // notification[`${clas.branch_id}_${clas.year}_${clas.section}`].push(clas);
+        notification[`${clas.branch_id}_${clas.year}_${clas.section}`].push(clas);
       }
     })
 
@@ -894,6 +889,7 @@ app.post("/teacher-availability", async (req, res) => {
           metadata: JSON.stringify({
             leave_type,
             status: "1",
+            teacher_id: applicant.teacher_id,
             period_id: notification[topic]
               .map((p) => p.period_id),
             on, from, to

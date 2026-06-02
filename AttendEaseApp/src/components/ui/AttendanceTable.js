@@ -56,7 +56,7 @@ const AttendanceTable = ({ attendance, selectedMonth }) => {
             </View>
 
             {/* attendance */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} bounces={false}
                 ref={attendanceTableRef}
             >
                 <View className="flex flex-col">

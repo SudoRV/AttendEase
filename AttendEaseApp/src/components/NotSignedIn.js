@@ -15,6 +15,7 @@ export default function NotSignedIn() {
     <ScrollView
       contentContainerStyle={{ flexGrow: 1 }}
       className="dark:bg-neutral-900 mt-4"
+      showsVerticalScrollIndicator={false}
     >
       <View className="flex-1 items-center justify-center px-6 py-10">
 

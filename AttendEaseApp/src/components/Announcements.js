@@ -41,6 +41,15 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
       if (results?.rows?._array) {
         // 1. Fastest extraction method if _array contains your objects
         rows = results.rows._array;
+        rows = rows.filter(r => {
+          if(r.type === "announcement") {
+            const scope = JSON.parse(r.scope);
+            if (scope.branches.some(b => b === userData.branch_id || b === "all") && scope.years.some(y => y === `${userData.year}` || y === "all") && scope.sections.some(s => s === userData.section || s === "all")) return r;
+          } else {
+            const scope = r.scope.split("_");
+            if((scope[0] === userData?.branch_id || scope[0] === "all") && (scope[1] === `${userData?.year}` || scope[1] === "all") && (scope[2] === userData?.section || scope[2] === "all")) return r;
+          }
+        })
       } else if (results?.rows?.length > 0) {
         // 2. Safe fallback loop utilizing the .item() function mapped in your log
         for (let i = 0; i < results.rows.length; i++) {

@@ -34,9 +34,13 @@ export default function App() {
 
   const handleLogout = () => {
     // console.log(sessionKey)
-    AsyncStorage.clear();
+    AsyncStorage.removeItem("user_creds");
+    AsyncStorage.removeItem("classes");
+    AsyncStorage.removeItem("attendance_report");
+
     database.execute("delete from timetable");
     database.execute("delete from notifications");
+
     setSessionKey(prev => prev + 1);
   };
 

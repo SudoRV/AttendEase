@@ -90,7 +90,6 @@ export default function Announce() {
       const resData = await response.json();
       if (resData.success) {
         loadAnnouncements();
-        setFormData({ title: "", body: "", expires_at: "" });
         setTargetYears([]);
         setTargetBranches([]);
         setTargetSections([]);

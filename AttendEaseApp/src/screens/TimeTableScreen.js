@@ -53,6 +53,7 @@ const TimeTableScreen = () => {
 
   // --- INITIAL BOOTSTRAP SYNC CALL ---
   useEffect(() => {
+    const startedTime = new Date().getTime();
     const bootstrapDataPipeline = async () => {
       try {
         // Run initial data population on mount
@@ -63,7 +64,15 @@ const TimeTableScreen = () => {
         console.error("Bootstrapping failed:", err);
       } finally {
         // Open the app viewport smoothly
-        setIsInitialLoading(false);
+        const consumedTime = (new Date().getTime() - startedTime);
+        if(consumedTime < 2500) {
+          const loadTimeout = setTimeout(() => {
+            setIsInitialLoading(false);
+            clearTimeout(loadTimeout);
+          }, 2500 - consumedTime)
+        } else {
+          setIsInitialLoading(false);
+        }
       }
     };
     bootstrapDataPipeline();
@@ -92,6 +101,7 @@ const TimeTableScreen = () => {
       }
       setLeaveModalVisible(true);
     } else if (option === "edit") {
+      console.log("here")
       const data = activeClassesArray?.[selectedSlotIndex];
       if (data) {
         setFormData({
@@ -266,21 +276,9 @@ const TimeTableScreen = () => {
   const [redirected, setRedirected] = useState(false);
   let notLoggedInTimer;
 
-  useEffect(() => {
-    if (userData?.role) setRedirected(false);
-    if(notLoggedInTimer) clearTimeout(notLoggedInTimer);
-  }, [userData])
+  if (!isInitialLoading && !!userData?.role === false) return <NotSignedIn />
 
-  if (redirected) return <NotSignedIn />
-
-  else if (isInitialLoading) {
-
-    if (!isInitialLoading && !!userData?.role === false) {
-      notLoggedInTimer = setTimeout(() => {
-        setRedirected(true);
-        navigation.navigate("Profile");
-      }, 3000)
-    }
+  if (!!isInitialLoading) {
 
     return (
       <View className="flex-1 bg-white dark:bg-neutral-900 items-center justify-center w-full h-full pt-3.5">
@@ -295,19 +293,9 @@ const TimeTableScreen = () => {
             Attend<Text className="text-indigo-600 dark:text-blue-500">Ease</Text>
           </Text>
 
-          {
-            !isInitialLoading && !!userData?.role === false ? (
-              <>
-                <Text className="text-red-500 dark:text-red-400 font-medium tracking-wide">User Not LoggedIn</Text>
-                <Text className="text-slate-800 dark:text-neutral-200">Redirecting to login...</Text>
-              </>
-            ) : (
-              <Text className="text-slate-400 dark:text-neutral-400 text-sm font-medium tracking-wide mb-4">
-                Smart Academic Infrastructure
-              </Text>
-            )
-          }
-
+          <Text className="text-slate-400 dark:text-neutral-400 text-sm font-medium tracking-wide mb-4">
+            Smart Academic Infrastructure
+          </Text>
           <ActivityIndicator size="small" color={"#4F46E5"} />
         </View>
       </View>
@@ -317,7 +305,7 @@ const TimeTableScreen = () => {
   // ================= STANDARD VIEW MOUNT =================
   return (
     <PullToRefresh onRefresh={refreshHomepage}>
-      <ScrollView className="flex-1 pt-14">
+      <ScrollView className="flex-1 pt-14" showsVerticalScrollIndicator={false}>
         <Text className="text-[26px] font-bold ml-3 text-neutral-700 dark:text-neutral-50">Attend<Text className="text-indigo-600">Ease</Text></Text>
 
         <TouchableOpacity
@@ -404,7 +392,7 @@ const TimeTableScreen = () => {
                     >
                       {item?.subject_id ? (
                         item.subject_name === "LUNCH" ? (
-                          <View className="w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-3 py-5 bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200/60 dark:border-neutral-500/60 shadow-md">
+                          <View className="w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-3 py-5 bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/60 dark:border-neutral-500/60 shadow-md">
                             <View className="p-2.5 bg-teal-50 rounded-xl shadow-sm mb-2">
                               <Ionicons name="restaurant-outline" size={30} color="#14b8a6" />
                             </View>
@@ -415,7 +403,7 @@ const TimeTableScreen = () => {
                         ) : (
                           <View
                             className={`w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-3 py-3 shadow-md ${item?.cancelled && !item?.substitute_teacher_id
-                              ? "bg-red-50 dark:bg-neutral-800/40 border border-red-200 dark:border-red-200/40"
+                              ? "bg-red-50 dark:bg-neutral-800/50 border border-red-200 dark:border-red-200/40"
                               : item?.substitute_teacher_id ? "bg-neutral-50 dark:bg-neutral-800/40 border border-teal-500/40" : "bg-indigo-500"
                               }`}
                           >
@@ -456,7 +444,7 @@ const TimeTableScreen = () => {
                           </View>
                         )
                       ) : (
-                        <View className="w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-2.5 bg-white dark:bg-neutral-800/40 border border-dashed border-neutral-300 dark:border-neutral-600 shadow-sm">
+                        <View className="w-full flex-1 min-h-[145px] justify-center items-center rounded-xl px-2.5 bg-white dark:bg-neutral-800/50 border border-dashed border-neutral-300 dark:border-neutral-600 shadow-sm">
                           <Text className="font-bold text-neutral-400 text-sm">Free</Text>
                         </View>
                       )}
@@ -486,34 +474,34 @@ const TimeTableScreen = () => {
           onPress={() => setContextModalVisible(false)}
           className="flex-1 bg-black/50 justify-end"
         >
-          <View className="bg-white w-full rounded-t-2xl p-5 pb-8 space-y-4">
-            <Text className="text-base font-bold text-slate-400 tracking-wider uppercase mb-1">
+          <View className="bg-white dark:bg-neutral-900 w-full rounded-t-2xl p-5 pb-8 space-y-4">
+            <Text className="text-base font-bold text-slate-400 tracking-wider uppercase mb-4">
               Period Slot Actions
             </Text>
 
             {selectedSlot?.subject_id ? (
               <View className="flex-col gap-2">
-                <TouchableOpacity onPress={() => handleContextOption("edit")} className="flex-row items-center p-3 bg-slate-50 rounded-xl">
+                <TouchableOpacity onPress={() => handleContextOption("edit")} className="flex-row items-center p-3 bg-slate-50 dark:bg-neutral-800/40 rounded-xl">
                   <Ionicons name="create-outline" size={22} color="#4f46e5" />
-                  <Text className="text-lg font-semibold ml-3 text-slate-800">Edit Subject</Text>
+                  <Text className="text-lg font-semibold ml-3 text-slate-800 dark:text-neutral-300">Edit Subject</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => handleContextOption("delete")} className="flex-row items-center p-3 bg-red-50 rounded-xl">
+                <TouchableOpacity onPress={() => handleContextOption("delete")} className="flex-row items-center p-3 bg-red-50 dark:bg-neutral-800/40 rounded-xl">
                   <Ionicons name="trash-outline" size={22} color="#ef4444" />
-                  <Text className="text-lg font-semibold ml-3 text-red-600">Delete Subject</Text>
+                  <Text className="text-lg font-semibold ml-3 text-red-600 ">Delete Subject</Text>
                 </TouchableOpacity>
 
                 {userData?.role === "Student" && (
-                  <TouchableOpacity onPress={() => handleContextOption("leaves")} className="flex-row items-center p-3 bg-slate-50 rounded-xl">
+                  <TouchableOpacity onPress={() => handleContextOption("leaves")} className="flex-row items-center p-3 bg-slate-50 dark:bg-neutral-800/40 rounded-xl">
                     <Ionicons name="calendar-outline" size={22} color="#6b7280" />
-                    <Text className="text-lg font-semibold ml-3 text-slate-800">View Teacher Leaves</Text>
+                    <Text className="text-lg font-semibold ml-3 text-slate-800 dark:text-neutral-300">View Teacher Leaves</Text>
                   </TouchableOpacity>
                 )}
               </View>
             ) : (
-              <TouchableOpacity onPress={() => handleContextOption("insert")} className="flex-row items-center p-3 bg-slate-50 rounded-xl">
+              <TouchableOpacity onPress={() => handleContextOption("insert")} className="flex-row items-center p-3 bg-slate-50 dark:bg-neutral-800/40 rounded-xl">
                 <Ionicons name="add-circle-outline" size={22} color="#10b981" />
-                <Text className="text-lg font-semibold ml-3 text-slate-800">Insert Subject</Text>
+                <Text className="text-lg font-semibold ml-3 text-slate-800 dark:text-neutral-300">Insert Subject</Text>
               </TouchableOpacity>
             )}
 
@@ -531,18 +519,18 @@ const TimeTableScreen = () => {
           onPress={() => setLeaveModalVisible(false)}
           className="flex-1 bg-black/40 justify-center items-center"
         >
-          <View className="bg-white w-[85%] rounded-xl p-4 max-h-[70%]">
-            <Text className="text-lg font-bold mb-2">Teacher Leave Details</Text>
+          <View className="bg-white dark:bg-neutral-900 w-[85%] rounded-xl p-4 max-h-[70%] elevation-md">
+            <Text className="text-lg font-bold mb-2 dark:text-neutral-300">Teacher Leave Details</Text>
             {selectedSlot && <Text className="text-sm text-indigo-600 font-semibold mb-3">{selectedSlot.teacher_name || "Unknown Teacher"}</Text>}
             <ScrollView showsVerticalScrollIndicator={false}>
               {teacherLeaves.length > 0 ? (
                 teacherLeaves.map((leave, i) => (
                   <View key={i} className="mb-2 border-b border-slate-200 pb-2">
-                    <Text className="font-semibold">{leave.name}</Text>
-                    <Text className="text-sm text-slate-600">
+                    <Text className="font-semibold dark:text-neutral-300">{leave.name}</Text>
+                    <Text className="text-sm text-slate-600 dark:text-neutral-400">
                       {new Date(leave.applicable_from).toLocaleDateString()} → {new Date(leave.applicable_to).toLocaleDateString()}
                     </Text>
-                    <Text className="text-base text-slate-500">Status: {leave.status}</Text>
+                    <Text className="text-base text-blue-500">Status: {leave.status}</Text>
                   </View>
                 ))
               ) : (
@@ -559,17 +547,17 @@ const TimeTableScreen = () => {
       {/* CRUD UPDATE / INSERT / DELETE OPERATION MODAL */}
       <Modal visible={formModalVisible} transparent animationType="slide">
         <View className="flex-1 bg-black/50 justify-center items-center p-4">
-          <View className="bg-white rounded-2xl p-5 w-full max-w-[340px] space-y-4">
-            <Text className="text-lg font-bold text-slate-800 capitalize">
+          <View className="bg-white dark:bg-neutral-900 rounded-2xl p-5 w-full max-w-[340px] space-y-4 elevation-md">
+            <Text className="text-xl font-bold text-slate-800 dark:text-neutral-300 capitalize mb-4">
               {currentActionOption} Subject
             </Text>
 
             {currentActionOption === "delete" ? (
-              <Text className="text-base text-center text-slate-600 my-4">
+              <Text className="text-base text-center text-slate-600 dark:text-neutral-400 my-2">
                 Are you sure you want to delete this subject slot?
               </Text>
             ) : (
-              <ScrollView className="max-h-[380px] pr-1" contentContainerStyle={{ gap: 12 }}>
+              <ScrollView className="max-h-[380px] pr-1" contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
                 <View className="flex-row gap-2">
                   <View className="flex-1">
                     <Text className="text-base font-semibold text-slate-500 mb-1">Day</Text>
@@ -577,7 +565,7 @@ const TimeTableScreen = () => {
                       value={formData.day}
                       onChangeText={(val) => handleFormChange("day", val)}
                       placeholder="Day Name"
-                      className="border border-slate-200 rounded-lg p-2 text-sm bg-slate-50"
+                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
                   <View className="w-[80px]">
@@ -591,7 +579,7 @@ const TimeTableScreen = () => {
                         handleFormChange("period_id", sanitizedVal === "" ? "" : parseInt(sanitizedVal, 10));
                       }}
                       placeholder="0-9"
-                      className="border border-slate-200 rounded-lg p-2 text-sm bg-slate-50 text-slate-800 text-center"
+                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
                 </View>
@@ -604,7 +592,7 @@ const TimeTableScreen = () => {
                       onChangeText={(val) => handleFormChange("subject_id", val)}
                       placeholder="e.g. CS-401"
                       autoCapitalize="characters"
-                      className="border border-slate-200 rounded-lg p-2 text-sm bg-slate-50"
+                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
                   <View className="flex-1">
@@ -613,7 +601,7 @@ const TimeTableScreen = () => {
                       value={formData.subject_name}
                       onChangeText={(val) => handleFormChange("subject_name", val)}
                       placeholder="e.g. Math"
-                      className="border border-slate-200 rounded-lg p-2 text-sm bg-slate-50"
+                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
                 </View>
@@ -626,7 +614,7 @@ const TimeTableScreen = () => {
                       onChangeText={(val) => handleFormChange("year", val)}
                       placeholder="Year"
                       keyboardType="numeric"
-                      className="border border-slate-200 rounded-lg p-2 text-sm bg-slate-50 text-center"
+                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
                   <View className="flex-1">
@@ -636,7 +624,7 @@ const TimeTableScreen = () => {
                       onChangeText={(val) => handleFormChange("semester", val)}
                       placeholder="Sem"
                       keyboardType="numeric"
-                      className="border border-slate-200 rounded-lg p-2 text-sm bg-slate-50 text-center"
+                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
                   <View className="flex-1">
@@ -645,7 +633,7 @@ const TimeTableScreen = () => {
                       value={formData.section}
                       onChangeText={(val) => handleFormChange("section", val)}
                       placeholder="Sec"
-                      className="border border-slate-200 rounded-lg p-2 text-sm bg-slate-50 text-center"
+                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
                 </View>
@@ -658,7 +646,7 @@ const TimeTableScreen = () => {
                       onChangeText={(val) => handleFormChange("room_number", val)}
                       placeholder="Room"
                       keyboardType="numeric"
-                      className="border border-slate-200 rounded-lg p-2 text-sm bg-slate-50 text-center"
+                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
                   <View className="flex-1">
@@ -667,18 +655,18 @@ const TimeTableScreen = () => {
                       value={formData.branch_id}
                       onChangeText={(val) => handleFormChange("branch_id", val)}
                       placeholder="e.g. CSE"
-                      className="border border-slate-200 rounded-lg p-2 text-sm bg-slate-50"
+                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
                 </View>
 
-                <View className>
+                <View className="">
                   <Text className="text-base font-semibold text-slate-500 mb-1">Branch Name</Text>
                   <TextInput
                     value={formData.branch_name}
                     onChangeText={(val) => handleFormChange("branch_name", val)}
                     placeholder="e.g. Computer Science"
-                    className="border border-slate-200 rounded-lg p-2 text-sm bg-slate-50"
+                    className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                   />
                 </View>
               </ScrollView>

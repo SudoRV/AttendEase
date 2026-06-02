@@ -32,6 +32,7 @@ export default function PullToRefresh({ children, onRefresh }) {
                     
                 />
             }
+            showsVerticalScrollIndicator={false}
         >
             {children}
         </ScrollView>

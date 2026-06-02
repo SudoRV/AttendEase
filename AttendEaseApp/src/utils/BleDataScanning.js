@@ -1,317 +1,63 @@
-import { Platform, PermissionsAndroid, NativeModules, NativeEventEmitter } from 'react-native';
+import { NativeModules, NativeEventEmitter, Alert } from 'react-native';
 import BleManager from 'react-native-ble-manager';
-import { Buffer } from 'buffer';
-import { scopes, reverseScopes, decToHex, hexToDec } from "../constant/scopes";
-import { getDBConnection } from '../database/database';
+import { reverseScopes } from '../constant/scopes';
+import { getDBConnection, saveNotification } from '../database/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { queueNotification, processQueue } from './BleDataPropagation';
+import notifee, { AndroidStyle, EventType, AndroidImportance, AndroidVisibility } from '@notifee/react-native';
 
-// Initialize the native BleManager bridge and event emitter framework
 const BleManagerModule = NativeModules.BleManager;
-const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
-const database = getDBConnection();
 
-let isScanning = false;
-let bleDiscoverListener = null;
-
-let announcement = {
-  init: false,
-  notification_id: null,
-  title: null,
-  body: null
-};
-
-// Helper to cleanly convert native array bytes or Base64 data to Hex strings
-function payloadToHex(data) {
-  if (!data) return '';
-  // react-native-ble-manager usually provides arrays of raw byte values on Android
-  if (Array.isArray(data)) {
-    return Buffer.from(data).toString('hex').toUpperCase();
+if (BleManagerModule) {
+  if (!BleManagerModule.addListener) {
+    BleManagerModule.addListener = () => { };
   }
-  // Fallback to string handling if it's arriving as base64 string format
-  return Buffer.from(data, 'base64').toString('hex').toUpperCase();
-}
-
-// Runtime Android permission helper
-async function requestBLEPermissions() {
-  if (Platform.OS !== 'android') return true;
-  try {
-    if (Platform.Version >= 31) {
-      const granted = await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-      ]);
-      return (
-        granted['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED &&
-        granted['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED
-      );
-    }
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-    );
-    return granted === PermissionsAndroid.RESULTS.GRANTED;
-  } catch (err) {
-    console.error('BLE Permission Error:', err);
-    return false;
+  if (!BleManagerModule.removeListeners) {
+    BleManagerModule.removeListeners = () => { };
   }
 }
 
-// The Processor: Filters and handles valid incoming packets
-function processNotification(companyIdHex, uuid, major, minor) {
-  let title, body;
-  const companyId = 0xFFFF;
-  const appid = "41545445"; // ATTE
+const bleManagerEmitter = new NativeEventEmitter(BleManagerModule); 
 
-  console.log("Checking packet:", appid, uuid, major, minor);
-  const receivedCompanyId = parseInt(companyIdHex, 16);
+// Core Data Structures tracking active over-the-air fragments
+const announcements_registry = {};
+let isScanningLoopActive = false;
 
-  // 1. SAFETY CHECK: Ignore packets that don't match your custom 0xFFFF Company ID
-  if (receivedCompanyId !== companyId) return;
-
-  // SAFETY CHECK: Ignore all Bluetooth packets that don't belong to your app
-  if (!uuid.toUpperCase().startsWith(appid)) return;
-
-  console.log("Valid App Packet Received!");
-  console.log(`UUID: ${uuid} | Major: ${major} | Minor: ${minor}`);
-
-  const blocks = uuid.split('-');
-  const chunk1 = blocks[1]; 
-  const chunk2 = blocks[2]; 
-  const chunk3 = blocks[3]; 
-
-  const finalBlock = blocks[4];
-  const notification_id = finalBlock.substring(0, 8);
-  const notification_completed = finalBlock[11];
-
-  // Check if notification already received 
-  const olderNotifications = database.execute("select * from notifications where notification_id = ?", [notification_id]).rows.length;
-
-  console.log("Older notifications count:", olderNotifications);
-  if (olderNotifications > 0) {
-    console.log("notification already exists with id: ", notification_id);
-    return;
+/**
+ * UTILITY: Converts Hex payload back to pure ASCII characters
+ */
+function hexToAscii(hexStr) {
+  let str = '';
+  for (let i = 0; i < hexStr.length; i += 2) {
+    const charCode = parseInt(hexStr.substring(i, i + 2), 16);
+    if (charCode > 0) str += String.fromCharCode(charCode);
   }
-
-  const notificationType = hexToDec(chunk1[0]);
-  const announcementScope = notificationType === 2 ? unpackMetadata(chunk2 + chunk2) : null;
-  const notificationScope = chunk1.slice(1, 4);
-  const scopeBranch = notificationScope[0];
-  const scopeYear = notificationScope[1];
-  const scopeSection = notificationScope[2];
-
-  // Class cancellation
-  if (notificationType === 0) {
-    const leave_type = hexToDec(finalBlock[10]);
-    const periods = decodePeriods(chunk2);
-    const toDiff = hexToDec(chunk3);
-    const from = new Date().toLocaleDateString();
-    const to = leave_type === 2 ? new Date(new Date() + toDiff * 24 * 60 * 60 * 1000) : new Date();
-    const teacherName = database.execute("select teacher_name from timetable where day = ? and period_id = ?", [new Date().toLocaleDateString("en-Gb", { weekday: "long" }), periods[0]]).rows._array[0];
-
-    const message = `Period ${periods.map((p) => p.period_id).join(", ")} of ${teacherName} cancelled, on leave ${new Date(from).toDateString() === to.toDateString()
-        ? `for ${new Date(from).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
-        : `from ${new Date(from).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} to ${new Date(to).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
-      }`;
-
-    title = "Class Cancellation";
-    body = message;
-  }
-
-  // Class substitution
-  else if (notificationType === 1) {
-    const substitutee = chunk2;
-    const substitutionStatus = hexToDec(substitutee[2]);
-    const substituteeDetails = database.execute("select teacher_name, subject_name from timetable where day = ? and period_id = ?", [new Date().toLocaleString("en-Gb", { weekday: "long" }), hexToDec(substitutee[3])]).rows._array[0];
-
-    const substitutor = chunk3;
-    const substitutorDay = scopes("day", hexToDec(substitutor[2]));
-    const substitutorPeriod = hexToDec(chunk3[3]);
-    const substitutorDetails = database.execute("select teacher_name from timetable where day = ? and period_id = ?", [substitutorDay, substitutorPeriod]).rows._array[0];
-
-    const message = !!substitutionStatus ? `Class ${substituteeDetails.subject_name} of ${substituteeDetails.teacher_name} is substituted by ${substitutorDetails.teacher_name}` : `Substitution of class ${substituteeDetails.subject_name} cancelled by ${substitutorDetails.teacher_name}`;
-
-    title = "Class Substitution";
-    body = message;
-  }
-
-  // Announcement processing
-  else if (notificationType === 2) {
-    const dataType = hexToDec(finalBlock[10]);
-
-    if (!!announcement.init === false && dataType === 0) {
-      announcement.init = true;
-      announcement.notification_id = notification_id;
-    }
-
-    else if (announcement.init === true && (dataType === 1 || dataType === 2) && announcement.notification_id === notification_id) {
-      const hexChunk = chunk1 + chunk2 + chunk3 + major + minor;
-
-      let decodedString = "";
-      for (let i = 0; i < hexChunk.length; i += 2) {
-        const hexByte = hexChunk.substring(i, i + 2);
-        if (hexByte === "00") break;
-
-        const charCode = parseInt(hexByte, 16);
-        decodedString += String.fromCharCode(charCode);
-      }
-
-      if (dataType === 1) {
-        announcement.title += decodedString;
-      } else {
-        announcement.body += decodedString;
-      }
-    }
-
-    if (announcement.init === true && announcement.notification_id === notification_id && notification_completed) {
-      title = announcement.title;
-      body = announcement.body;
-
-      announcement = { init: false, notification_id: null, title: null, body: null };
-    }
-  }
-
-  if (title && body) {
-    const notificationTypeLabel = reverseScopes("notification_type", notificationType);
-    const branchLabel = reverseScopes("branch", scopeBranch);
-    const yearLabel = reverseScopes("year", scopeYear);
-    const sectionLabel = reverseScopes("section", scopeSection);
-
-    console.log("\n╔═══════════════════════════════════════════════════════════╗");
-    console.log("║           ✓ SYNTHESIZED NOTIFICATION DECODED             ║");
-    console.log("╚═══════════════════════════════════════════════════════════╝");
-    
-    console.log("\n📋 NOTIFICATION METADATA:");
-    console.log(`  • ID: ${notification_id}`);
-    console.log(`  • Type: ${notificationTypeLabel} (Code: ${notificationType})`);
-    console.log(`  • Status: ${notification_completed ? "Complete" : "Pending"}`);
-    
-    console.log("\n🎯 TARGET SCOPE:");
-    console.log(`  • Branch: ${branchLabel}`);
-    console.log(`  • Year: ${yearLabel}`);
-    console.log(`  • Section: ${sectionLabel}`);
-    
-    console.log("\n📢 NOTIFICATION CONTENT:");
-    console.log(`  • Title: "${title}"`);
-    console.log(`  • Body: "${body}"`);
-    
-    // Additional details based on notification type
-    if (notificationType === 0) {
-      // Class Cancellation
-      const leave_type = hexToDec(finalBlock[10]);
-      const periods = decodePeriods(chunk2);
-      const leave_type_label = leave_type === 0 ? "Period" : leave_type === 1 ? "Day" : "Duration";
-      console.log("\n🏫 CLASS CANCELLATION DETAILS:");
-      console.log(`  • Leave Type: ${leave_type_label}`);
-      console.log(`  • Affected Periods: [${periods.join(", ")}]`);
-    } else if (notificationType === 1) {
-      // Class Substitution
-      const substitutee = chunk2;
-      const substitutionStatus = hexToDec(substitutee[2]);
-      console.log("\n🔄 CLASS SUBSTITUTION DETAILS:");
-      console.log(`  • Status: ${substitutionStatus ? "Active" : "Cancelled"}`);
-    } else if (notificationType === 2) {
-      // Announcement
-      if (announcementScope) {
-        console.log("\n📣 ANNOUNCEMENT SCOPE:");
-        console.log(`  • Target Branches: [${announcementScope.branches.join(", ")}]`);
-        console.log(`  • Target Years: [${announcementScope.years.join(", ")}]`);
-        console.log(`  • Target Sections: [${announcementScope.sections.join(", ")}]`);
-      }
-    }
-    
-    console.log("\n╔═══════════════════════════════════════════════════════════╗");
-    console.log("║              ✓ NOTIFICATION READY FOR DISPLAY             ║");
-    console.log("╚═══════════════════════════════════════════════════════════╝\n");
-    
-    // Insert local DB notification saving or visual push dispatch mechanisms here
-  }
+  return str;
 }
 
-// The Scanner Engine: Built around ble-manager native broadcast event listeners
-export async function startScanning() {
-  const smartScanStateRaw = await AsyncStorage.getItem("smart_scan_state");
-  const smartScanState = JSON.parse(smartScanStateRaw);
+/**
+ * UTILITY: Unpacks metadata bitmask strings matching your reverse profile map
+ */
+function unpackMetadata(hex) {
+  const value = parseInt(hex, 16);
+  const type = (value >> 29) & 0x03;
+  const branchMask = (value >> 22) & 0x7F;
+  const yearMask = (value >> 16) & 0x3F;
+  const sectionMask = (value >> 1) & 0x7FFF;
+  const scope = value & 0x01;
 
-  const hour = new Date().getHours();
-  if (smartScanState && (hour < 8 || hour > 18)) return;
-
-  if (isScanning) return;
-
-  // Verify your core OS hardware permissions are active
-  const hasPermission = await requestBLEPermissions();
-  if (!hasPermission) {
-    console.error("Scanner Aborted: Missing Bluetooth/Location permissions.");
-    return;
-  }
-
-  try {
-    // Fire up the native module pipeline context
-    await BleManager.start({ showAlert: false });
-    
-    // Explicitly toggle on hardware state on Android architectures
-    await BleManager.enableBluetooth();
-    console.log("Bluetooth hardware stack powered up successfully.");
-
-    isScanning = true;
-
-    // Attach native broadcaster listener event to capture data broadcasts
-    bleDiscoverListener = bleManagerEmitter.addListener(
-      'BleManagerDiscoverPeripheral',
-      (peripheral) => {
-        // Access manufacturer data map out of the native advertising payload block
-        if (peripheral && peripheral.advertising && peripheral.advertising.manufacturerData) {
-          const hexData = payloadToHex(peripheral.advertising.manufacturerData);
-
-          // Extract metrics matching standard iBeacon structure lengths (>= 24 bytes / 48 chars hex)
-          if (hexData.length >= 48) {
-            const companyIdHex = hexData.substring(0, 4).toUpperCase();
-            const uuidStr = hexData.substring(8, 40);
-            const majorHex = hexData.substring(40, 44);
-            const minorHex = hexData.substring(44, 48);
-
-            const formattedUuid = `${uuidStr.slice(0, 8)}-${uuidStr.slice(8, 12)}-${uuidStr.slice(12, 16)}-${uuidStr.slice(16, 20)}-${uuidStr.slice(20)}`;
-            const major = parseInt(majorHex, 16);
-            const minor = parseInt(minorHex, 16);
-
-            processNotification(companyIdHex, formattedUuid, major, minor);
-          }
-        }
-      }
-    );
-
-    // Start scanning. First argument [] lets us look for all universal service IDs.
-    // Setting 0 for duration keeps scanning continuously until manually stopped.
-    await BleManager.scan([], 0, true);
-    console.log("Scanner Engine: Continuously scanning for active payloads...");
-
-  } catch (error) {
-    console.error("Failed to safely initialize or run scanning engine:", error);
-    isScanning = false;
-  }
+  return {
+    type: reverseScopes("notification_type", type),
+    scope: scope,
+    branches: Array.from({ length: 7 }, (_, b) => b).filter(b => branchMask & (1 << b)).map(b => reverseScopes("branch", b)),
+    years: Array.from({ length: 6 }, (_, y) => y).filter(y => yearMask & (1 << y)).map(y => reverseScopes("year", y)),
+    sections: Array.from({ length: 15 }, (_, s) => s).filter(s => sectionMask & (1 << s)).map(s => reverseScopes("section", s))
+  };
 }
 
-// Clear out and detach native listener elements cleanly
-export function stopScanning() {
-  BleManager.stopDeviceScan()
-    .then(() => {
-      console.log("Scan process halted cleanly.");
-    })
-    .catch((err) => console.error("Error calling stopDeviceScan:", err));
-
-  if (bleDiscoverListener) {
-    bleDiscoverListener.remove();
-    bleDiscoverListener = null;
-  }
-  isScanning = false;
-}
-
-function encodePeriods(periods = []) {
-  let mask = 0;
-  periods.forEach(p => {
-    if (p >= 0) mask |= (1 << p);
-  });
-  return mask.toString(16).padStart(4, "0").toUpperCase();
-}
-
+/**
+ * UTILITY: Decodes bitmask arrays for academic period assignment blocks
+ */
 function decodePeriods(hex) {
   const mask = parseInt(hex, 16);
   const periods = [];
@@ -321,20 +67,440 @@ function decodePeriods(hex) {
   return periods;
 }
 
-function unpackMetadata(hex) {
-  const value = parseInt(hex, 16);
+function reBroadcast(notifications) {
+  // 1. Find the active notification object (fallback to the first one)
+  const targetNotification = notifications.find(n => n.init === true) || notifications[0];
 
-  const type = (value >> 29) & 0x03;
-  const branchMask = (value >> 22) & 0x7F;
-  const yearMask = (value >> 16) & 0x3F;
-  const sectionMask = (value >> 1) & 0x7FFF;
-  const scope = value & 0x01; 
+  if (!targetNotification) {
+    console.error("No valid notification object found.");
+    return;
+  }
 
-  return {
-    type: reverseScopes("notification_type", type),
-    scope: scope, 
-    branches: Array.from({ length: 7 }, (_, b) => b).filter(b => branchMask & (1 << b)).map(b => reverseScopes("branch", b)),
-    years: Array.from({ length: 6 }, (_, y) => y).filter(y => yearMask & (1 << y)).map(y => reverseScopes("year", y)),
-    sections: Array.from({ length: 15 }, (_, s) => s).filter(s => sectionMask & (1 << s)).map(s => reverseScopes("section", s))
+  // 2. Extract the current hop configurations from the target's major field
+  const maxHops = targetNotification.major >> 8;
+  const currentHops = targetNotification.major & 0xFF;
+
+  console.log(`Received - Max Hops: ${maxHops}, Current Hops: ${currentHops}`);
+
+  // 3. Check if it has room to hop further
+  if (currentHops < maxHops) {
+    // 4. Increment the hop count by 1
+    const nextHops = currentHops + 1;
+
+    // 5. Repack maxHops and the NEW currentHops back into the target's major field
+    targetNotification.major = (maxHops << 8) | nextHops;
+
+    console.log(`Re-broadcasting payload with updated hop count: ${nextHops}/${maxHops}`);
+
+    // 6. Send it to the queue for transmission
+    queueNotification(notifications);
+    processQueue();
+  } else {
+    console.log("Packet dropped: Maximum hop limit reached.");
+  }
+}
+
+const channelMap = {
+  "CLASS_CANCELLED": "class_cancellation_alerts",
+  "CLASS_SUBSTITUTION": "class_substitution_alerts",
+  "ANNOUNCEMENT": "announcement_alerts"
+};
+
+async function notify(notification) {
+  const channelId = channelMap[notification.type.toUpperCase()];
+
+  await notifee.displayNotification({
+    id: channelId,
+    title: notification.title || "Notification",
+    subtitle: "",
+    android: {
+      channelId: channelId,
+      subText: "",
+      importance: AndroidImportance.HIGH,
+      priority: 'high',
+
+      ongoing: false,
+      autoCancel: true,
+      asForegroundService: false,
+
+      pressAction: { id: 'default' },
+
+      style: {
+        type: AndroidStyle.BIGTEXT,
+        text: notification.body || "Message",
+      },
+
+      fullScreenAction: {
+        id: 'default',
+      },
+
+      actions: [
+        {
+          title: 'Mark as Done',
+          pressAction: { id: 'mark_done' }
+        },
+      ],
+
+      smallIcon: 'ic_launcher',
+      pressAction: { id: 'default' },
+    },
+  });
+}
+
+/**
+ * ENGINE: Processes incoming frames directly mirrored from your Python parser
+ */
+async function processIncomingFrame(uuid_str, major, minor) {
+  const database = getDBConnection();
+  const user_creds = await AsyncStorage.getItem("user_creds");
+  const userData = JSON.parse(user_creds || "{}");
+
+  const TARGET_APP_ID = "41545445";
+  // 1. Clean up standard hyphens to parse string chunks easily
+  const clean_uuid = uuid_str.replace(/-/g, "").toUpperCase();
+
+  // 2. Validation Check: Verify AppID match
+  const appid = clean_uuid.substring(0, 8);
+
+  if (appid !== TARGET_APP_ID) {
+    return null;
+  }
+
+  console.log("\n================ MATCH FOUND ================");
+  console.log(`RAW BLE DATA -> UUID: ${uuid_str} | Major: ${major} | Minor: ${minor}`);
+  console.log("------------------------------------------------");
+
+  // 3. Extract Common Core Variables using literal Python slices
+  const scope_block = clean_uuid.substring(8, 12);
+
+  // Handle type 2 sentinel '2CCC' explicitly matching Python fallback check
+  const firstChar = scope_block[0];
+  const type_code = (!isNaN(parseInt(firstChar, 10)) && isFinite(firstChar)) ? parseInt(firstChar, 16) : 2;
+
+  const notification_id = clean_uuid.substring(20, 28);
+  const tail_flags = clean_uuid.substring(28, 32);
+
+  // check if notification exists
+  const notificationExists = database.execute("select * from notifications where notification_id = ? limit 1", [notification_id]).rows._array[0];
+
+  if (notificationExists) {
+    console.log("notification exists with id: ", notification_id, notificationExists);
+    return;
+  }
+
+  // =================================================================
+  // --- CASE 0: Class Cancellation ---
+  // =================================================================
+  if (type_code === 0 && tail_flags[0] !== "2") {
+    const branch = reverseScopes("branch", parseInt(scope_block[1], 16));
+    const year = reverseScopes("year", parseInt(scope_block[2], 16));
+    const section = reverseScopes("section", parseInt(scope_block[3], 16));
+
+    const encoded_periods = clean_uuid.substring(12, 16);
+    const from_diff = parseInt(clean_uuid.substring(16, 18), 16);
+    const to_diff = parseInt(clean_uuid.substring(18, 20), 16);
+
+    const leave_type_flag = tail_flags[2]; // Character index 30 of UUID
+    const leave_map = { "0": "period", "1": "day", "2": "duration" };
+    const leave_type = leave_map[leave_type_flag] || `Unknown(${leave_type_flag})`;
+
+    const day = parseInt(tail_flags[0], 16) - 3;
+    const periodId = parseInt(tail_flags[1], 16);
+
+    const teacher = database.execute("select * from timetable where day = ? and period_id = ?", [reverseScopes("day", day), periodId]).rows._array[0];
+
+    const message = `Period ${decodePeriods(encoded_periods).map((p) => p)
+      .join(", ")} of ${teacher.teacher_name} cancelled, on leave ${leave_type === "duration" ? `from ${new Date(new Date().getTime() + (from_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()} to ${new Date(new Date().getTime() + (to_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()}` : `for ${new Date().toLocaleDateString()}`}`;
+
+    const notification = {
+      notification_id,
+      scope: `${branch}_${year}_${section}`,
+      source: "BLE",
+      type: reverseScopes("notification_type", type_code),
+      title: "Class Cancelled",
+      body: message
+    };
+
+    // save notification
+    saveNotification(database, notification);
+
+    // re broadcast it
+    reBroadcast([{ broadcasted: 0, uuid: uuid_str, major, minor }]);
+
+    // check if scope matches and popup notification
+    if ((userData?.branch_id === branch || branch === "all") && (userData?.year === parseInt(year) || year === "all") && (userData?.section === section || section === "all")) {
+      // Alert.alert(notification.title, notification.body);
+      notify(notification);
+    }
+  }
+
+  // =================================================================
+  // --- CASE 1: Class Substitution ---
+  // =================================================================
+  else if (type_code === 1 && tail_flags[0] !== "2") {
+    const branch = reverseScopes("branch", parseInt(scope_block[1], 16));
+    const year = reverseScopes("year", parseInt(scope_block[2], 16));
+    const section = reverseScopes("section", parseInt(scope_block[3], 16));
+
+    const encoded_period = clean_uuid.substring(12, 16);
+    const encoded_substitutor = clean_uuid.substring(16, 20);
+
+    const substitute_status = parseInt(encoded_period[2], 16);
+    const original_period_id = parseInt(encoded_period[3], 16);
+
+    const sub_day = reverseScopes("day", parseInt(encoded_substitutor[2], 16));
+    const sub_period_id = parseInt(encoded_substitutor[3], 16);
+
+    const substitutee = database.execute("select * from timetable where day = ? and period_id = ?", [new Date().toLocaleDateString("en-Gb", { weekday: "long" }), original_period_id]).rows._array[0];
+    const substitutor = database.execute("select * from timetable where day = ? and period_id = ?", [sub_day, sub_period_id]).rows._array[0];
+
+    if (!substitutee && !substitutor) return;
+
+    const message = substitute_status === 1 ? `Class ${substitutee.subject_name} of ${substitutee.teacher_name} is substituted by ${substitutor.teacher_name}` : `Substitution of class ${substitutee.subject_name} cancelled by ${substitutor.teacher_name}`;
+
+    const notification = {
+      notification_id,
+      scope: `${branch}_${year}_${section}`,
+      source: "BLE",
+      type: reverseScopes("notification_type", type_code),
+      title: "Class Substitution",
+      body: message
+    };
+
+    // save notification
+    saveNotification(database, notification);
+
+    // re broadcast it
+    reBroadcast([{ broadcasted: 0, uuid: uuid_str, major, minor }]);
+
+    // check if scope matches and popup notification
+    if ((userData?.branch_id === branch || branch === "all") && (userData?.year === parseInt(year) || year === "all") && (userData?.section === section || section === "all")) {
+      // Alert.alert(notification.title, notification.body);
+      notify(notification);
+    }
+  }
+
+  // =================================================================
+  // --- CASE 2: Announcements (Fragmented String Data Chunks) ---
+  // =================================================================
+  // --- CASE 2: Announcements (Fragmented String Data Chunks) ---
+  else if (type_code === 2 || tail_flags[0] === "2") {
+    console.log(`Type: ANNOUNCEMENT PACKET FRAGMENT (Code 2)`);
+    console.log(`Notification ID: ${notification_id}`);
+
+    try {
+      if (!announcements_registry[notification_id]) {
+        announcements_registry[notification_id] = {
+          "notification_id": notification_id,
+          "chunks_received": [],
+          "scope": null,
+          "title_fragments": {},
+          "body_fragments": {},
+          "max_title_idx": null,
+          "max_body_idx": null,
+          "rawNotifications": []
+        };
+      }
+
+      const current_active = announcements_registry[notification_id];
+      const chunk_index = parseInt(tail_flags[1], 16);
+      const chunk_type = tail_flags[2]; // 0=Metadata Envelope, 1=Title Text, 2=Body Text
+      const is_final_packet = (tail_flags[3] === "1");
+
+      const tracking_key = `${chunk_type}_${chunk_index}`;
+
+      // A. Handle Metadata Envelope
+      if (chunk_type === "0") {
+        const metadata_hex = clean_uuid.substring(12, 20);
+        current_active["scope"] = unpackMetadata(metadata_hex);
+        if (!current_active["chunks_received"].includes(tracking_key)) {
+          current_active["chunks_received"].push(tracking_key);
+        }
+
+        current_active.rawNotifications.push({ init: true, broadcasted: 0, uuid: uuid_str, major, minor });
+      }
+
+      // B. HANDLE TEXT PAYLOAD DATA CHUNKS (Title or Body)
+      else if (["1", "2"].includes(chunk_type) && !current_active["chunks_received"].includes(tracking_key)) {
+        current_active["chunks_received"].push(tracking_key);
+
+        current_active.rawNotifications.push({ broadcasted: 0, uuid: uuid_str, major, minor });
+
+        const chunk1 = clean_uuid.substring(8, 12);
+        const chunk2 = clean_uuid.substring(12, 16);
+        const chunk3 = clean_uuid.substring(16, 20);
+        const chunk4 = major.toString(16).padStart(4, "0").toUpperCase();
+        const chunk5 = minor.toString(16).padStart(4, "0").toUpperCase();
+
+        // Reassemble the raw 20-character hex data block
+        const raw_hex_stream = `${chunk1}${chunk2}${chunk3}${chunk4}${chunk5}`;
+
+        let reconstructed_text = '';
+
+        // BRANCH DECODING BASED ON CHUNK INDEX POSITION:
+        if (chunk_index === 0) {
+          // Chunk 0 contains your max marker at the front (Indices 0:2)
+          const max_idx_hex = raw_hex_stream.substring(0, 2);
+          const max_expected_slots = parseInt(max_idx_hex, 16);
+
+          if (chunk_type === "1") {
+            current_active["max_title_idx"] = max_expected_slots;
+          } else if (chunk_type === "2") {
+            current_active["max_body_idx"] = max_expected_slots;
+          }
+
+          // Strip off the first 2 marker characters before decoding
+          const clean_hex_payload = raw_hex_stream.substring(2);
+          reconstructed_text = hexToAscii(clean_hex_payload);
+        } else {
+          // Chunks 1+ contain NO marker, decode the full 20 hex characters directly
+          reconstructed_text = hexToAscii(raw_hex_stream);
+        }
+
+        // LINE-FOR-LINE MATCH: Saved directly to fragments matching Python structure blocks
+        if (chunk_type === "1") {
+          current_active["title_fragments"][chunk_index] = reconstructed_text;
+        } else if (chunk_type === "2") {
+          current_active["body_fragments"][chunk_index] = reconstructed_text;
+        }
+      }
+
+      // === C. DYNAMIC CONTINUITY CHECK PHASE ===
+      if (
+        current_active["scope"] !== null &&
+        current_active["max_title_idx"] !== null &&
+        current_active["max_body_idx"] !== null
+      ) {
+        let title_continuous = true;
+        for (let i = 0; i <= current_active["max_title_idx"]; i++) {
+          if (current_active["title_fragments"][i] === undefined) {
+            title_continuous = false;
+            break;
+          }
+        }
+
+        let body_continuous = true;
+        for (let i = 0; i <= current_active["max_body_idx"]; i++) {
+          if (current_active["body_fragments"][i] === undefined) {
+            body_continuous = false;
+            break;
+          }
+        }
+
+        if (title_continuous && body_continuous) {
+          const sortedTitleKeys = Object.keys(current_active["title_fragments"]).sort((a, b) => a - b);
+          const final_title = sortedTitleKeys.map(k => current_active["title_fragments"][k]).join("");
+
+          const sortedBodyKeys = Object.keys(current_active["body_fragments"]).sort((a, b) => a - b);
+          const final_body = sortedBodyKeys.map(k => current_active["body_fragments"][k]).join("");
+
+          const notification = {
+            notification_id,
+            scope: JSON.stringify(current_active["scope"]),
+            source: "BLE",
+            type: reverseScopes("notification_type", parseInt(tail_flags[0])),
+            title: final_title.trim(),
+            body: final_body.trim()
+          };
+
+          // save notification
+          saveNotification(database, notification);
+
+          // re broadcast it
+          reBroadcast(current_active.rawNotifications);
+
+          // // check if scope matches and popup notification
+          if (current_active["scope"].branches.some(b => b === userData.branch_id || b === "all") && current_active["scope"].years.some(y => y === `${userData.year}` || y === "all") && current_active["scope"].sections.some(s => s === userData.section || s === "all")) {
+            // Alert.alert(notification.title, notification.body);
+            notify(notification);
+          }
+
+          delete announcements_registry[notification_id];
+        } else {
+          // console.log("⏳ Index sequences incomplete or contain gaps. Waiting for missing fragments to bridge...");
+        }
+      } else {
+        // console.log("⏳ Awaiting initial Index 0 payload packets to establish sequence bounds...");
+      }
+
+    } catch (e) {
+      console.error(`Error processing announcement chunk: ${e.message}`);
+    }
+  }
+}
+
+
+/**
+ * RECEIVER CALLBACK: Intercepts raw native BLE events
+ */
+const handleDiscoverPeripheral = (peripheral) => {
+  let rawUuid = peripheral.id || '';
+  rawUuid = rawUuid.replace(/:/g, '').toUpperCase();
+
+  // Validate App ID matching signature ("41545445")
+  if (rawUuid.startsWith('41545445')) {
+    processIncomingFrame(rawUuid, peripheral.major || 0, peripheral.minor || 0);
+  }
+};
+
+/**
+ * INTERFACE EXPORT: Start scanning loop
+ */
+/**
+ * INTERFACE EXPORT: Seamless, Gapless Continuous Scanning Loop
+ */
+export async function startMeshScannerLoop() {
+  // processIncomingFrame("41545445-0140-0002-0204-9999AAAC5221", 1280, 51210);
+  // processIncomingFrame("41545445-1141-0011-0003-9999AAABCCC1", 1280, 51210);
+
+  // processIncomingFrame("41545445-2DD8-4090-0002-62F23CA22000", 1280, 51210);
+  // processIncomingFrame("41545445-0068-6900-0000-62F23CA22011", 0, 0);
+  // processIncomingFrame("41545445-0068-6579-0000-62F23CA22021", 0, 0);
+
+
+
+  if (isScanningLoopActive) return;
+  isScanningLoopActive = true;
+
+  console.log('📡 BLE Core Scanner: Initializing 100% Continuous Scan Mode...');
+  await BleManager.start({ awakeCamera: false });
+
+  bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', handleDiscoverPeripheral);
+  bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', handleDiscoverPeripheral);
+
+  const runScanCycle = async () => {
+    if (!isScanningLoopActive) return;
+
+    try {
+      console.log('🔍 [RX Window] Opening 20-second continuous active scan...');
+
+      // FIX: Combine EVERYTHING into a single object signature.
+      // This maps directly to a clean Java ReadableMap parameter on the native end.
+      await BleManager.scan({
+        serviceUUIDs: [],       // Empty array is fully valid inside the object map
+        seconds: 20,            // Scan duration window
+        allowDuplicates: true,  // MANDATORY: Disables duplicate filtering to catch mesh frames
+        scanMode: 2             // SCAN_MODE_LOW_LATENCY (High-performance foreground mode)
+      });
+
+      console.log('🟢 [RX Window] Scan initiated successfully without type conflicts.');
+
+    } catch (err) {
+      console.error('Scan execution exception:', err);
+    }
+
+    // Cooldown interval buffer block to cycle the hardware safely
+    setTimeout(runScanCycle, 22000);
   };
+
+  runScanCycle();
+}
+
+/**
+ * INTERFACE EXPORT: Stop scanning loop
+ */
+export async function stopMeshScannerLoop() {
+  isScanningLoopActive = false;
+  bleManagerEmitter.removeAllListeners('BleManagerDiscoverPeripheral');
+  console.log('🛑 BLE Core Scanner Loop Terminated.');
 }

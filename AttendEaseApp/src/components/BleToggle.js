@@ -51,7 +51,7 @@ async function hasInternetAccess() {
   }
 }
 
-async function enableBluetooth() {
+export async function enableBluetooth() {
   try {
     await BleManager.enableBluetooth();
     return true;

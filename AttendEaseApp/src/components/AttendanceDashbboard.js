@@ -221,7 +221,7 @@ const AttendanceDashboard = forwardRef((props, ref) => {
   if (hasConfig) {
     return (
       <View className="flex-1 bg-slate-50 dark:bg-[#1e1f21] mt-6 rounded-t-3xl">
-        <ScrollView className="p-5">
+        <ScrollView className="p-5" showsVerticalScrollIndicator={false}>
           <Text className="text-gray-500 dark:text-neutral-300 text-sm uppercase tracking-widest text-center mb-2">Attendance Report</Text>
           <Text className="text-2xl font-extrabold text-slate-800 dark:text-neutral-200 text-center mb-8">
             {form.name.toUpperCase()}
@@ -273,7 +273,7 @@ const AttendanceDashboard = forwardRef((props, ref) => {
   // ================= SETUP VIEW =================
   return (
     <View className="flex-1 bg-slate-50 dark:bg-neutral-900 mt-4">
-      <ScrollView className="p-6">
+      <ScrollView className="p-6" showsVerticalScrollIndicator={false}>
         <View className="mb-6">
           <Text className="text-3xl font-black text-slate-800 dark:text-neutral-50">Smart Attendance Setup</Text>
           <Text className="text-slate-500 dark:text-neutral-400 mt-1">Sync your academic records effortlessly.</Text>

@@ -1,6 +1,5 @@
 const scope = {
   "notification_type": {
-    "class_cancellation": 0,
     "class_cancelled": 0,
     "class_substitution": 1,
     "announcement": 2

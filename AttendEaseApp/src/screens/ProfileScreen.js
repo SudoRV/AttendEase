@@ -10,7 +10,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging, deleteToken } from '@react-native-firebase/messaging';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,6 +20,7 @@ import BleToggle from "../components/BleToggle";
 
 export default function ProfileScreen() {
   const { userData, setUserData, buildUrl, setLogout, bleOn, setBleOn, themePreference, updateTheme } = AppStates();
+  const messagingInstance = getMessaging();
 
   // --- LOGOUT LOADING STATE ---
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -57,7 +58,7 @@ export default function ProfileScreen() {
           setIsLoggingOut(true); // Engages the global visual loading screen layer
           try {
             // Delete device tokens cleanly across messaging channels
-            await messaging().deleteToken();
+            await deleteToken(messagingInstance);
           } catch (tokenErr) {
             console.log("Push Token release warning:", tokenErr);
           }
@@ -180,7 +181,7 @@ export default function ProfileScreen() {
         animated={true}
       />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
         {/* GRADIENT HEADER */}
         <LinearGradient
           colors={["#4F46E5", "#6366F1"]}

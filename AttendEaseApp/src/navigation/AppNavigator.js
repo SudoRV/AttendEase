@@ -50,7 +50,7 @@ export default function AppNavigator({ onLogout }) {
             detachInactiveScreens: false,
 
             tabBarStyle: {
-              height: Platform.OS === 'ios' ? 88 : 60 + (insets.bottom > 0 ? insets.bottom : 8),
+              height: Platform.OS === 'ios' ? 88 : 70 + (insets.bottom > 0 ? insets.bottom : 8),
               paddingBottom: Platform.OS === 'ios' ? 28 : (insets.bottom > 0 ? insets.bottom : 8),
               paddingTop: 0,
               paddingHorizontal: 10,

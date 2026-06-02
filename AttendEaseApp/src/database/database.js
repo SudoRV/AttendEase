@@ -8,6 +8,8 @@ export const getDBConnection = () => {
   const timetableExists = isTableExists("timetable");
   const notificationsExists = isTableExists("notifications");
 
+  // db.execute("alter table notifications add column scope TEXT NOT NULL DEFAULT ''")
+
   if (!timetableExists || !notificationsExists) {
     createTables();
   }
@@ -61,6 +63,7 @@ export const createTables = () => {
 
       notification_id TEXT NOT NULL UNIQUE,
 
+      scope TEXT NOT NULL,
       source TEXT NOT NULL,
       -- FCM / BLE
 
@@ -109,8 +112,9 @@ export async function saveNotification(database, notification) {
     // Add 'await' to ensure the database block finishes its write sequence completely
     const result = await (database || db).execute(
       `
-      INSERT OR IGNORE INTO notifications (
+      INSERT OR REPLACE INTO notifications (
         notification_id,
+        scope,
         source,
         type,
         title,
@@ -118,16 +122,17 @@ export async function saveNotification(database, notification) {
         is_read,
         received_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         notification.notification_id,
+        notification.scope || null,
         notification.source,
         notification.type,
         notification.title || null,
         notification.body || null,
         0,
-        Date.now(), // Correctly captures unix epoch timestamp in milliseconds
+        Date.now(),
       ]
     );
     
