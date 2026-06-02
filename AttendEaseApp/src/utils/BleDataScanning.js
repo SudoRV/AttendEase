@@ -466,7 +466,6 @@ export async function startMeshScannerLoop() {
   await BleManager.start({ awakeCamera: false });
 
   bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', handleDiscoverPeripheral);
-  bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', handleDiscoverPeripheral);
 
   const runScanCycle = async () => {
     if (!isScanningLoopActive) return;
@@ -490,7 +489,7 @@ export async function startMeshScannerLoop() {
     }
 
     // Cooldown interval buffer block to cycle the hardware safely
-    setTimeout(runScanCycle, 22000);
+    setTimeout(runScanCycle, 21000);
   };
 
   runScanCycle();
