@@ -11,6 +11,7 @@ import {
 import NetInfo from '@react-native-community/netinfo';
 import BleManager from 'react-native-ble-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { startMeshScannerLoop } from '../utils/BleDataScanning';
 
 async function requestBLEPermissions() {
   if (Platform.OS !== 'android') return true;
@@ -132,6 +133,7 @@ export default function BleToggle({ bleOn, setBleOn }) {
     // If the master BLE feature is already running, immediately re-run state evaluation
     if (bleOn) {
       handleToggle(true, value);
+      startMeshScannerLoop();
     }
   };
 

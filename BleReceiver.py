@@ -276,10 +276,10 @@ def advertisement_callback(device, advertisement_data):
     High-speed callback. Instantly fields hardware advertisements 
     and drops elements directly onto the consumer queue.
     """
+    print(f"Advertisement received from {device.address} with data: {advertisement_data}")
     if TARGET_COMPANY_ID in advertisement_data.manufacturer_data:
         packet_processing_queue.put_nowait((device, advertisement_data))
 
-import sys  # Add this import at the top of your file if not already present
 
 async def main():
     print(f"Initializing Aggressive Low-Latency Scanner for AppID: {TARGET_APP_ID}...")

@@ -1,23 +1,34 @@
-import { NativeModules, NativeEventEmitter, Alert } from 'react-native';
+import { NativeModules, DeviceEventEmitter, Alert } from 'react-native';
 import BleManager from 'react-native-ble-manager';
 import { reverseScopes } from '../constant/scopes';
 import { getDBConnection, saveNotification } from '../database/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queueNotification, processQueue } from './BleDataPropagation';
 import notifee, { AndroidStyle, EventType, AndroidImportance, AndroidVisibility } from '@notifee/react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 
-const BleManagerModule = NativeModules.BleManager;
-
-if (BleManagerModule) {
-  if (!BleManagerModule.addListener) {
-    BleManagerModule.addListener = () => { };
+async function requestBluetoothPermissions() {
+  if (Platform.OS === 'android') {
+    if (Platform.Version >= 31) {
+      const granted = await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      ]);
+      return (
+        granted['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED
+      );
+    } else {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    }
   }
-  if (!BleManagerModule.removeListeners) {
-    BleManagerModule.removeListeners = () => { };
-  }
+  return true;
 }
-
-const bleManagerEmitter = new NativeEventEmitter(BleManagerModule); 
 
 // Core Data Structures tracking active over-the-air fragments
 const announcements_registry = {};
@@ -33,6 +44,24 @@ function hexToAscii(hexStr) {
     if (charCode > 0) str += String.fromCharCode(charCode);
   }
   return str;
+}
+
+// Helper to convert the 16-byte raw array into a standard hyphenated UUID string
+function bytesToUUID(bytes) {
+  return Array.from(bytes, (byte) => {
+    return ('0' + (byte & 0xFF).toString(16)).slice(-2).toUpperCase();
+  }).reduce((acc, current, index) => {
+    // Inserts standard UUID formatting hyphens at the correct structural layout points
+    if ([4, 6, 8, 10].includes(index)) {
+      return acc + '-' + current;
+    }
+    return acc + current;
+  }, "");
+}
+
+// Helper to reconstruct two independent 8-bit bytes into a single 16-bit unsigned short integer
+function bytesToUnsignedShort(byte1, byte2) {
+  return ((byte1 & 0xFF) << 8) | (byte2 & 0xFF);
 }
 
 /**
@@ -433,13 +462,31 @@ async function processIncomingFrame(uuid_str, major, minor) {
 /**
  * RECEIVER CALLBACK: Intercepts raw native BLE events
  */
-const handleDiscoverPeripheral = (peripheral) => {
-  let rawUuid = peripheral.id || '';
-  rawUuid = rawUuid.replace(/:/g, '').toUpperCase();
 
-  // Validate App ID matching signature ("41545445")
-  if (rawUuid.startsWith('41545445')) {
-    processIncomingFrame(rawUuid, peripheral.major || 0, peripheral.minor || 0);
+const handleDiscoverPeripheral = (peripheral) => {
+  const mData = peripheral.advertising?.manufacturerData;
+  
+  // 1. react-native-ble-advertise packs 16 bytes (UUID) + 2 bytes (Major) + 2 bytes (Minor) = 20 bytes total
+  if (mData && mData.bytes && mData.bytes.length >= 20) {
+    const bytes = mData.bytes;
+
+    // 2. Extract UUID directly from the beginning (Indices 0 to 16)
+    const uuid = bytesToUUID(bytes.slice(0, 16));
+    
+    // 3. Shift Major and Minor indices up by 2 to account for the missing iBeacon preamble
+    const major = bytesToUnsignedShort(bytes[16], bytes[17]);
+    const minor = bytesToUnsignedShort(bytes[18], bytes[19]);
+
+    // 4. Validate against your App Identifier signature ("41545445" / "ATTE")
+    if (uuid.toUpperCase().startsWith("41545445")) {
+      console.log(`🎯 [MESH PACKET MATCH] -> UUID: ${uuid}, Major: ${major}, Minor: ${minor}`);
+      
+      // Attach metadata to object payload context
+      peripheral.iBeacon = { uuid, major, minor };
+
+      // Route directly down to your frame reassembly engine
+      processIncomingFrame(uuid, major, minor);
+    }
   }
 };
 
@@ -449,46 +496,67 @@ const handleDiscoverPeripheral = (peripheral) => {
 /**
  * INTERFACE EXPORT: Seamless, Gapless Continuous Scanning Loop
  */
+
+// processIncomingFrame("41545445-0140-0002-0204-9999AAAC5221", 1280, 51210);
+// processIncomingFrame("41545445-1141-0011-0003-9999AAABCCC1", 1280, 51210);
+
+// processIncomingFrame("41545445-2DD8-4090-0002-62F23CA22000", 1280, 51210);
+// processIncomingFrame("41545445-0068-6900-0000-62F23CA22011", 0, 0);
+// processIncomingFrame("41545445-0068-6579-0000-62F23CA22021", 0, 0);
+
 export async function startMeshScannerLoop() {
-  // processIncomingFrame("41545445-0140-0002-0204-9999AAAC5221", 1280, 51210);
-  // processIncomingFrame("41545445-1141-0011-0003-9999AAABCCC1", 1280, 51210);
-
-  // processIncomingFrame("41545445-2DD8-4090-0002-62F23CA22000", 1280, 51210);
-  // processIncomingFrame("41545445-0068-6900-0000-62F23CA22011", 0, 0);
-  // processIncomingFrame("41545445-0068-6579-0000-62F23CA22021", 0, 0);
-
-
-
   if (isScanningLoopActive) return;
+
+  console.log('📡 BLE Core Scanner: Initializing...');
+
+  const hasPermission = await requestBluetoothPermissions();
+  if (!hasPermission) {
+    console.log('🛑 BLE Core Scanner: Permissions denied.');
+    return;
+  }
+
   isScanningLoopActive = true;
+  
+  try {
+    await BleManager.start({ showAlert: false });
+    console.log('📱 BLE Core Scanner: Hardware initialized successfully.');
+  } catch (err) {
+    console.error('🛑 Failed to start Native BLE Manager:', err);
+    isScanningLoopActive = false;
+    return;
+  }
 
-  console.log('📡 BLE Core Scanner: Initializing 100% Continuous Scan Mode...');
-  await BleManager.start({ awakeCamera: false });
+  // =================================================================
+  // 🛠️ FIX: USE THE CORE GLOBAL DEVICE EVENT EMITTER
+  // This completely stops the strict "new NativeEventEmitter()" warnings!
+  // =================================================================
+  DeviceEventEmitter.removeAllListeners('BleManagerDiscoverPeripheral');
+  
+  DeviceEventEmitter.addListener(
+    'BleManagerDiscoverPeripheral', 
+    (peripheral) => {
+      // 🎯 THE SYSTEM GATES ARE OPEN! THIS WILL NOW PRINT COPIOUSLY!
+      console.log(`🔥 [ANTENNA SEES ENGINE] ID: ${peripheral.id} | Name: ${peripheral.name || 'Unknown'} | RSSI: ${peripheral.rssi}`);
+      
+      handleDiscoverPeripheral(peripheral);
+    }
+  );
 
-  bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', handleDiscoverPeripheral);
-
+  // The active scan execution block...
   const runScanCycle = async () => {
     if (!isScanningLoopActive) return;
-
     try {
       console.log('🔍 [RX Window] Opening 20-second continuous active scan...');
-
-      // FIX: Combine EVERYTHING into a single object signature.
-      // This maps directly to a clean Java ReadableMap parameter on the native end.
       await BleManager.scan({
-        serviceUUIDs: [],       // Empty array is fully valid inside the object map
-        seconds: 20,            // Scan duration window
-        allowDuplicates: true,  // MANDATORY: Disables duplicate filtering to catch mesh frames
-        scanMode: 2             // SCAN_MODE_LOW_LATENCY (High-performance foreground mode)
+        serviceUUIDs: null, // Keeps kernel filters wide open
+        seconds: 20,
+        allowDuplicates: true,
+        scanMode: 2
       });
-
-      console.log('🟢 [RX Window] Scan initiated successfully without type conflicts.');
-
+      console.log('🟢 [RX Window] Scan initiated successfully without bridge conflicts.');
     } catch (err) {
-      console.error('Scan execution exception:', err);
+      console.error('🛑 Scan execution exception:', err);
     }
-
-    // Cooldown interval buffer block to cycle the hardware safely
     setTimeout(runScanCycle, 21000);
   };
 
@@ -500,6 +568,6 @@ export async function startMeshScannerLoop() {
  */
 export async function stopMeshScannerLoop() {
   isScanningLoopActive = false;
-  bleManagerEmitter.removeAllListeners('BleManagerDiscoverPeripheral');
+  DeviceEventEmitter.removeAllListeners('BleManagerDiscoverPeripheral');
   console.log('🛑 BLE Core Scanner Loop Terminated.');
 }
