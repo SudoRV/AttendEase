@@ -50,6 +50,17 @@ const TeacherLeave = () => {
 
     const handleSubmit = async () => {
         try {
+            if(leaveType === "period" && periods.length <= 0) {
+                alert("Select one class atleast.");
+                return;
+            } else if(leaveType === "day" && !!!onDate) {
+                alert("Select Date.");
+                return;
+            } else if(leaveType === "duration" && (!!!fromDate || !!!toDate)) {
+                alert("Select from/to date.")
+                return;
+            }
+            
             const payload = {
                 leave_type: leaveType,
                 applicant: userData,
@@ -79,8 +90,9 @@ const TeacherLeave = () => {
                 throw new Error(res_data?.message || "Something went wrong");
             }
 
-            loadTimetable();
+            loadTimetable(userData);
             loadLeaves();
+            setPeriods([]);
             Alert.alert("Leave status", res_data.message);
 
         } catch (error) {
@@ -283,9 +295,9 @@ const TeacherLeave = () => {
                             )
                         }
 
-                        <ScrollView className="">
+                        <ScrollView className="" showsVerticalScrollIndicator={false}>
                             {classes?.classes
-                                ?.filter(c => c.subject_id !== undefined && c.subject_id?.trim() !== "")
+                                ?.filter(c => c.subject_id !== undefined && c.subject_id?.trim() !== "" && c.cancelled !== 1)
                                 ?.map((c, index) => {
                                     const selected = periods.find(p => p.subject_id === c.subject_id);
 
@@ -604,9 +616,9 @@ const renderTeacherLeaves = (
                                                     )
                                                 }
                                             </View>
-                                        ) : (
+                                        ) : clas.teacher_id !== userData?.teacher_id && (
                                             <TouchableOpacity
-                                                disabled={!!clas.substitute_teacher_id}
+                                                disabled={!!clas.substitute_teacher_id || clas.teacher_id === userData?.teacher_id}
                                                 onPress={() => handleSelectClass(clas, "acquired")}
                                                 className="bg-blue-600 dark:bg-blue-400 rounded-xl py-2.5 mt-4"
                                             >

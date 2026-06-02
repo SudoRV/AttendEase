@@ -102,6 +102,7 @@ function RegisterPage({ onSwitch }) {
   return (
     <ScrollView
       className="flex-1 px-6 bg-zinc-50 dark:bg-neutral-900"
+      showsVerticalScrollIndicator={false}
     >
       {/* TITLE */}
       <View className="items-center mt-20 pt-8">
@@ -267,7 +268,7 @@ function RegisterPage({ onSwitch }) {
           disabled={!(isEmailValid && isIDValid)}
           activeOpacity={0.8}
           className={`py-4 rounded-2xl shadow-sm ${isEmailValid && isIDValid
-            ? "bg-zinc-900"
+            ? "bg-zinc-900 dark:bg-indigo-500"
             : "bg-zinc-200 dark:bg-neutral-800"
             }`}
         >

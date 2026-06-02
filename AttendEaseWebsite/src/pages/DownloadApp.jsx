@@ -115,7 +115,7 @@ export default function DownloadApp() {
                                     Scan the QR code with your device camera or tap the button below to download safely from the Google Play Store.
                                 </p>
                                 <a
-                                    href={buildUrl("/download-app")}
+                                    href={buildUrl("/download-app?latest")}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     download="AttendEase.apk"

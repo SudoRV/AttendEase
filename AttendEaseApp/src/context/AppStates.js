@@ -3,10 +3,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import requestFcmToken from "../utils/requestFcmToken";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import BleDataPropagation from "../utils/BleDataPropagation";
-import { startScanning } from "../utils/BleDataScanning";
+import { startMeshScannerLoop } from "../utils/BleDataScanning";
 import { getDBConnection, saveNotification } from "../database/database";
 import { useColorScheme } from 'nativewind';
-// import changeNavigationBarColor from 'react-native-navigation-bar-color';
+import { enableBluetooth } from "../components/BleToggle";
+import changeNavigationBarColor from 'react-native-navigation-bar-color';
 
 /* =====================
    ENV CONFIG
@@ -16,10 +17,9 @@ const THEME_STORAGE_KEY = '@user_theme_preference';
 
 // ⚠️ IMPORTANT:
 // Replace this with your computer’s local IP
-// Example: http://192.168.1.5:8000
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
-  : "http://10.21.190.185:8000";
+  : "http://10.221.217.208:8000";
 
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
@@ -28,6 +28,17 @@ const formatDate = (date) => {
   return new Date(date)
     .toISOString()
 };
+
+function sHash(str) {
+  let hash = 0x811c9dc5;
+
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
 
 const GlobalContext = createContext();
 
@@ -52,15 +63,9 @@ export const GlobalProvider = ({ children }) => {
     async function loadSavedTheme() {
       try {
         const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (savedTheme) {
+        if (!!savedTheme) {
           setThemePreference(savedTheme);
-          setColorScheme(savedTheme); 
-          setIsDark(savedTheme === "dark");
-          // await changeNavigationBarColor(
-          //   savedTheme === "dark" ? '#171717' : '#ffffff', 
-          //   !isDark, 
-          //   true
-          // );
+          setColorScheme(savedTheme);          
         } else {
           setThemePreference('system');
           setColorScheme('system');
@@ -74,14 +79,23 @@ export const GlobalProvider = ({ children }) => {
     loadSavedTheme();
   }, []);
 
+  useEffect(() => {
+    const is_dark = colorScheme === "dark";
+    setIsDark(is_dark);
+
+    async function setNavColor() {
+      await changeNavigationBarColor(
+        is_dark ? '#171717' : '#ffffff', 
+        !is_dark, 
+        false
+      );
+    }
+    setNavColor();
+  }, [colorScheme])
+
   const updateTheme = async (newMode) => {
     setThemePreference(newMode);
-    setColorScheme(newMode);
-    // await changeNavigationBarColor(
-    //   isDark ? '#171717' : '#ffffff', 
-    //   !isDark, 
-    //   true
-    // );
+    setColorScheme(newMode);  
     await AsyncStorage.setItem(THEME_STORAGE_KEY, newMode);
   };
 
@@ -112,7 +126,7 @@ export const GlobalProvider = ({ children }) => {
     // set saved classes
     const savedClasses = await AsyncStorage.getItem("classes");
     if (!!savedClasses) {
-      // setClasses(JSON.parse(savedClasses));
+      setClasses(JSON.parse(savedClasses));
     }
 
     if (!userCreds) return;
@@ -235,7 +249,13 @@ export const GlobalProvider = ({ children }) => {
       if (ble_on) {
         try {
           const parsedValue = JSON.parse(ble_on);
+
           setBleOn(parsedValue);
+          if (!!parsedValue) {
+            await enableBluetooth();
+            // start scanning
+            await startMeshScannerLoop();
+          };
           return parsedValue;
         } catch (e) {
           setBleOn(false);
@@ -294,11 +314,6 @@ export const GlobalProvider = ({ children }) => {
     }
   };
 
-  // useEffect(() => {
-  //   // scan ble notification 
-  //   if (!!bleOn) startScanning();
-  // }, [bleOn])
-
   useEffect(() => {
     if (!userData?.email) return;
     setLogout(false);
@@ -318,75 +333,19 @@ export const GlobalProvider = ({ children }) => {
       console.log('A new FCM message arrived!', JSON.stringify(remoteMessage));
       // save to local database
 
-      if (remoteMessage.data.type !== "ANNOUNCEMENT") {
-        saveNotification(database, { notification_id: remoteMessage.messageId, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body });
-      }
+      const notification_id = (sHash(remoteMessage.messageId) >>> 0)
+        .toString(16).toUpperCase()
+        .padStart(8, "0");
+
+      saveNotification(database, { notification_id: notification_id, scope: remoteMessage.data.scope, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body });
 
       // propagate notification
-      // if (bleOn) {
-      //   BleDataPropagation(userData, database, remoteMessage);
-      // }
+      BleDataPropagation(database, remoteMessage);
 
       // Refresh data silently!
       loadTimetable(userData);
       loadLeaves();
     });
-
-    // load whole week timetable and save it in database
-    async function saveTimetable() {
-      const timetable = await loadTimetable(userData, "null");
-      if(!timetable) return;
-
-      if (Object.keys(timetable).length > 1) {
-        Object.keys(timetable).forEach(day => {
-          const items = timetable[day];
-          items.forEach(item => {
-            database.execute(`insert or replace into timetable (
-              id,
-              branch_id,
-              branch_name,
-              year,
-              semester,
-              section,
-              day,
-              period_id,
-              subject_id,
-              subject_name,
-              room_number,
-              teacher_id,
-              teacher_name,
-              cancelled,
-              cancelled_from,
-              cancelled_to,
-              substitute_teacher_id,
-              substitute_teacher_name,
-              substituted_till
-            )
-              values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-              item.id,
-              item.branch_id,
-              item.branch_name,
-              item.year,
-              item.semester,
-              item.section,
-              item.day,
-              item.period_id,
-              item.subject_id,
-              item.subject_name,
-              item.room_number,
-              item.teacher_id,
-              item.teacher_name,
-              item.cancelled ? 1 : 0,
-              item.cancelled_from,
-              item.cancelled_to,
-              item.substitute_teacher_id,
-              item.substitute_teacher_name,
-              item.substituted_till
-            ])
-          })
-        })
-      }
-    }
 
     if (userData.role === "Student") saveTimetable();
 
@@ -395,6 +354,25 @@ export const GlobalProvider = ({ children }) => {
       unsubscribe();
     };
   }, [userData]);
+
+  // load whole week timetable and save it in database
+  async function saveTimetable() {
+    const timetable = await loadTimetable(userData, "null");
+    if (!timetable) return;
+
+    if (Object.keys(timetable).length > 1) {
+      Object.keys(timetable).forEach(day => {
+        const items = timetable[day];
+        items.forEach(item => {
+          database.execute(`insert or replace into timetable (id,branch_id,branch_name,year,semester,section,day,period_id,subject_id,subject_name,room_number,teacher_id,teacher_name,cancelled,cancelled_from,cancelled_to,substitute_teacher_id,substitute_teacher_name,substituted_till
+          )
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+            item.id, item.branch_id, item.branch_name, item.year, item.semester, item.section, item.day, item.period_id, item.subject_id, item.subject_name, item.room_number, item.teacher_id, item.teacher_name, item.cancelled ? 1 : 0, item.cancelled_from, item.cancelled_to, item.substitute_teacher_id, item.substitute_teacher_name, item.substituted_till
+          ])
+        })
+      })
+    }
+  }
 
   return (
     <GlobalContext.Provider

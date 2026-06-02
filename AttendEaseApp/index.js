@@ -11,9 +11,9 @@ import notifee, { AndroidStyle, EventType, AndroidImportance, AndroidVisibility 
 import BleDataPropagation from './src/utils/BleDataPropagation';
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
+import { getDBConnection } from './src/database/database';
 
 import { saveNotification } from './src/database/database';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const isProduction = true;
 const BASE_URL = isProduction
@@ -78,15 +78,18 @@ const pushNotifications = async () => {
 
 // 2. Define the background message handler
 const onMessageReceived = async (remoteMessage) => {
-  // console.log('Background Message Received:', remoteMessage.data);
+  console.log('Background Message Received:', remoteMessage.data);
   // save notifications 
-  if (remoteMessage.data.type !== "ANNOUNCEMENT") {
-    saveNotification(null, {notification_id: remoteMessage.messageId, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body});
-  }
+  saveNotification(null, { notification_id: remoteMessage.messageId, scope: remoteMessage.data.scope,  source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body });
   // propagate message via ble advertise
-  const bleOnRaw = await AsyncStorage.getItem("ble_state");
-  const bleOn = JSON.parse(bleOnRaw);
-  // if (!!bleOn) BleDataPropagation(remoteMessage);
+  try {
+    const database = getDBConnection();
+    console.log("Starting background BLE data burst...");
+    await BleDataPropagation(database, remoteMessage);
+    console.log("Background BLE data burst complete.");
+  } catch (bleErr) {
+    console.error("BLE Propagation crashed in headless state:", bleErr);
+  }
 
   if (remoteMessage.data?.type === 'MORNING_SCHEDULE') {
     const channelId = await morningScheduleChannel();

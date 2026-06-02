@@ -82,19 +82,19 @@ export default function Announce() {
 
       if (res.success) {
         Alert.alert("Success", "Announcement posted.");
-        setTitle("");
-        setBody("");
+        // setTitle("");
+        // setBody("");
         setTargetYears([]);
         setTargetBranches([]);
         setTargetSections([]);
-        setExpiryDate(null);
+        // setExpiryDate(null);
       } else {
         Alert.alert("Error", res.message || "Failed.");
       }
     } catch {
       Alert.alert("Error", "Network error.");
     } finally {
-      Loading(false);
+      setLoading(false);
     }
   }
 
@@ -112,7 +112,7 @@ export default function Announce() {
               key={item}
               activeOpacity={0.7}
               onPress={() =>
-                ToggleSelection(item, selected, setter)
+                toggleSelection(item, selected, setter)
               }
               className={`px-4 py-2 rounded-xl border font-medium ${active
                 ? "bg-indigo-600 border-indigo-600 dark:bg-indigo-600 dark:border-indigo-500"
@@ -138,6 +138,7 @@ export default function Announce() {
     <ScrollView 
       contentContainerStyle={{ paddingBottom: 30 }} 
       className="flex-1 px-4 bg-zinc-50 dark:bg-neutral-900 mt-4"
+      showsVerticalScrollIndicator={false}
     >
       {/* MAIN CONTAINER CARD */}
       <View className="bg-white dark:bg-neutral-950/60 rounded-[30px] p-6 shadow-sm border border-zinc-100 dark:border-neutral-800/60">
@@ -235,7 +236,7 @@ export default function Announce() {
           >
             <Text className="text-base font-medium text-zinc-800 dark:text-neutral-200">
               {expiryDate
-                ? ExpiryDate.toLocaleString()
+                ? expiryDate.toLocaleString()
                 : "Select expiry date & time"}
             </Text>
             <Ionicons name="calendar-outline" size={18} color={isDark ? "#a3a3a3" : "#71717a"} />
@@ -247,17 +248,17 @@ export default function Announce() {
               mode="date"
               display="default"
               onChange={(event, selectedDate) => {
-                SetShowDatePicker(false);
+                setShowDatePicker(false);
                 if (selectedDate) {
-                  const current = expiryDate || new Date();
+                  const current = expiryDate ? new Date(expiryDate) : new Date();
                   current.setFullYear(
-                    SelectedDate.getFullYear(),
-                    SelectedDate.getMonth(),
-                    SelectedDate.getDate()
+                    selectedDate.getFullYear(),
+                    selectedDate.getMonth(),
+                    selectedDate.getDate()
                   );
-                  SetExpiryDate(new Date(current));
+                  setExpiryDate(new Date(current));
                   if (Platform.OS === "android") {
-                    SetTimeout(() => setShowTimePicker(true), 200);
+                    setTimeout(() => setShowTimePicker(true), 200);
                   }
                 }
               }}
@@ -270,14 +271,14 @@ export default function Announce() {
               mode="time"
               display="default"
               onChange={(event, selectedTime) => {
-                SetShowTimePicker(false);
+                setShowTimePicker(false);
                 if (selectedTime) {
-                  const current = expiryDate || new Date();
+                  const current = expiryDate ? new Date(expiryDate) : new Date();
                   current.setHours(
-                    SelectedTime.getHours(),
-                    SelectedTime.getMinutes()
+                    selectedTime.getHours(),
+                    selectedTime.getMinutes()
                   );
-                  SetExpiryDate(new Date(current));
+                  setExpiryDate(new Date(current));
                 }
               }}
             />
