@@ -438,7 +438,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
           // re broadcast it
           reBroadcast(current_active.rawNotifications);
 
-          // // check if scope matches and popup notification
+          // check if scope matches and popup notification
           if (current_active["scope"].branches.some(b => b === userData.branch_id || b === "all") && current_active["scope"].years.some(y => y === `${userData.year}` || y === "all") && current_active["scope"].sections.some(s => s === userData.section || s === "all")) {
             // Alert.alert(notification.title, notification.body);
             notify(notification);
@@ -543,17 +543,17 @@ export async function startMeshScannerLoop() {
   );
 
   // The active scan execution block...
+  console.log('🔍 [RX Window] Opening 20-second continuous active scan...');
   const runScanCycle = async () => {
     if (!isScanningLoopActive) return;
     try {
-      console.log('🔍 [RX Window] Opening 20-second continuous active scan...');
       await BleManager.scan({
         serviceUUIDs: null, // Keeps kernel filters wide open
         seconds: 20,
         allowDuplicates: true,
         scanMode: 2
       });
-      console.log('🟢 [RX Window] Scan initiated successfully without bridge conflicts.');
+      // console.log('🟢 [RX Window] Scan initiated successfully without bridge conflicts.');
     } catch (err) {
       console.error('🛑 Scan execution exception:', err);
     }
