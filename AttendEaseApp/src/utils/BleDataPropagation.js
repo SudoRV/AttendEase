@@ -219,10 +219,15 @@ export async function processQueue() {
 
   console.log("--- Starting Dynamic BLE Transmission Loop ---");
 
-  await BLEAdvertise.stopBroadcast();
-  await delay(200); // Small driver register stabilization buffer
-
   while (notification_queue.length > 0) {
+    try {
+      await stopMeshScannerLoop();
+      await BLEAdvertise.stopBroadcast();
+      await delay(300); // Robust hardware stabilization cooldown
+    } catch (e) {
+      console.log("Initial radio clear warning:", e);
+    }
+
     // broadcast each notifications whose broadcasted count is <= burst size
     const currentBurst = notification_queue.filter(nq => nq[0].broadcasted < burst_size);
 
@@ -253,14 +258,14 @@ export async function processQueue() {
         try {
           await await BLEAdvertise.stopBroadcast();
           await delay(50)
-          
+
           isBroadCasting = true;
           await BLEAdvertise.broadcast(packet.uuid, packet.major, packet.minor);
 
           packet.broadcasted += 1;
           console.log(`Broadcasted chunk [${packet.broadcasted}/${burst_size}]: ${packet.uuid}`);
         } catch (err) {
-          console.error("Broadcast hardware failure caught:", err);
+          console.error("Broadcast harfdware failure caught:", err);
         }
 
         // Air duration for this chunk before moving to the next
@@ -282,18 +287,17 @@ export async function processQueue() {
       await delay(dynamicPacketDelay);
     }
 
-    // Shut down the radio immediately after the burst to clear the airspace
-    await stop();
-
     // delay in cycles of advertisement burst
     if (notification_queue.length > 0) {
       console.log(`[RX Window] Listening for 4s... (${notification_queue.length} items in line)`);
+      await stop();
       await delay(4000);
     }
   }
 
   // Final cleanup once the carousel naturally grinds to a halt
   console.log(`All notification packets verified at ${burst_size} broadcasts. Engine Idle.`);
+  await delay(500);
   await stop();
   isProcessingQueue = false;
 }
@@ -317,9 +321,9 @@ export async function stop() {
     .then(async () => {
       console.log('Broadcast stopped successfully');
       isBroadCasting = false;
-      await delay(50);
+      await delay(200);
       // start scanning for new ble notifications
-      // await startMeshScannerLoop();
+      await startMeshScannerLoop();
     })
     .catch(err => console.error('Failed to stop broadcast:', err));
 }

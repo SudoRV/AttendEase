@@ -145,9 +145,12 @@ def parse_uuid_payload(uuid_str, major, minor):
     
     # check for duplicate notification
     # print(notifications, notifications[notification_id] if notifications else "no initiated")
-    if notifications and notifications[notification_id]: 
-        print("avoiding duplicate notification")
-        return
+    try:
+        if notifications and notifications[notification_id]: 
+            print("avoiding duplicate notification")
+            return
+    except Exception as e:
+        print(e)
 
     # --- CASE 0: Class Cancellation ---
     if type_code == 0 and tail_flags[0] != "2":
@@ -385,6 +388,7 @@ async def packet_processing_worker():
         try:
             if TARGET_COMPANY_ID in advertisement_data.manufacturer_data:
                 raw_bytes = advertisement_data.manufacturer_data[TARGET_COMPANY_ID]
+                print("raw bytes", raw_bytes)
                 
                 if len(raw_bytes) >= 22:
                     # Unpack standard network big-endian payload configurations safely
@@ -406,6 +410,7 @@ def advertisement_callback(device, advertisement_data):
     and drops elements directly onto the consumer queue.
     """
     # print(f"Advertisement received from {device.address} with data: {advertisement_data}")
+    
     if TARGET_COMPANY_ID in advertisement_data.manufacturer_data:
         packet_processing_queue.put_nowait((device, advertisement_data))
 

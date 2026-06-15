@@ -1,14 +1,11 @@
 import { NativeModules, DeviceEventEmitter, Alert } from 'react-native';
-import { BleManager } from 'react-native-ble-plx';
+import BleManager from 'react-native-ble-manager';
 import { reverseScopes } from '../constant/scopes';
 import { getDBConnection, saveNotification } from '../database/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queueNotification, processQueue } from './BleDataPropagation';
 import notifee, { AndroidStyle, EventType, AndroidImportance, AndroidVisibility } from '@notifee/react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
-
-const plxManager = new BleManager();
-let isScanningLoopActive = false;
 
 async function requestBluetoothPermissions() {
   if (Platform.OS === 'android') {
@@ -35,6 +32,7 @@ async function requestBluetoothPermissions() {
 
 // Core Data Structures tracking active over-the-air fragments
 const announcements_registry = {};
+let isScanningLoopActive = false;
 
 /**
  * UTILITY: Converts Hex payload back to pure ASCII characters
@@ -199,6 +197,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
 
   console.log("\n================ MATCH FOUND ================");
   console.log(`RAW BLE DATA -> UUID: ${uuid_str} | Major: ${major} | Minor: ${minor}`);
+  console.log("------------------------------------------------");
 
   // 3. Extract Common Core Variables using literal Python slices
   const scope_block = clean_uuid.substring(8, 12);
@@ -215,12 +214,6 @@ async function processIncomingFrame(uuid_str, major, minor) {
 
   if (notificationExists) {
     console.log("notification exists with id: ", notification_id, notificationExists);
-    return;
-  }
-
-  if (userData?.role === "Teacher" && [0, 1].includes(type_code) && tail_flags[0] !== "2") {
-    console.log("rebroadcasting for students.")
-    reBroadcast([{ broadcasted: 0, uuid: uuid_str, major, minor }]);
     return;
   }
 
@@ -321,6 +314,9 @@ async function processIncomingFrame(uuid_str, major, minor) {
   // =================================================================
   // --- CASE 2: Announcements (Fragmented String Data Chunks) ---
   else if (type_code === 2 || tail_flags[0] === "2") {
+    console.log(`Type: ANNOUNCEMENT PACKET FRAGMENT (Code 2)`);
+    console.log(`Notification ID: ${notification_id}`);
+
     try {
       if (!announcements_registry[notification_id]) {
         announcements_registry[notification_id] = {
@@ -348,9 +344,6 @@ async function processIncomingFrame(uuid_str, major, minor) {
         current_active["scope"] = unpackMetadata(metadata_hex);
         if (!current_active["chunks_received"].includes(tracking_key)) {
           current_active["chunks_received"].push(tracking_key);
-          current_active["announcement_timeout"] = setTimeout(() => {
-            processAnnouncement(database, userData, notification_id, tail_flags, current_active);
-          }, 16000)
         }
 
         current_active.rawNotifications.push({ init: true, broadcasted: 0, uuid: uuid_str, major, minor });
@@ -407,9 +400,54 @@ async function processIncomingFrame(uuid_str, major, minor) {
         current_active["max_title_idx"] !== null &&
         current_active["max_body_idx"] !== null
       ) {
+        let title_continuous = true;
+        for (let i = 0; i <= current_active["max_title_idx"]; i++) {
+          if (current_active["title_fragments"][i] === undefined) {
+            title_continuous = false;
+            break;
+          }
+        }
 
-        processAnnouncement(database, userData, notification_id, tail_flags, current_active);
-        clearTimeout(current_active.announcement_timeout);
+        let body_continuous = true;
+        for (let i = 0; i <= current_active["max_body_idx"]; i++) {
+          if (current_active["body_fragments"][i] === undefined) {
+            body_continuous = false;
+            break;
+          }
+        }
+
+        if (title_continuous && body_continuous) {
+          const sortedTitleKeys = Object.keys(current_active["title_fragments"]).sort((a, b) => a - b);
+          const final_title = sortedTitleKeys.map(k => current_active["title_fragments"][k]).join("");
+
+          const sortedBodyKeys = Object.keys(current_active["body_fragments"]).sort((a, b) => a - b);
+          const final_body = sortedBodyKeys.map(k => current_active["body_fragments"][k]).join("");
+
+          const notification = {
+            notification_id,
+            scope: JSON.stringify(current_active["scope"]),
+            source: "BLE",
+            type: reverseScopes("notification_type", parseInt(tail_flags[0])),
+            title: final_title.trim(),
+            body: final_body.trim()
+          };
+
+          // save notification
+          saveNotification(database, notification);
+
+          // re broadcast it
+          reBroadcast(current_active.rawNotifications);
+
+          // check if scope matches and popup notification
+          if (current_active["scope"].branches.some(b => b === userData.branch_id || b === "all") && current_active["scope"].years.some(y => y === `${userData.year}` || y === "all") && current_active["scope"].sections.some(s => s === userData.section || s === "all")) {
+            // Alert.alert(notification.title, notification.body);
+            notify(notification);
+          }
+
+          delete announcements_registry[notification_id];
+        } else {
+          // console.log("⏳ Index sequences incomplete or contain gaps. Waiting for missing fragments to bridge...");
+        }
       } else {
         // console.log("⏳ Awaiting initial Index 0 payload packets to establish sequence bounds...");
       }
@@ -420,119 +458,56 @@ async function processIncomingFrame(uuid_str, major, minor) {
   }
 }
 
-async function processAnnouncement(database, userData, notification_id, tail_flags, current_active) {
-  let title_continuous = true;
-  for (let i = 0; i <= current_active["max_title_idx"]; i++) {
-    if (current_active["title_fragments"][i] === undefined) {
-      title_continuous = false;
-      break;
-    }
-  }
-
-  let body_continuous = true;
-  for (let i = 0; i <= current_active["max_body_idx"]; i++) {
-    if (current_active["body_fragments"][i] === undefined) {
-      body_continuous = false;
-      break;
-    }
-  }
-
-  if (title_continuous || body_continuous) {
-    const sortedTitleKeys = Object.keys(current_active["title_fragments"]).sort((a, b) => a - b);
-    const final_title = sortedTitleKeys.map(k => current_active["title_fragments"][k]).join("");
-
-    const sortedBodyKeys = Object.keys(current_active["body_fragments"]).sort((a, b) => a - b);
-    const final_body = sortedBodyKeys.map(k => current_active["body_fragments"][k]).join("");
-
-    const notification = {
-      notification_id,
-      scope: JSON.stringify(current_active["scope"]),
-      source: "BLE",
-      type: reverseScopes("notification_type", parseInt(tail_flags[0])),
-      title: final_title.trim(),
-      body: final_body.trim()
-    };
-
-    // save notification
-    saveNotification(database, notification);
-
-    // re broadcast it
-    reBroadcast(current_active.rawNotifications);
-
-    // check if scope matches and popup notification
-    if (current_active["scope"].branches.some(b => b === userData.branch_id || b === "all") && current_active["scope"].years.some(y => y === `${userData.year}` || y === "all") && current_active["scope"].sections.some(s => s === userData.section || s === "all")) {
-      // Alert.alert(notification.title, notification.body);
-      notify(notification);
-    }
-
-    delete announcements_registry[notification_id];
-  } else {
-    // console.log("⏳ Index sequences incomplete or contain gaps. Waiting for missing fragments to bridge...");
-  }
-}
-
-function base64ToHex(base64Str) {
-  const rawBinary = Buffer.from(base64Str, 'base64');
-  return rawBinary.toString('hex').toUpperCase();
-}
-
 
 /**
  * RECEIVER CALLBACK: Intercepts raw native BLE events
  */
 
-const handleDiscoverPeripheral = (device) => {
-  const sDataMap = device.serviceData;
+const handleDiscoverPeripheral = (peripheral) => {
+  const mData = peripheral.advertising?.manufacturerData;
+  
+  // 1. react-native-ble-advertise packs 16 bytes (UUID) + 2 bytes (Major) + 2 bytes (Minor) = 20 bytes total
+  if (mData && mData.bytes && mData.bytes.length >= 20) {
+    const bytes = mData.bytes;
 
-  if (sDataMap) {
-    console.log("service data: ", sDataMap);
+    // 2. Extract UUID directly from the beginning (Indices 0 to 16)
+    const uuid = bytesToUUID(bytes.slice(0, 16));
+    
+    // 3. Shift Major and Minor indices up by 2 to account for the missing iBeacon preamble
+    const major = bytesToUnsignedShort(bytes[16], bytes[17]);
+    const minor = bytesToUnsignedShort(bytes[18], bytes[19]);
 
-    Object.keys(sDataMap).forEach((serviceUuid) => {
-      const base64Payload = sDataMap[serviceUuid];
-      const hexPayload = base64ToHex(base64Payload);
+    // 4. Validate against your App Identifier signature ("41545445" / "ATTE")
+    if (uuid.toUpperCase().startsWith("41545445")) {
+      console.log(`🎯 [MESH PACKET MATCH] -> UUID: ${uuid}, Major: ${major}, Minor: ${minor}`);
+      
+      // Attach metadata to object payload context
+      peripheral.iBeacon = { uuid, major, minor };
 
-      // Verify if the hex stream meets your 20-byte mesh specification (40 hex characters)
-      if (hexPayload.length >= 40) {
-
-        // 1. Reconstruct the hyphenated 16-byte UUID string from the first 32 hex characters
-        const rawUuid = hexPayload.substring(0, 32);
-        const uuid = `${rawUuid.substring(0, 8)}-${rawUuid.substring(8, 12)}-${rawUuid.substring(12, 16)}-${rawUuid.substring(16, 20)}-${rawUuid.substring(20, 32)}`;
-
-        // 2. Extract Major and Minor segments from the trailing 4 bytes (8 hex characters)
-        const major = parseInt(hexPayload.substring(32, 36), 16);
-        const minor = parseInt(hexPayload.substring(36, 40), 16);
-
-        // 3. Clear console logging for all structured broadcast frames
-        console.log(`📡 [MESH FRAME EXTRACTED] UUID: ${uuid} | Major: ${major} | Minor: ${minor} | RSSI: ${device.rssi}`);
-
-        // 4. Fall through to your core application ID validator gate
-        if (uuid.toUpperCase().startsWith("41545445")) {
-          console.log(`🎯 [APP MATCH] Routing Frame ${uuid} to Processing Engine`);
-          processIncomingFrame(uuid, major, minor);
-        }
-      } else {
-        // Fallback logger for alternative raw BLE broadcast payloads running on the service map
-        console.log(`ℹ️ [SERVICE DATA STREAM] UUID: ${serviceUuid} | Raw Hex: ${hexPayload} | RSSI: ${device.rssi}`);
-      }
-    });
+      // Route directly down to your frame reassembly engine
+      processIncomingFrame(uuid, major, minor);
+    }
   }
 };
 
 /**
  * INTERFACE EXPORT: Start scanning loop
  */
+/**
+ * INTERFACE EXPORT: Seamless, Gapless Continuous Scanning Loop
+ */
 
 // processIncomingFrame("41545445-0140-0002-0204-9999AAAC5221", 1280, 51210);
 // processIncomingFrame("41545445-1141-0011-0003-9999AAABCCC1", 1280, 51210);
 
-// processIncomingFrame("41545445-2DD8-4090-0002-76F23CA22000", 1280, 51210);
-// processIncomingFrame("41545445-0068-6900-0000-76F23CA22011", 0, 0);
-// processIncomingFrame("41545445-0068-6579-0000-76F23CA22021", 0, 0);
+// processIncomingFrame("41545445-2DD8-4090-0002-62F23CA22000", 1280, 51210);
+// processIncomingFrame("41545445-0068-6900-0000-62F23CA22011", 0, 0);
+// processIncomingFrame("41545445-0068-6579-0000-62F23CA22021", 0, 0);
 
 export async function startMeshScannerLoop() {
   if (isScanningLoopActive) return;
 
-  console.log('🟢 BLE Core Scanner Started');
+  console.log('📡 BLE Core Scanner: Initializing...');
 
   const hasPermission = await requestBluetoothPermissions();
   if (!hasPermission) {
@@ -541,28 +516,51 @@ export async function startMeshScannerLoop() {
   }
 
   isScanningLoopActive = true;
+  
+  try {
+    await BleManager.start({ showAlert: false });
+    console.log('📱 BLE Core Scanner: Hardware initialized successfully.');
+  } catch (err) {
+    console.error('🛑 Failed to start Native BLE Manager:', err);
+    isScanningLoopActive = false;
+    return;
+  }
 
-  // Start scanning immediately. Null filters mean look for absolutely EVERYTHING in range.
-  plxManager.startDeviceScan(
-    null,
-    {
-      allowDuplicates: true,
-      scanMode: 2 // Maps directly to Android's native high-speed SCAN_MODE_LOW_LATENCY
-    },
-    (error, device) => {
-      if (error) {
-        console.error('🛑 PLX Scan Runtime Exception:', error);
-        return;
-      }
-
-      if (device) {
-        // FORCED DIAGNOSTIC LOG: This will flood your console instantly when it sees your Noise watch
-        console.log(`🔥 [PLX SEES] MAC: ${device.id} | Name: ${device.name || 'Unknown'} | RSSI: ${device.rssi}`);
-
-        handleDiscoverPeripheral(device);
-      }
+  // =================================================================
+  // 🛠️ FIX: USE THE CORE GLOBAL DEVICE EVENT EMITTER
+  // This completely stops the strict "new NativeEventEmitter()" warnings!
+  // =================================================================
+  DeviceEventEmitter.removeAllListeners('BleManagerDiscoverPeripheral');
+  
+  DeviceEventEmitter.addListener(
+    'BleManagerDiscoverPeripheral', 
+    (peripheral) => {
+      // 🎯 THE SYSTEM GATES ARE OPEN! THIS WILL NOW PRINT COPIOUSLY!
+      console.log(`🔥 [ANTENNA SEES ENGINE] ID: ${peripheral.id} | Name: ${peripheral.name || 'Unknown'} | RSSI: ${peripheral.rssi}`);
+      
+      handleDiscoverPeripheral(peripheral);
     }
   );
+
+  // The active scan execution block...
+  console.log('🔍 [RX Window] Opening 20-second continuous active scan...');
+  const runScanCycle = async () => {
+    if (!isScanningLoopActive) return;
+    try {
+      await BleManager.scan({
+        serviceUUIDs: null, // Keeps kernel filters wide open
+        seconds: 20,
+        allowDuplicates: true,
+        scanMode: 2
+      });
+      // console.log('🟢 [RX Window] Scan initiated successfully without bridge conflicts.');
+    } catch (err) {
+      console.error('🛑 Scan execution exception:', err);
+    }
+    setTimeout(runScanCycle, 21000);
+  };
+
+  runScanCycle();
 }
 
 /**
@@ -570,6 +568,6 @@ export async function startMeshScannerLoop() {
  */
 export async function stopMeshScannerLoop() {
   isScanningLoopActive = false;
-  plxManager.stopDeviceScan();
-  console.log('🛑 BLE PLX Scanner Loop Terminated.');
+  DeviceEventEmitter.removeAllListeners('BleManagerDiscoverPeripheral');
+  console.log('🛑 BLE Core Scanner Loop Terminated.');
 }
