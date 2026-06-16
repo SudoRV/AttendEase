@@ -11,7 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getDBConnection } from "./src/database/database";
 
 // Firebase imports
-import { getMessaging, onMessage } from '@react-native-firebase/messaging';
+import { getMessaging, onMessage, deleteToken } from '@react-native-firebase/messaging';
 
 import "./global.css";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -31,12 +31,13 @@ export default function App() {
   const [sessionKey, setSessionKey] = useState(0);
   const { colorScheme } = useColorScheme();
   const database = getDBConnection();
+  const messagingInstance = getMessaging();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     // console.log(sessionKey)
-    AsyncStorage.removeItem("user_creds");
-    AsyncStorage.removeItem("classes");
-    AsyncStorage.removeItem("attendance_report");
+    await AsyncStorage.removeItem("user_creds");
+    await AsyncStorage.removeItem("classes");
+    await AsyncStorage.removeItem("attendance_report");
 
     database.execute("delete from timetable");
     database.execute("delete from notifications");
@@ -51,8 +52,6 @@ export default function App() {
     }
     requestPermission();
     checkBattery();
-
-    const messagingInstance = getMessaging();
 
     // Listen for foreground messages
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {

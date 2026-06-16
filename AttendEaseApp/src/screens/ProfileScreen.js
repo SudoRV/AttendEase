@@ -64,15 +64,12 @@ export default function ProfileScreen() {
           }
 
           try {
-            // Explicitly force wipe all local keys
-            await AsyncStorage.clear();
             setUserData(null);
             setLogout(true);
           } catch (err) {
             Alert.alert("Error", "Failed to clear terminal identity profile: " + err);
           } finally {
             // Ensure runtime context resets safely even on unexpected storage errors
-            await AsyncStorage.clear();
             setUserData(null);
             setIsLoggingOut(false);
           }

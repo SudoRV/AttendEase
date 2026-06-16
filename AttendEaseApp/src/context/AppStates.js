@@ -9,6 +9,8 @@ import { useColorScheme } from 'nativewind';
 import { enableBluetooth } from "../components/BleToggle";
 import changeNavigationBarColor from 'react-native-navigation-bar-color';
 
+import { initializeScannerCallbacks } from '../utils/BleDataScanning';
+
 /* =====================
    ENV CONFIG
 ===================== */
@@ -55,6 +57,15 @@ export const GlobalProvider = ({ children }) => {
   const [themePreference, setThemePreference] = useState('system');
   const [loadingTheme, setLoadingTheme] = useState(true);
   const [isDark, setIsDark] = useState(null);
+
+  // ble dev states
+  const [bleDevices, setBleDevices] = useState([]);
+  const [bleError, setBleError] = useState(null);
+
+  useEffect(() => {
+    // Bind context state modifiers directly to the scanning engine reference pointers
+    initializeScannerCallbacks(setBleDevices, setBleError);
+  }, []);
 
   const database = getDBConnection();
 
@@ -392,7 +403,10 @@ export const GlobalProvider = ({ children }) => {
         formatDate,
         bleOn, setBleOn,
         colorScheme,
-        themePreference, updateTheme
+        themePreference, updateTheme,
+
+        bleError, setBleError,
+        bleDevices, setBleDevices,
       }}
     >
       {children}

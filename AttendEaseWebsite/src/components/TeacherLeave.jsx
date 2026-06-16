@@ -66,7 +66,7 @@ const TeacherLeave = ({ onClose }) => {
         }
 
         try {
-            console.log(fromDate, toDate, onDate);
+            console.log(fromDate, toDate, onDate)
             const payload = {
                 leave_type: leaveType,
                 applicant: userData,

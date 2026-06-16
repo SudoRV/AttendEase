@@ -7,7 +7,7 @@ const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
 
-    const isProduction = true;
+    const isProduction = false;
 
     // ⚠️ IMPORTANT:
     // Replace this with your computer’s local IP

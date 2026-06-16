@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext, memo } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,9 @@ import {
   Platform,
   PermissionsAndroid,
   Alert,
+  FlatList,
+  Modal,
+  TouchableOpacity,
 } from 'react-native';
 
 import NetInfo from '@react-native-community/netinfo';
@@ -13,6 +16,9 @@ import NetInfo from '@react-native-community/netinfo';
 import { BleManager } from 'react-native-ble-plx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { startMeshScannerLoop, stopMeshScannerLoop } from '../utils/BleDataScanning';
+
+// Import AppStates context for data & errors
+import { AppStates } from '../context/AppStates'; 
 
 // Instantiate the single control manager instance for PLX
 const plxManager = new BleManager();
@@ -110,9 +116,25 @@ export async function enableBluetooth() {
   }
 }
 
+// Optimized, memoized row component for performance stability
+const DeviceItem = memo(({ item }) => (
+  <View className="p-4 border-b border-zinc-100 dark:border-neutral-700 bg-white dark:bg-neutral-800">
+    <Text className="font-bold text-zinc-900 dark:text-white">
+      {item.device?.name || 'Unknown Device'}
+    </Text>
+    <Text className="text-sm text-zinc-500 font-mono mt-0.5">service data: {JSON.stringify(item?.service_data, null, "\t")}</Text>
+    <Text className="text-sm text-zinc-500 font-mono mt-0.5">uuid: {item?.uuid}</Text>
+    <Text className="text-sm">{item.device?.rssi}</Text>
+  </View>
+));
+
 export default function BleToggle({ bleOn, setBleOn }) {
   const [networkAvailable, setNetworkAvailable] = useState(true);
   const [smartScan, setSmartScan] = useState(false);
+  const [isModalVisible, setModalVisible] = useState(false);
+
+  // Read real-time scan arrays & logs straight out of AppStates context
+  const { bleDevices, bleError } = AppStates();
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -166,7 +188,6 @@ export default function BleToggle({ bleOn, setBleOn }) {
 
     await AsyncStorage.setItem("ble_state", JSON.stringify(value));
     setBleOn(value);
-
 
     if (value && bluetoothEnabled) await startMeshScannerLoop();
   };
@@ -226,6 +247,54 @@ export default function BleToggle({ bleOn, setBleOn }) {
         />
       </View>
 
+      {/* Device & Error Display Modal */}
+      <Modal visible={isModalVisible} animationType="slide" transparent={true}>
+        <View className="flex-1 bg-black/50 justify-end">
+          <View className="bg-white dark:bg-neutral-900 h-5/6 rounded-t-3xl p-5">
+            
+            {/* Modal Header */}
+            <View className="flex-row justify-between items-center mb-4 pb-2 border-b border-zinc-100 dark:border-neutral-800">
+              <Text className="text-xl font-bold text-zinc-900 dark:text-white">
+                Discovered Mesh Devices ({bleDevices?.length || 0})
+              </Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Text className="text-sky-500 font-bold text-base px-2 py-1">Close</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* List Section (60% Height Wrapper) */}
+            <View style={{ flex: 0.6 }}>
+              <FlatList
+                data={bleDevices || []}
+                keyExtractor={(item) => item.device.id}
+                renderItem={({ item }) => <DeviceItem item={item} />}
+                initialNumToRender={8}
+                windowSize={5}
+                removeClippedSubviews={Platform.OS === 'android'}
+                ListEmptyComponent={
+                  <Text className="text-zinc-400 italic text-center p-8">
+                    No scanning devices found yet...
+                  </Text>
+                }
+              />
+            </View>
+
+            {/* Error Log Section (40% Height Wrapper) */}
+            <View style={{ flex: 0.4 }} className="border-t border-zinc-200 dark:border-neutral-700 mt-4 pt-4">
+              <Text className="font-bold text-red-500 mb-2 text-base">
+                System Scan Logs / Errors
+              </Text>
+              <View className="bg-red-50 dark:bg-red-950/20 p-3 rounded-lg flex-1 border border-red-100 dark:border-red-900/30">
+                <Text className="text-red-600 dark:text-red-400 font-mono text-sm leading-5">
+                  {bleError || 'System running clean. No active hardware or connection exceptions.'}
+                </Text>
+              </View>
+            </View>
+
+          </View>
+        </View>
+      </Modal>
+
       {/* Status Details Footer */}
       <View className="border-t border-zinc-100 dark:border-neutral-600 pt-4 space-y-2">
         <View className="flex-row items-center">
@@ -242,6 +311,17 @@ export default function BleToggle({ bleOn, setBleOn }) {
           </Text>
         </View>
       </View>
+
+      {/* New Modal Trigger Button */}
+      <TouchableOpacity 
+        onPress={() => setModalVisible(true)}
+        className="mt-4"
+      >
+        <Text className="text-base font-semibold">
+          View Scanning Devices
+        </Text>
+      </TouchableOpacity>
+      
     </View>
   );
 }

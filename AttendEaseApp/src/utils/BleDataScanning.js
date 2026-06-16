@@ -10,6 +10,15 @@ import { PermissionsAndroid, Platform } from 'react-native';
 const plxManager = new BleManager();
 let isScanningLoopActive = false;
 
+let updateDevicesCallback = null;
+let updateErrorCallback = null;
+const discoveredDevicesMap = new Map();
+
+export function initializeScannerCallbacks(setDevices, setError) {
+  updateDevicesCallback = setDevices;
+  updateErrorCallback = setError;
+}
+
 async function requestBluetoothPermissions() {
   if (Platform.OS === 'android') {
     if (Platform.Version >= 31) {
@@ -484,12 +493,33 @@ function base64ToHex(base64Str) {
 const handleDiscoverPeripheral = (device) => {
   const sDataMap = device.serviceData;
 
+  if (updateDevicesCallback) {
+    const devicePayload = {
+      device,
+      service_data: sDataMap,
+    };
+
+    discoveredDevicesMap.set(device.id, devicePayload);
+    updateDevicesCallback(Array.from(discoveredDevicesMap.values()));
+  }
+
   if (sDataMap) {
     console.log("service data: ", sDataMap);
 
     Object.keys(sDataMap).forEach((serviceUuid) => {
       const base64Payload = sDataMap[serviceUuid];
       const hexPayload = base64ToHex(base64Payload);
+
+      if (updateDevicesCallback) {
+        const devicePayload = {
+          device,
+          service_data: sDataMap,
+          uuid: hexPayload.substring(0, 32)
+        };
+    
+        discoveredDevicesMap.set(device.id, devicePayload);
+        updateDevicesCallback(Array.from(discoveredDevicesMap.values()));
+      }
 
       // Verify if the hex stream meets your 20-byte mesh specification (40 hex characters)
       if (hexPayload.length >= 40) {
@@ -559,7 +589,13 @@ export async function startMeshScannerLoop() {
         // FORCED DIAGNOSTIC LOG: This will flood your console instantly when it sees your Noise watch
         console.log(`🔥 [PLX SEES] MAC: ${device.id} | Name: ${device.name || 'Unknown'} | RSSI: ${device.rssi}`);
 
-        handleDiscoverPeripheral(device);
+        try {
+          handleDiscoverPeripheral(device);
+        } catch (e) {
+          if (updateErrorCallback) {
+            updateErrorCallback(e);
+          }
+        }
       }
     }
   );
