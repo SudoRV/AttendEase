@@ -76,7 +76,7 @@ export const GlobalProvider = ({ children }) => {
         const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
         if (!!savedTheme) {
           setThemePreference(savedTheme);
-          setColorScheme(savedTheme);          
+          setColorScheme(savedTheme);
         } else {
           setThemePreference('system');
           setColorScheme('system');
@@ -95,18 +95,22 @@ export const GlobalProvider = ({ children }) => {
     setIsDark(is_dark);
 
     async function setNavColor() {
-      await changeNavigationBarColor(
-        is_dark ? '#171717' : '#ffffff', 
-        !is_dark, 
-        false
-      );
+      try {
+        await changeNavigationBarColor(
+          is_dark ? '#171717' : '#ffffff',
+          !is_dark,
+          false
+        );
+      } catch (e) {
+        console.log(e);
+      }
     }
     setNavColor();
   }, [colorScheme])
 
   const updateTheme = async (newMode) => {
     setThemePreference(newMode);
-    setColorScheme(newMode);  
+    setColorScheme(newMode);
     await AsyncStorage.setItem(THEME_STORAGE_KEY, newMode);
   };
 
@@ -338,6 +342,23 @@ export const GlobalProvider = ({ children }) => {
     // listen for new message
     // 1. Get the modular messaging instance
     const messagingInstance = getMessaging();
+
+    // BleDataPropagation(database, {
+    //   "originalPriority": 1,
+    //   "priority": 1,
+    //   "sentTime": 1781611965387,
+    //   "data": {
+    //     "scope": "CSE_4_A",
+    //     "body": "Period 1 of Dr. Jagat Pal Singh cancelled, on leave for 16 Jun 2026",
+    //     "title": "Class Cancelled",
+    //     "type": "CLASS_CANCELLED",
+    //     "metadata": "{\"leave_type\":\"period\",\"status\":\"1\",\"teacher_id\":\"T_AHT016\",\"period_id\":[1],\"on\":\"1970-01-01T00:00:00.000Z\",\"from\":\"2026-06-15T18:35:00.000Z\",\"to\":\"2026-06-16T18:25:00.000Z\"}"
+    //   },
+    //   "from": "/topics/CSE_4_A",
+    //   "messageId": "0:1781611965391503%3c69d815f9fd7ecd",
+    //   "ttl": 2419200
+    // });
+
 
     // 2. Set up the foreground listener
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {

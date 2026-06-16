@@ -11,6 +11,23 @@ const companyId = 0xFFFF;
 const appid = "41545445"; // ATTE (8 characters)
 const burst_size = 5;
 
+let isBleBusy = false; // The Mutex lock
+
+async function safeBleScanStart() {
+  if (isBleBusy) {
+    console.log("BLE Hardware is busy, skipping request...");
+    return;
+  }
+  isBleBusy = true;
+  try {
+    await startMeshScannerLoop();
+  } catch (err) {
+    console.error("BLE Operation Error:", err);
+  } finally {
+    isBleBusy = false;
+  }
+}
+
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default async function BleDataPropagation(database, remoteMessage) {
@@ -52,7 +69,6 @@ export default async function BleDataPropagation(database, remoteMessage) {
     .toString(16).toUpperCase()
     .padStart(8, "0");
 
-
   // --- Process Type Cases ---
 
   // Case 0: Class Cancellation
@@ -61,7 +77,7 @@ export default async function BleDataPropagation(database, remoteMessage) {
 
     let fromDiff = decToHex(0).padStart(2, "0").toUpperCase();
     let toDiff = decToHex(0).padStart(2, "0").toUpperCase();
-    if (metadata.leave_type === "duration") {
+    if (metadata.leave_type !== "period") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -81,10 +97,10 @@ export default async function BleDataPropagation(database, remoteMessage) {
     // it will be used to get the teacher name 
     const encodedPeriods = encodePeriods(metadata?.period_id || []);
 
-    const applicant = database.execute("select day, period_id from timetable where teacher_id = ? limit 1").rows._array[0];
+    const applicant = database.execute("select day, period_id from timetable where teacher_id = ? limit 1", [metadata.teacher_id]).rows._array[0];
 
     // Stitch everything together following the strict 8-4-4-4-12 size rules
-    const uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${fromDiff}${toDiff}-${notification_id}${decToHex(3 + scopes("day", applicant?.day))}${scopes(applicant.period_id)}${metadata.leave_type === "period" ? "0" : metadata.leave_type === "day" ? "1" : "2"}1`;
+    const uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${fromDiff}${toDiff}-${notification_id}${decToHex(3 + (scopes("day", applicant?.day || -1)) || 7)}${decToHex(!!(applicant?.period_id + 1) ? applicant?.period_id : 14)}${metadata.leave_type === "period" ? "0" : metadata.leave_type === "day" ? "1" : "2"}1`;
 
     const maxHops = 5;
     const currentHops = 0;
@@ -104,8 +120,7 @@ export default async function BleDataPropagation(database, remoteMessage) {
       "SELECT day, period_id FROM timetable WHERE teacher_id = ? LIMIT 1",
       [metadata.substitutor]
     ).rows._array[0];
-    const encodedSubstitutor = `${scopes("day", substitutor?.day)}${decToHex(substitutor?.period_id)}`.padStart(4, "0").toUpperCase();
-
+    const encodedSubstitutor = `${scopes("day", substitutor?.day || -1) || 7}${decToHex(!!(substitutor?.period_id + 1) ? substitutor?.period_id : 14)}`.padStart(4, "0").toUpperCase();
 
     const uuid = `${appid}-${scopeBlock}-${encodedPeriod}-${encodedSubstitutor}-${notification_id}CCC1`;
 
@@ -198,6 +213,7 @@ export default async function BleDataPropagation(database, remoteMessage) {
     console.log("Can't process this notification")
   }
 
+  if(isBroadCasting) return;
   const randomTime = Math.floor(Math.random() * (9000 - 3000 + 1)) + 3000;
   const processQueueTimeout = setTimeout(async () => {
     clearTimeout(processQueueTimeout);
@@ -297,7 +313,7 @@ export async function processQueue() {
 
   // Final cleanup once the carousel naturally grinds to a halt
   console.log(`All notification packets verified at ${burst_size} broadcasts. Engine Idle.`);
-  await delay(500);
+  await delay(1000);
   await stop();
   isProcessingQueue = false;
 }
@@ -321,9 +337,9 @@ export async function stop() {
     .then(async () => {
       console.log('Broadcast stopped successfully');
       isBroadCasting = false;
-      await delay(200);
+      await delay(2000);
       // start scanning for new ble notifications
-      await startMeshScannerLoop();
+      await safeBleScanStart();
     })
     .catch(err => console.error('Failed to stop broadcast:', err));
 }

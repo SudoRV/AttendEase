@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, memo } from 'react';
+import React, { useEffect, useState, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -10,31 +10,24 @@ import {
   Modal,
   TouchableOpacity,
 } from 'react-native';
-
 import NetInfo from '@react-native-community/netinfo';
-
 import { BleManager } from 'react-native-ble-plx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { startMeshScannerLoop, stopMeshScannerLoop } from '../utils/BleDataScanning';
-
-// Import AppStates context for data & errors
 import { AppStates } from '../context/AppStates'; 
 
-// Instantiate the single control manager instance for PLX
 const plxManager = new BleManager();
 
 async function requestBLEPermissions() {
   if (Platform.OS !== 'android') return true;
-
   try {
     if (Platform.Version >= 31) {
       const granted = await PermissionsAndroid.requestMultiple([
         PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
         PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
         PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADVERTISE,
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION, // Required by Android OS for BLE operations
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
       ]);
-
       return (
         granted['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED &&
         granted['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED &&
@@ -42,11 +35,7 @@ async function requestBLEPermissions() {
         granted['android.permission.ACCESS_FINE_LOCATION'] === PermissionsAndroid.RESULTS.GRANTED
       );
     }
-
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-    );
-
+    const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
     return granted === PermissionsAndroid.RESULTS.GRANTED;
   } catch (err) {
     console.error('BLE Permission Error:', err);
@@ -66,65 +55,41 @@ async function hasInternetAccess() {
 
 export async function enableBluetooth() {
   if (Platform.OS !== 'android') return true;
-
   try {
     let currentState = await plxManager.state();
-
-    // Keep looping as long as the Bluetooth hardware is not turned on
     while (currentState !== 'PoweredOn') {
-
-      // 1. Create a promise that waits for the user's manual selection on the Alert box
       const userChoice = await new Promise((resolve) => {
         Alert.alert(
           'Bluetooth Required',
           'Please enable Bluetooth from your system settings to continue receiving offline notifications.',
           [
-            {
-              text: 'Cancel',
-              onPress: () => resolve('CANCEL'),
-              style: 'cancel',
-            },
-            {
-              text: 'Try Again',
-              onPress: () => resolve('RETRY'),
-            },
+            { text: 'Cancel', onPress: () => resolve('CANCEL'), style: 'cancel' },
+            { text: 'Try Again', onPress: () => resolve('RETRY') },
           ],
-          { cancelable: false } // Prevents closing the alert by tapping outside
+          { cancelable: false }
         );
       });
 
-      // 2. If the user selects Cancel, abort the loop and return false
-      if (userChoice === 'CANCEL') {
-        console.log("Bluetooth enabling aborted by user.");
-        return false;
-      }
-
-      // 3. Optional: Trigger the native system settings prompt to help the user out
+      if (userChoice === 'CANCEL') return false;
       plxManager.enable().catch((e) => console.log("Native system enable skipped:", e));
-
-      // 4. Wait a brief moment for the hardware adapter to cycle, then read the new state
       await new Promise(resolve => setTimeout(resolve, 800));
       currentState = await plxManager.state();
-      console.log("Re-evaluating BLE Hardware State inside loop:", currentState);
     }
-
     return true;
-
   } catch (e) {
     console.log('Bluetooth Loop Enable Error:', e);
     return false;
   }
 }
 
-// Optimized, memoized row component for performance stability
 const DeviceItem = memo(({ item }) => (
-  <View className="p-4 border-b border-zinc-100 dark:border-neutral-700 bg-white dark:bg-neutral-800">
+  <View className="p-4 py-3 border-b border-zinc-100 dark:border-neutral-700 bg-white dark:bg-neutral-800">
     <Text className="font-bold text-zinc-900 dark:text-white">
       {item.device?.name || 'Unknown Device'}
     </Text>
     <Text className="text-sm text-zinc-500 font-mono mt-0.5">service data: {JSON.stringify(item?.service_data, null, "\t")}</Text>
-    <Text className="text-sm text-zinc-500 font-mono mt-0.5">uuid: {item?.uuid}</Text>
-    <Text className="text-sm">{item.device?.rssi}</Text>
+    <Text className="text-sm text-zinc-500 font-mono mt-0.5">uuid: {item?.uuid || 'N/A'}</Text>
+    <Text className="text-sm text-neutral-600 dark:text-neutral-300">RSSI: {item.device?.rssi}</Text>
   </View>
 ));
 
@@ -132,38 +97,31 @@ export default function BleToggle({ bleOn, setBleOn }) {
   const [networkAvailable, setNetworkAvailable] = useState(true);
   const [smartScan, setSmartScan] = useState(false);
   const [isModalVisible, setModalVisible] = useState(false);
+  
+  // Filter state
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'general', 'attendease_native'
 
-  // Read real-time scan arrays & logs straight out of AppStates context
   const { bleDevices, bleError } = AppStates();
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      setNetworkAvailable(
-        state.isConnected === true && state.isInternetReachable === true
-      );
+      setNetworkAvailable(state.isConnected === true && state.isInternetReachable === true);
     });
 
     async function loadStoredConfigs() {
       try {
         const storedBleState = await AsyncStorage.getItem("ble_state");
         const storedSmartScan = await AsyncStorage.getItem("smart_scan_state");
-
-        if (storedSmartScan) {
-          setSmartScan(JSON.parse(storedSmartScan));
-        }
-
+        if (storedSmartScan) setSmartScan(JSON.parse(storedSmartScan));
         if (storedBleState) {
           const parsedBle = JSON.parse(storedBleState);
-          if (parsedBle) {
-            handleToggle(true, JSON.parse(storedSmartScan) || false);
-          }
+          if (parsedBle) handleToggle(true, JSON.parse(storedSmartScan) || false);
         }
       } catch (e) {
         console.log("Error loading config:", e);
       }
     }
     loadStoredConfigs();
-
     return () => unsubscribe();
   }, []);
 
@@ -174,77 +132,57 @@ export default function BleToggle({ bleOn, setBleOn }) {
       await stopMeshScannerLoop();
       return;
     }
-
     await hasInternetAccess();
-
     const permissionGranted = await requestBLEPermissions();
     if (!permissionGranted) {
       Alert.alert('Permissions Required', 'Bluetooth permissions are required.');
       setBleOn(false);
       return;
     }
-
     const bluetoothEnabled = await enableBluetooth();
-
-    await AsyncStorage.setItem("ble_state", JSON.stringify(value));
-    setBleOn(value);
-
+    await AsyncStorage.setItem("ble_state", JSON.stringify(!bluetoothEnabled ? bluetoothEnabled : value));
+    setBleOn(!bluetoothEnabled ? bluetoothEnabled : value);
     if (value && bluetoothEnabled) await startMeshScannerLoop();
   };
 
   const handleSmartScanToggle = async (value) => {
     setSmartScan(value);
     await AsyncStorage.setItem("smart_scan_state", JSON.stringify(value));
-
-    if (bleOn) {
-      handleToggle(true, value);
-    }
+    if (bleOn) handleToggle(true, value);
   };
+
+  // Helper to categorize device traffic
+  const getDeviceType = (uuid) => {
+    if (uuid && uuid.toUpperCase().startsWith("41545445")) return 'attendease_native';
+    return 'general';
+  };
+
+  // Memoized filter calculation for performance
+  const filteredDevices = useMemo(() => {
+    return (bleDevices || []).filter(item => {
+      if (activeFilter === 'all') return true;
+      return getDeviceType(item.uuid) === activeFilter;
+    });
+  }, [bleDevices, activeFilter]);
 
   return (
     <View className="space-y-4">
-      {/* Primary Switch: Offline Notifications */}
+      {/* Offline Notifications Switch */}
       <View className="flex-row items-center justify-between">
         <View className="flex-1 pr-4">
-          <Text className="text-base font-semibold text-zinc-900 dark:text-neutral-300">
-            Offline Notifications
-          </Text>
-          <Text className="text-base text-zinc-500 mt-1 leading-5">
-            Receive important alerts even without internet access.
-          </Text>
+          <Text className="text-base font-semibold text-zinc-900 dark:text-neutral-300">Offline Notifications</Text>
+          <Text className="text-base text-zinc-500 mt-1 leading-5">Receive important alerts even without internet access.</Text>
         </View>
-
-        <Switch
-          value={bleOn}
-          onValueChange={(val) => handleToggle(val)}
-          trackColor={{
-            false: '#D4D4D8',
-            true: '#86EFAC',
-          }}
-          thumbColor={bleOn ? '#16A34A' : '#F4F4F5'}
-        />
+        <Switch value={bleOn} onValueChange={(val) => handleToggle(val)} trackColor={{ false: '#D4D4D8', true: '#86EFAC' }} thumbColor={bleOn ? '#16A34A' : '#F4F4F5'} />
       </View>
 
       {/* Smart Scan Switch */}
       <View className="flex-row items-center justify-between border-t border-zinc-100 dark:border-neutral-600 pt-4">
         <View className="flex-1 pr-4">
-          <Text className="text-base font-semibold text-zinc-900 dark:text-neutral-300">
-            Smart Scan
-          </Text>
-          <Text className="text-base text-zinc-500 mt-1 leading-5">
-            Only scans during college timing (8:00 AM – 6:00 PM) to conserve battery.
-          </Text>
+          <Text className="text-base font-semibold text-zinc-900 dark:text-neutral-300">Smart Scan</Text>
+          <Text className="text-base text-zinc-500 mt-1 leading-5">Only scans during college timing (8:00 AM – 6:00 PM) to conserve battery.</Text>
         </View>
-
-        <Switch
-          value={smartScan}
-          onValueChange={handleSmartScanToggle}
-          trackColor={{
-            false: '#D4D4D8',
-            true: '#86EFAC',
-          }}
-          thumbColor={smartScan ? '#16A34A' : '#F4F4F5'}
-        />
+        <Switch value={smartScan} onValueChange={handleSmartScanToggle} trackColor={{ false: '#D4D4D8', true: '#86EFAC' }} thumbColor={smartScan ? '#16A34A' : '#F4F4F5'} />
       </View>
 
       {/* Device & Error Display Modal */}
@@ -252,41 +190,57 @@ export default function BleToggle({ bleOn, setBleOn }) {
         <View className="flex-1 bg-black/50 justify-end">
           <View className="bg-white dark:bg-neutral-900 h-5/6 rounded-t-3xl p-5">
             
-            {/* Modal Header */}
             <View className="flex-row justify-between items-center mb-4 pb-2 border-b border-zinc-100 dark:border-neutral-800">
               <Text className="text-xl font-bold text-zinc-900 dark:text-white">
-                Discovered Mesh Devices ({bleDevices?.length || 0})
+                Discovered Devices ({filteredDevices.length})
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Text className="text-sky-500 font-bold text-base px-2 py-1">Close</Text>
               </TouchableOpacity>
             </View>
 
-            {/* List Section (60% Height Wrapper) */}
+            {/* Filter Buttons */}
+            <View className="flex-row gap-2 mb-4">
+              {[
+                { key: 'all', label: 'All' }, 
+                { key: 'general', label: 'General' }, 
+                { key: 'attendease_native', label: 'AttendEase' }
+              ].map((filter) => (
+                <TouchableOpacity
+                  key={filter.key}
+                  onPress={() => setActiveFilter(filter.key)}
+                  className={`px-4 py-2 rounded-full border ${
+                    activeFilter === filter.key 
+                      ? 'bg-sky-500 border-sky-500' 
+                      : 'bg-white border-zinc-300 dark:bg-neutral-800'
+                  }`}
+                >
+                  <Text className={activeFilter === filter.key ? 'text-white font-bold' : 'text-zinc-600 dark:text-zinc-300'}>
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             <View style={{ flex: 0.6 }}>
               <FlatList
-                data={bleDevices || []}
+                data={filteredDevices}
                 keyExtractor={(item) => item.device.id}
                 renderItem={({ item }) => <DeviceItem item={item} />}
                 initialNumToRender={8}
                 windowSize={5}
                 removeClippedSubviews={Platform.OS === 'android'}
                 ListEmptyComponent={
-                  <Text className="text-zinc-400 italic text-center p-8">
-                    No scanning devices found yet...
-                  </Text>
+                  <Text className="text-zinc-400 italic text-center p-8">No scanning devices match this filter...</Text>
                 }
               />
             </View>
 
-            {/* Error Log Section (40% Height Wrapper) */}
             <View style={{ flex: 0.4 }} className="border-t border-zinc-200 dark:border-neutral-700 mt-4 pt-4">
-              <Text className="font-bold text-red-500 mb-2 text-base">
-                System Scan Logs / Errors
-              </Text>
+              <Text className="font-bold text-red-500 mb-2 text-base">System Scan Logs / Errors</Text>
               <View className="bg-red-50 dark:bg-red-950/20 p-3 rounded-lg flex-1 border border-red-100 dark:border-red-900/30">
                 <Text className="text-red-600 dark:text-red-400 font-mono text-sm leading-5">
-                  {bleError || 'System running clean. No active hardware or connection exceptions.'}
+                  {bleError || 'System running clean. No active hardware exceptions.'}
                 </Text>
               </View>
             </View>
@@ -295,7 +249,6 @@ export default function BleToggle({ bleOn, setBleOn }) {
         </View>
       </Modal>
 
-      {/* Status Details Footer */}
       <View className="border-t border-zinc-100 dark:border-neutral-600 pt-4 space-y-2">
         <View className="flex-row items-center">
           <View className={`w-3 h-3 rounded-full ${bleOn ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
@@ -303,7 +256,6 @@ export default function BleToggle({ bleOn, setBleOn }) {
             {bleOn ? 'BLE Active' : 'BLE Disabled'}
           </Text>
         </View>
-
         <View className="flex-row items-center">
           <View className={`w-3 h-3 rounded-full ${networkAvailable ? 'bg-sky-500' : 'bg-red-500'}`} />
           <Text className={`ml-2 text-base font-medium ${networkAvailable ? 'text-sky-700' : 'text-red-600'}`}>
@@ -312,16 +264,9 @@ export default function BleToggle({ bleOn, setBleOn }) {
         </View>
       </View>
 
-      {/* New Modal Trigger Button */}
-      <TouchableOpacity 
-        onPress={() => setModalVisible(true)}
-        className="mt-4"
-      >
-        <Text className="text-base font-semibold">
-          View Scanning Devices
-        </Text>
+      <TouchableOpacity onPress={() => setModalVisible(true)} className="mt-4">
+        <Text className="text-base text-sky-600 font-semibold dark:text-neutral-300">View Advertising Devices</Text>
       </TouchableOpacity>
-      
     </View>
   );
 }

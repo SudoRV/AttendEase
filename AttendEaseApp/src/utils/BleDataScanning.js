@@ -255,14 +255,14 @@ async function processIncomingFrame(uuid_str, major, minor) {
     const teacher = database.execute("select * from timetable where day = ? and period_id = ?", [reverseScopes("day", day), periodId]).rows._array[0];
 
     const message = `Period ${decodePeriods(encoded_periods).map((p) => p)
-      .join(", ")} of ${teacher.teacher_name} cancelled, on leave ${leave_type === "duration" ? `from ${new Date(new Date().getTime() + (from_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()} to ${new Date(new Date().getTime() + (to_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()}` : `for ${new Date().toLocaleDateString()}`}`;
+      .join(", ")} of ${teacher?.teacher_name || "some teacher"} cancelled, on leave ${leave_type === "duration" ? `from ${new Date(new Date().getTime() + (from_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()} to ${new Date(new Date().getTime() + (to_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()}` : `for ${new Date().toLocaleDateString()}`}`;
 
     const notification = {
       notification_id,
       scope: `${branch}_${year}_${section}`,
       source: "BLE",
       type: reverseScopes("notification_type", type_code),
-      title: "Class Cancelled",
+      title: "Class Cancellation",
       body: message
     };
 
@@ -298,10 +298,9 @@ async function processIncomingFrame(uuid_str, major, minor) {
 
     const substitutee = database.execute("select * from timetable where day = ? and period_id = ?", [new Date().toLocaleDateString("en-Gb", { weekday: "long" }), original_period_id]).rows._array[0];
     const substitutor = database.execute("select * from timetable where day = ? and period_id = ?", [sub_day, sub_period_id]).rows._array[0];
+    // if (!substitutee && !substitutor) return;
 
-    if (!substitutee && !substitutor) return;
-
-    const message = substitute_status === 1 ? `Class ${substitutee.subject_name} of ${substitutee.teacher_name} is substituted by ${substitutor.teacher_name}` : `Substitution of class ${substitutee.subject_name} cancelled by ${substitutor.teacher_name}`;
+    const message = substitute_status === 1 ? `Class ${substitutee?.subject_name || "some"} of ${substitutee?.teacher_name || "some teacher"} is substituted by ${substitutor?.teacher_name || "some teacher"}` : `Substitution of class ${substitutee?.subject_name || "some"} cancelled by ${substitutor?.teacher_name || "some teacher"}`;
 
     const notification = {
       notification_id,
@@ -497,6 +496,7 @@ const handleDiscoverPeripheral = (device) => {
     const devicePayload = {
       device,
       service_data: sDataMap,
+      type: "general"
     };
 
     discoveredDevicesMap.set(device.id, devicePayload);
@@ -514,9 +514,10 @@ const handleDiscoverPeripheral = (device) => {
         const devicePayload = {
           device,
           service_data: sDataMap,
-          uuid: hexPayload.substring(0, 32)
+          uuid: hexPayload.substring(0, 32),
+          type: "general"
         };
-    
+
         discoveredDevicesMap.set(device.id, devicePayload);
         updateDevicesCallback(Array.from(discoveredDevicesMap.values()));
       }
@@ -539,6 +540,18 @@ const handleDiscoverPeripheral = (device) => {
         if (uuid.toUpperCase().startsWith("41545445")) {
           console.log(`🎯 [APP MATCH] Routing Frame ${uuid} to Processing Engine`);
           processIncomingFrame(uuid, major, minor);
+
+          if (updateDevicesCallback) {
+            const devicePayload = {
+              device,
+              service_data: sDataMap,
+              uuid: hexPayload.substring(0, 32),
+              type: "attendease_native"
+            };
+
+            discoveredDevicesMap.set(device.id, devicePayload);
+            updateDevicesCallback(Array.from(discoveredDevicesMap.values()));
+          }
         }
       } else {
         // Fallback logger for alternative raw BLE broadcast payloads running on the service map
@@ -552,8 +565,8 @@ const handleDiscoverPeripheral = (device) => {
  * INTERFACE EXPORT: Start scanning loop
  */
 
-// processIncomingFrame("41545445-0140-0002-0204-9999AAAC5221", 1280, 51210);
-// processIncomingFrame("41545445-1141-0011-0003-9999AAABCCC1", 1280, 51210);
+// processIncomingFrame("41545445-0140-0002-0204-1999AAAC5221", 1280, 51210);
+// processIncomingFrame("41545445-1141-0011-0003-9221EABCCC1", 1280, 51210);
 
 // processIncomingFrame("41545445-2DD8-4090-0002-76F23CA22000", 1280, 51210);
 // processIncomingFrame("41545445-0068-6900-0000-76F23CA22011", 0, 0);
@@ -561,8 +574,6 @@ const handleDiscoverPeripheral = (device) => {
 
 export async function startMeshScannerLoop() {
   if (isScanningLoopActive) return;
-
-  console.log('🟢 BLE Core Scanner Started');
 
   const hasPermission = await requestBluetoothPermissions();
   if (!hasPermission) {
@@ -573,6 +584,7 @@ export async function startMeshScannerLoop() {
   isScanningLoopActive = true;
 
   // Start scanning immediately. Null filters mean look for absolutely EVERYTHING in range.
+  console.log('🟢 BLE Core Scanner Started');
   plxManager.startDeviceScan(
     null,
     {
@@ -587,7 +599,7 @@ export async function startMeshScannerLoop() {
 
       if (device) {
         // FORCED DIAGNOSTIC LOG: This will flood your console instantly when it sees your Noise watch
-        console.log(`🔥 [PLX SEES] MAC: ${device.id} | Name: ${device.name || 'Unknown'} | RSSI: ${device.rssi}`);
+        // console.log(`🔥 [PLX SEES] MAC: ${device.id} | Name: ${device.name || 'Unknown'} | RSSI: ${device.rssi}`);
 
         try {
           handleDiscoverPeripheral(device);

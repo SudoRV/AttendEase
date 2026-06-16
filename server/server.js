@@ -35,7 +35,7 @@ const config = {
   password: "A6q9yQI2tphgxS9bxWN0",
   database: "bw29rwejnmb7a0ihv8ip",
   waitForConnections: true,
-  connectionLimit: 4,
+  connectionLimit: 5,
   queueLimit: 0,
 }
 

@@ -171,14 +171,28 @@ def parse_uuid_payload(uuid_str, major, minor):
 
         teacher = next((clas for clas in schedule if clas.get("period_id") == periodId and clas.get("day") == safe_reverse_lookup("day", day)), None)
 
-        print(f"Type: CLASS CANCELLATION (Code 0)")
+        print(f"\nType: CLASS CANCELLATION (Code 0)")
         print(f"Scope Targeting: Branch={branch}, Year={year}, Section={section}")
         print(f"Notification ID: {notification_id}")
         print(f"Affected Periods: {decode_periods(encoded_periods)}")
         print(f"Date Offsets (Relative to today): From={from_diff} days, To={to_diff} days")
         print(f"Leave Schedule Profile: {leave_type}")
         
-        body = f"Class {', '.join(map(str, decode_periods(encoded_periods)))} of {teacher.get('teacher_name')} cancelled, on leave {f'from {(datetime.now() + timedelta(days=from_diff)).date()} to {(datetime.now() + timedelta(days=to_diff)).date()}' if leave_type_flag == '2' else f'for {datetime.now().date()}'}"
+        # 1. Safely extract the teacher name
+        # Defaults to 'Unknown' if teacher is None or the key doesn't exist
+        teacher_name = teacher.get('teacher_name', 'Unknown') if teacher else 'Unknown'
+
+        # 2. Pre-calculate the date/leave string
+        today = datetime.now()
+        if leave_type_flag == '2':
+            start_date = (today + timedelta(days=from_diff)).date()
+            end_date = (today + timedelta(days=to_diff)).date()
+            leave_desc = f"from {start_date} to {end_date}"
+        else:
+            leave_desc = f"for {today.date()}"
+
+        # 3. Format the final message
+        body = f"Class {', '.join(map(str, decode_periods(encoded_periods)))} of {teacher_name} cancelled, on leave {leave_desc}"
         
         # save notification
         notifications[notification_id] = {
@@ -212,7 +226,7 @@ def parse_uuid_payload(uuid_str, major, minor):
         substitutedClass = next((clas for clas in schedule if clas.get("period_id") == original_period_id and clas.get("day") == safe_reverse_lookup("day", datetime.now().weekday())), {'teacher_name': 'some', 'subject_name': 'some'})
         substitutor = next((clas for clas in schedule if clas.get("period_id") == sub_period_id and clas.get("day") == sub_day), {'teacher_name': 'some', 'subject_name': 'some'})
 
-        print(f"Type: CLASS SUBSTITUTION (Code 1)")
+        print(f"\nType: CLASS SUBSTITUTION (Code 1)")
         print(f"Scope Targeting: Branch={branch}, Year={year}, Section={section}")
         print(f"Notification ID: {notification_id}")
         print(f"Original Status Block: Status={substitute_status}, Period ID={original_period_id}")
@@ -233,7 +247,7 @@ def parse_uuid_payload(uuid_str, major, minor):
             and (not user_data or user_data.get("year") == int(year) or year == "all")
             and (not user_data or user_data.get("section") == section or section == "all")
         ):
-            send_notification("Class Cancellation", body)
+            send_notification("Class Substitution", body)
 
     # --- CASE 2: Announcements (Fragmented String Data Chunks) ---
     elif type_code == 2 or tail_flags[0] == "2":
@@ -388,7 +402,7 @@ async def packet_processing_worker():
         try:
             if TARGET_COMPANY_ID in advertisement_data.manufacturer_data:
                 raw_bytes = advertisement_data.manufacturer_data[TARGET_COMPANY_ID]
-                print("raw bytes", raw_bytes)
+                # print("raw bytes", raw_bytes)
                 
                 if len(raw_bytes) >= 22:
                     # Unpack standard network big-endian payload configurations safely
