@@ -118,6 +118,8 @@ The platform provides dedicated dashboards for Students and Faculty, enabling re
 │ FCM Notifications  │
 └────────────────────┘
 ```
+## Workflow
+
 
 ---
 
@@ -159,6 +161,9 @@ The platform provides dedicated dashboards for Students and Faculty, enabling re
 
 ---
 
+## Screenshots
+
+
 ## Project Structure
 
 ```text
@@ -187,48 +192,6 @@ AttendEase
     ├── build
     └── utility
 ```
-
----
-
-## Installation
-
-### Clone Repository
-
-```bash
-git clone https://github.com/your-username/attendease.git
-cd attendease
-```
-
-### Frontend
-
-```bash
-cd AttendEaseWebsite
-
-npm install
-
-npm start
-```
-
-### Backend
-
-```bash
-cd server
-
-npm install
-
-npm run dev
-```
-
-### Mobile App
-
-```bash
-cd AttendEaseApp
-
-npm install
-
-npx react-native run-android
-```
-
 ---
 
 ## Key Achievements
