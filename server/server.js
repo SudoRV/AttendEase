@@ -20,10 +20,9 @@ const { default: scopes } = require("../AttendEaseApp/src/constant/scopes");
 const app = express();
 app.use(express.json());
 app.use(cors());
-// app.use(express.static(path.join(__dirname, "./static")));
 
 
-const isProduction = true;
+const isProduction = false;
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
   : `http://localhost:8000`;
@@ -35,6 +34,8 @@ const config = {
   password: "A6q9yQI2tphgxS9bxWN0",
   database: "bw29rwejnmb7a0ihv8ip",
   waitForConnections: true,
+  connectionLimit: 5,
+  queueLimit: 0,
 }
 
 const config2 = {
@@ -45,7 +46,7 @@ const config2 = {
   waitForConnections: true,
 }
 
-const pool = mysql.createPool(config);
+const pool = mysql.createPool(config2);
 
 // nodemailer transporter
 // console.log(process.env.EMAIL, process.env.PASS)
@@ -79,15 +80,15 @@ app.get("/wake-me-up", (req, res) => {
 })
 
 // download apk
-app.get('/download-app', (req, res) => {
+app.get('/download/app', (req, res) => {
   const apkPath = path.join(__dirname, 'static/apk/v2.0.0', 'app-release.apk');
 
   // res.download forces the browser/phone to download the file instead of trying to open it
   res.download(apkPath, 'AttendEase.apk', (err) => {
-      if (err) {
-          console.error("Error sending APK file:", err);
-          res.status(500).send("Could not download the file.");
-      }
+    if (err) {
+      console.error("Error sending APK file:", err);
+      res.status(500).send("Could not download the file.");
+    }
   });
 });
 
@@ -141,7 +142,7 @@ const validateCreds = async (data) => {
   return { success: false, message: "credentials not found" };
 };
 
-app.post("/validate-creds", async (req, res) => {
+app.post("/api/auth/verify", async (req, res) => {
   try {
     const result = await validateCreds(req.body);
     res.json(result);
@@ -833,7 +834,7 @@ app.post("/teacher-availability", async (req, res) => {
     // check for duplicates for leave type period
     const [leaveExists] = await pool.query("select * from leaves where teacher_id = ? and applicable_from = ? and applicable_to = ?", [applicant.teacher_id, from, to]);
 
-    if(leaveExists.length === 0) {
+    if (leaveExists.length === 0) {
       const response1 = await pool.query(query1, values1);
     }
     const response2 = await pool.query(query2, values2);
@@ -1068,6 +1069,8 @@ async function fetchAttendance(creds) {
       }
     );
 
+    console.log(response.data)
+
     const parsedTable = parseAttendanceTable(i, creds, response.data, newReq);
     if (newReq === 1) newReq = 0;
 
@@ -1136,9 +1139,26 @@ async function notifyTimetable(day) {
         })
 
         // create image of timetable
-        const scheduleImage = classes.length > 0 ? await createTableImage(topic, dayName, classes) : null;
+        // Initialize variables with fallback values outside the block
+        let scheduleImage = "";
+        let scheduleImageUrl = "";
 
-        const scheduleImageUrl = `${BASE_URL}${scheduleImage}?v=${new Date().getTime()}`;
+        try {
+          // Attempt to generate the image using the headless browser utility
+          scheduleImage = classes.length > 0 ? await createTableImage(topic, dayName, classes) : null;
+
+          // If successful and an image path is returned, construct the URL
+          if (scheduleImage) {
+            scheduleImageUrl = `${BASE_URL}${scheduleImage}?v=${new Date().getTime()}`;
+          }
+        } catch (browserError) {
+          // Gracefully log the error so your server keeps running
+          console.error("❌ Headless browser failed to generate schedule image:", browserError.message);
+
+          // Optional: Set a fallback image URL if you have a generic placeholder
+          // scheduleImageUrl = `${BASE_URL}/static/images/default-schedule.png`;
+        }
+        console.log(classes)
 
         if (classes.length > 0) {
           await admin.messaging().send({
@@ -1162,6 +1182,7 @@ async function notifyTimetable(day) {
 
               notification: {
                 title: "📚 Today's Classes",
+                body: message,
                 image: scheduleImageUrl,
                 icon: "/icon-512.png",
               },

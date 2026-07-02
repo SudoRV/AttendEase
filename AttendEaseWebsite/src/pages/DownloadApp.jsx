@@ -78,7 +78,7 @@ export default function DownloadApp() {
 
                                     <QRCode
                                         size={150}
-                                        value={buildUrl("/download-app")}
+                                        value={buildUrl("/download/app")}
                                         ecLevel="H"
                                         qrStyle="squares"
 
@@ -115,7 +115,7 @@ export default function DownloadApp() {
                                     Scan the QR code with your device camera or tap the button below to download safely from the Google Play Store.
                                 </p>
                                 <a
-                                    href={buildUrl("/download-app?latest")}
+                                    href={buildUrl("/download/app?latest")}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     download="AttendEase.apk"

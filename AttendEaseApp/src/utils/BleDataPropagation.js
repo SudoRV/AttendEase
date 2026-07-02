@@ -5,10 +5,28 @@ import { scopes, reverseScopes, decToHex, hexToDec } from '../constant/scopes';
 import { startMeshScannerLoop, stopMeshScannerLoop } from './BleDataScanning';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const notification_queue = [];
+let notification_queue = [];
 let isBroadCasting = false;
 const companyId = 0xFFFF;
 const appid = "41545445"; // ATTE (8 characters)
+const burst_size = 5;
+
+let isBleBusy = false; // The Mutex lock
+
+async function safeBleScanStart() {
+  if (isBleBusy) {
+    console.log("BLE Hardware is busy, skipping request...");
+    return;
+  }
+  isBleBusy = true;
+  try {
+    await startMeshScannerLoop();
+  } catch (err) {
+    console.error("BLE Operation Error:", err);
+  } finally {
+    isBleBusy = false;
+  }
+}
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -51,7 +69,6 @@ export default async function BleDataPropagation(database, remoteMessage) {
     .toString(16).toUpperCase()
     .padStart(8, "0");
 
-
   // --- Process Type Cases ---
 
   // Case 0: Class Cancellation
@@ -60,7 +77,7 @@ export default async function BleDataPropagation(database, remoteMessage) {
 
     let fromDiff = decToHex(0).padStart(2, "0").toUpperCase();
     let toDiff = decToHex(0).padStart(2, "0").toUpperCase();
-    if (metadata.leave_type === "duration") {
+    if (metadata.leave_type !== "period") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -80,10 +97,10 @@ export default async function BleDataPropagation(database, remoteMessage) {
     // it will be used to get the teacher name 
     const encodedPeriods = encodePeriods(metadata?.period_id || []);
 
-    const applicant = database.execute("select day, period_id from timetable where teacher_id = ? limit 1").rows._array[0];
+    const applicant = database.execute("select day, period_id from timetable where teacher_id = ? limit 1", [metadata.teacher_id]).rows._array[0];
 
     // Stitch everything together following the strict 8-4-4-4-12 size rules
-    const uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${fromDiff}${toDiff}-${notification_id}${decToHex(3 + scopes("day", applicant?.day))}${scopes(applicant.period_id)}${metadata.leave_type === "period" ? "0" : metadata.leave_type === "day" ? "1" : "2"}1`;
+    const uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${fromDiff}${toDiff}-${notification_id}${decToHex(3 + (scopes("day", applicant?.day || -1)) || 7)}${decToHex(!!(applicant?.period_id + 1) ? applicant?.period_id : 14)}${metadata.leave_type === "period" ? "0" : metadata.leave_type === "day" ? "1" : "2"}1`;
 
     const maxHops = 5;
     const currentHops = 0;
@@ -103,11 +120,9 @@ export default async function BleDataPropagation(database, remoteMessage) {
       "SELECT day, period_id FROM timetable WHERE teacher_id = ? LIMIT 1",
       [metadata.substitutor]
     ).rows._array[0];
-    const encodedSubstitutor = `${scopes("day", substitutor?.day)}${decToHex(substitutor?.period_id)}`.padStart(4, "0").toUpperCase();
-
+    const encodedSubstitutor = `${scopes("day", substitutor?.day || -1) || 7}${decToHex(!!(substitutor?.period_id + 1) ? substitutor?.period_id : 14)}`.padStart(4, "0").toUpperCase();
 
     const uuid = `${appid}-${scopeBlock}-${encodedPeriod}-${encodedSubstitutor}-${notification_id}CCC1`;
-    console.log(metadata?.status, metadata.period_id, uuid)
 
     const maxHops = 5;
     const currentHops = 0;
@@ -198,13 +213,17 @@ export default async function BleDataPropagation(database, remoteMessage) {
     console.log("Can't process this notification")
   }
 
-  return await processQueue();
+  if(isBroadCasting) return;
+  const randomTime = Math.floor(Math.random() * (9000 - 3000 + 1)) + 3000;
+  const processQueueTimeout = setTimeout(async () => {
+    clearTimeout(processQueueTimeout);
+    await processQueue();
+  }, randomTime)
 }
 
 
 
 // notification queue broadcaster
-
 // Global tracking flag instead of a rigid setInterval
 let isProcessingQueue = false;
 
@@ -217,67 +236,84 @@ export async function processQueue() {
   console.log("--- Starting Dynamic BLE Transmission Loop ---");
 
   while (notification_queue.length > 0) {
-    // 1. Pull the next notification array group off the FRONT of the queue
-    const currentNotificationPackets = notification_queue.shift();
-    if (!Array.isArray(currentNotificationPackets) || currentNotificationPackets.length === 0) continue;
-
-    // 2. FILTER PHASE: Only keep chunks that STILL need transmissions (< 3)
-    // This automatically removes any chunks that have reached 5 broadcasts
-    const activeChunks = currentNotificationPackets.filter(packet => packet.broadcasted < 5);
-
-    // If all chunks in this notification are already done (= 5), drop it completely
-    if (activeChunks.length === 0) {
-      console.log("Notification completely synchronized. Dropping from queue.");
-      continue;
+    try {
+      await stopMeshScannerLoop();
+      await BLEAdvertise.stopBroadcast();
+      await delay(300); // Robust hardware stabilization cooldown
+    } catch (e) {
+      console.log("Initial radio clear warning:", e);
     }
 
-    console.log(`Bursting notification: ${activeChunks.length} active chunk(s) remaining...`);
+    // broadcast each notifications whose broadcasted count is <= burst size
+    const currentBurst = notification_queue.filter(nq => nq[0].broadcasted < burst_size);
 
-    // 3. RAPID ATOMIC BURST PHASE
-    for (let index = 0; index < activeChunks.length; index++) {
-      const packet = activeChunks[index];
-      try {
-        await stopMeshScannerLoop();
-        await BLEAdvertise.stopBroadcast();
-        await delay(200); // Small driver register stabilization buffer
+    notification_queue = [];
 
-        isBroadCasting = true;
-        await BLEAdvertise.broadcast(packet.uuid, packet.major, packet.minor);
+    for (let cbIndex = 0; cbIndex < currentBurst.length; cbIndex++) {
+      const currentPacket = currentBurst[cbIndex];
 
-        packet.broadcasted += 1;
-        console.log(`Broadcasted chunk [${packet.broadcasted}/5]: ${packet.uuid}`);
-      } catch (err) {
-        console.error("Broadcast hardware failure caught:", err);
+      // 1. Pull the next notification array group off the FRONT of the queue
+      const currentNotificationPackets = currentPacket;
+
+      if (!Array.isArray(currentNotificationPackets) || currentNotificationPackets.length === 0) continue;
+
+      // 2. FILTER PHASE: Only keep chunks that STILL need transmissions (< burst size)
+      // This automatically removes any chunks that have reached burst size broadcasts
+      const activeChunks = currentNotificationPackets.filter(packet => packet.broadcasted < burst_size);
+
+      if (activeChunks.length === 0) {
+        console.log("Notification completely synchronized. Dropping from queue.");
+        continue;
       }
 
-      // Air duration for this chunk before moving to the next
-      await delay(1000);
+      console.log(`Bursting notification: ${activeChunks.length} active chunk(s) remaining...`);
+
+      // 3. RAPID ATOMIC BURST PHASE
+      for (let index = 0; index < activeChunks.length; index++) {
+        const packet = activeChunks[index];
+        try {
+          await await BLEAdvertise.stopBroadcast();
+          await delay(50)
+
+          isBroadCasting = true;
+          await BLEAdvertise.broadcast(packet.uuid, packet.major, packet.minor);
+
+          packet.broadcasted += 1;
+          console.log(`Broadcasted chunk [${packet.broadcasted}/${burst_size}]: ${packet.uuid}`);
+        } catch (err) {
+          console.error("Broadcast harfdware failure caught:", err);
+        }
+
+        // Air duration for this chunk before moving to the next
+        // inter packets delay
+        const dynamicChunkDelay = activeChunks.length <= 4 ? 200 : 100;
+        await delay(dynamicChunkDelay);
+      }
+
+      // We re-evaluate the filter because the broadcast counts just incremented inside the loop!
+      const chunksNeedingRetry = activeChunks.filter(packet => packet.broadcasted < burst_size);
+
+      if (chunksNeedingRetry.length > 0) {
+        // Move the notification array containing only unexpired chunks to the BACK of the line
+        notification_queue.push(chunksNeedingRetry);
+      }
+
+      // inter burst delay
+      const dynamicPacketDelay = currentBurst.length <= 4 ? 200 : 100;
+      await delay(dynamicPacketDelay);
     }
 
-    // Shut down the radio immediately after the burst to clear the airspace
-    await delay(1000);
-    await stop();
-
-    // 4. ROUTING PHASE: Check if this notification group needs to go back in line
-    // We re-evaluate the filter because the broadcast counts just incremented inside the loop!
-    const chunksNeedingRetry = activeChunks.filter(packet => packet.broadcasted < 5);
-
-    if (chunksNeedingRetry.length > 0) {
-      // Move the notification array containing only unexpired chunks to the BACK of the line
-      notification_queue.push(chunksNeedingRetry);
-    }
-
-    // 5. INTER-NOTIFICATION SCANNING WINDOW
-    // If there are still items waiting (or if this same item was just re-queued),
-    // open the radio up to listen for 20 seconds.
+    // delay in cycles of advertisement burst
     if (notification_queue.length > 0) {
-      console.log(`[RX Window] Listening for 20s... (${notification_queue.length} items in line)`);
-      await delay(20000);
+      console.log(`[RX Window] Listening for 4s... (${notification_queue.length} items in line)`);
+      await stop();
+      await delay(4000);
     }
   }
 
   // Final cleanup once the carousel naturally grinds to a halt
-  console.log("All notification packets verified at 5 broadcasts. Engine Idle.");
+  console.log(`All notification packets verified at ${burst_size} broadcasts. Engine Idle.`);
+  await delay(1000);
   await stop();
   isProcessingQueue = false;
 }
@@ -301,9 +337,9 @@ export async function stop() {
     .then(async () => {
       console.log('Broadcast stopped successfully');
       isBroadCasting = false;
-      await delay(50);
+      await delay(2000);
       // start scanning for new ble notifications
-      await startMeshScannerLoop();
+      await safeBleScanStart();
     })
     .catch(err => console.error('Failed to stop broadcast:', err));
 }

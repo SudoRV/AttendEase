@@ -39,7 +39,7 @@ function RegisterPage({ onSwitch }) {
   ===================== */
   const validateField = async (field, value) => {
     try {
-      const response = await fetch(buildUrl("/validate-creds"), {
+      const response = await fetch(buildUrl("/api/auth/verify"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: value })

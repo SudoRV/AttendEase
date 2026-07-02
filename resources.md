@@ -14,3 +14,8 @@ change AppStates/states file
 
 change index.js 
     set isProduction = true 
+
+
+## APK BUILD COMMAND:
+
+ ```.\gradlew assembleRelease "-PreactNativeArchitectures=arm64-v8a,armeabi-v7a" --no-build-cache```

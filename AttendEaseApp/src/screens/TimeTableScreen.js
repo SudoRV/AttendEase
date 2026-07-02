@@ -456,7 +456,7 @@ const TimeTableScreen = () => {
 
           </ScrollView>
 
-          {userData?.role === "Student" && <AttendanceDashboard ref={attendanceRef} />}
+          {/* {userData?.role === "Student" && <AttendanceDashboard ref={attendanceRef} />} */}
 
           {
             userData?.role === "Teacher" && (

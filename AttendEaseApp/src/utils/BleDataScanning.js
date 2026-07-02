@@ -1,11 +1,27 @@
 import { NativeModules, DeviceEventEmitter, Alert } from 'react-native';
-import BleManager from 'react-native-ble-manager';
+import { BleManager } from 'react-native-ble-plx';
 import { reverseScopes } from '../constant/scopes';
 import { getDBConnection, saveNotification } from '../database/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queueNotification, processQueue } from './BleDataPropagation';
 import notifee, { AndroidStyle, EventType, AndroidImportance, AndroidVisibility } from '@notifee/react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
+import decodeAdvertisement from './DecodeAdvertisement';
+
+
+const TARGET_APP_ID = "41545445";
+
+const plxManager = new BleManager();
+let isScanningLoopActive = false;
+
+let updateDevicesCallback = null;
+let updateErrorCallback = null;
+const discoveredDevicesMap = new Map();
+
+export function initializeScannerCallbacks(setDevices, setError) {
+  updateDevicesCallback = setDevices;
+  updateErrorCallback = setError;
+}
 
 async function requestBluetoothPermissions() {
   if (Platform.OS === 'android') {
@@ -32,7 +48,6 @@ async function requestBluetoothPermissions() {
 
 // Core Data Structures tracking active over-the-air fragments
 const announcements_registry = {};
-let isScanningLoopActive = false;
 
 /**
  * UTILITY: Converts Hex payload back to pure ASCII characters
@@ -180,24 +195,23 @@ async function notify(notification) {
  * ENGINE: Processes incoming frames directly mirrored from your Python parser
  */
 async function processIncomingFrame(uuid_str, major, minor) {
+  
   const database = getDBConnection();
   const user_creds = await AsyncStorage.getItem("user_creds");
   const userData = JSON.parse(user_creds || "{}");
 
-  const TARGET_APP_ID = "41545445";
   // 1. Clean up standard hyphens to parse string chunks easily
   const clean_uuid = uuid_str.replace(/-/g, "").toUpperCase();
 
   // 2. Validation Check: Verify AppID match
-  const appid = clean_uuid.substring(0, 8);
+  const appid = clean_uuid?.substring(0, 8);
 
   if (appid !== TARGET_APP_ID) {
+    console.log("not native app advertisement");
     return null;
   }
 
-  console.log("\n================ MATCH FOUND ================");
   console.log(`RAW BLE DATA -> UUID: ${uuid_str} | Major: ${major} | Minor: ${minor}`);
-  console.log("------------------------------------------------");
 
   // 3. Extract Common Core Variables using literal Python slices
   const scope_block = clean_uuid.substring(8, 12);
@@ -213,7 +227,13 @@ async function processIncomingFrame(uuid_str, major, minor) {
   const notificationExists = database.execute("select * from notifications where notification_id = ? limit 1", [notification_id]).rows._array[0];
 
   if (notificationExists) {
-    console.log("notification exists with id: ", notification_id, notificationExists);
+    console.log("notification exists with id: ", notification_id);
+    return;
+  }
+
+  if (userData?.role === "Teacher" && [0, 1].includes(type_code) && tail_flags[0] !== "2") {
+    console.log("rebroadcasting for students.")
+    reBroadcast([{ broadcasted: 0, uuid: uuid_str, major, minor }]);
     return;
   }
 
@@ -239,14 +259,14 @@ async function processIncomingFrame(uuid_str, major, minor) {
     const teacher = database.execute("select * from timetable where day = ? and period_id = ?", [reverseScopes("day", day), periodId]).rows._array[0];
 
     const message = `Period ${decodePeriods(encoded_periods).map((p) => p)
-      .join(", ")} of ${teacher.teacher_name} cancelled, on leave ${leave_type === "duration" ? `from ${new Date(new Date().getTime() + (from_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()} to ${new Date(new Date().getTime() + (to_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()}` : `for ${new Date().toLocaleDateString()}`}`;
+      .join(", ")} of ${teacher?.teacher_name || "some teacher"} cancelled, on leave ${leave_type === "duration" ? `from ${new Date(new Date().getTime() + (from_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()} to ${new Date(new Date().getTime() + (to_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()}` : `for ${new Date().toLocaleDateString()}`}`;
 
     const notification = {
       notification_id,
       scope: `${branch}_${year}_${section}`,
       source: "BLE",
       type: reverseScopes("notification_type", type_code),
-      title: "Class Cancelled",
+      title: "Class Cancellation",
       body: message
     };
 
@@ -282,10 +302,9 @@ async function processIncomingFrame(uuid_str, major, minor) {
 
     const substitutee = database.execute("select * from timetable where day = ? and period_id = ?", [new Date().toLocaleDateString("en-Gb", { weekday: "long" }), original_period_id]).rows._array[0];
     const substitutor = database.execute("select * from timetable where day = ? and period_id = ?", [sub_day, sub_period_id]).rows._array[0];
+    // if (!substitutee && !substitutor) return;
 
-    if (!substitutee && !substitutor) return;
-
-    const message = substitute_status === 1 ? `Class ${substitutee.subject_name} of ${substitutee.teacher_name} is substituted by ${substitutor.teacher_name}` : `Substitution of class ${substitutee.subject_name} cancelled by ${substitutor.teacher_name}`;
+    const message = substitute_status === 1 ? `Class ${substitutee?.subject_name || "some"} of ${substitutee?.teacher_name || "some teacher"} is substituted by ${substitutor?.teacher_name || "some teacher"}` : `Substitution of class ${substitutee?.subject_name || "some"} cancelled by ${substitutor?.teacher_name || "some teacher"}`;
 
     const notification = {
       notification_id,
@@ -312,11 +331,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
   // =================================================================
   // --- CASE 2: Announcements (Fragmented String Data Chunks) ---
   // =================================================================
-  // --- CASE 2: Announcements (Fragmented String Data Chunks) ---
   else if (type_code === 2 || tail_flags[0] === "2") {
-    console.log(`Type: ANNOUNCEMENT PACKET FRAGMENT (Code 2)`);
-    console.log(`Notification ID: ${notification_id}`);
-
     try {
       if (!announcements_registry[notification_id]) {
         announcements_registry[notification_id] = {
@@ -342,8 +357,12 @@ async function processIncomingFrame(uuid_str, major, minor) {
       if (chunk_type === "0") {
         const metadata_hex = clean_uuid.substring(12, 20);
         current_active["scope"] = unpackMetadata(metadata_hex);
+
         if (!current_active["chunks_received"].includes(tracking_key)) {
           current_active["chunks_received"].push(tracking_key);
+          current_active["announcement_timeout"] = setTimeout(() => {
+            processAnnouncement(database, userData, notification_id, tail_flags, current_active);
+          }, 16000)
         }
 
         current_active.rawNotifications.push({ init: true, broadcasted: 0, uuid: uuid_str, major, minor });
@@ -400,54 +419,9 @@ async function processIncomingFrame(uuid_str, major, minor) {
         current_active["max_title_idx"] !== null &&
         current_active["max_body_idx"] !== null
       ) {
-        let title_continuous = true;
-        for (let i = 0; i <= current_active["max_title_idx"]; i++) {
-          if (current_active["title_fragments"][i] === undefined) {
-            title_continuous = false;
-            break;
-          }
-        }
 
-        let body_continuous = true;
-        for (let i = 0; i <= current_active["max_body_idx"]; i++) {
-          if (current_active["body_fragments"][i] === undefined) {
-            body_continuous = false;
-            break;
-          }
-        }
-
-        if (title_continuous && body_continuous) {
-          const sortedTitleKeys = Object.keys(current_active["title_fragments"]).sort((a, b) => a - b);
-          const final_title = sortedTitleKeys.map(k => current_active["title_fragments"][k]).join("");
-
-          const sortedBodyKeys = Object.keys(current_active["body_fragments"]).sort((a, b) => a - b);
-          const final_body = sortedBodyKeys.map(k => current_active["body_fragments"][k]).join("");
-
-          const notification = {
-            notification_id,
-            scope: JSON.stringify(current_active["scope"]),
-            source: "BLE",
-            type: reverseScopes("notification_type", parseInt(tail_flags[0])),
-            title: final_title.trim(),
-            body: final_body.trim()
-          };
-
-          // save notification
-          saveNotification(database, notification);
-
-          // re broadcast it
-          reBroadcast(current_active.rawNotifications);
-
-          // // check if scope matches and popup notification
-          if (current_active["scope"].branches.some(b => b === userData.branch_id || b === "all") && current_active["scope"].years.some(y => y === `${userData.year}` || y === "all") && current_active["scope"].sections.some(s => s === userData.section || s === "all")) {
-            // Alert.alert(notification.title, notification.body);
-            notify(notification);
-          }
-
-          delete announcements_registry[notification_id];
-        } else {
-          // console.log("⏳ Index sequences incomplete or contain gaps. Waiting for missing fragments to bridge...");
-        }
+        processAnnouncement(database, userData, notification_id, tail_flags, current_active);
+        clearTimeout(current_active.announcement_timeout);
       } else {
         // console.log("⏳ Awaiting initial Index 0 payload packets to establish sequence bounds...");
       }
@@ -458,56 +432,104 @@ async function processIncomingFrame(uuid_str, major, minor) {
   }
 }
 
+async function processAnnouncement(database, userData, notification_id, tail_flags, current_active) {
+  let title_continuous = true;
+  for (let i = 0; i <= current_active["max_title_idx"]; i++) {
+    if (current_active["title_fragments"][i] === undefined) {
+      title_continuous = false;
+      break;
+    }
+  }
+
+  let body_continuous = true;
+  for (let i = 0; i <= current_active["max_body_idx"]; i++) {
+    if (current_active["body_fragments"][i] === undefined) {
+      body_continuous = false;
+      break;
+    }
+  }
+
+  if (title_continuous || body_continuous) {
+    const sortedTitleKeys = Object.keys(current_active["title_fragments"]).sort((a, b) => a - b);
+    const final_title = sortedTitleKeys.map(k => current_active["title_fragments"][k]).join("");
+
+    const sortedBodyKeys = Object.keys(current_active["body_fragments"]).sort((a, b) => a - b);
+    const final_body = sortedBodyKeys.map(k => current_active["body_fragments"][k]).join("");
+
+    const notification = {
+      notification_id,
+      scope: JSON.stringify(current_active["scope"]),
+      source: "BLE",
+      type: reverseScopes("notification_type", parseInt(tail_flags[0])),
+      title: final_title.trim(),
+      body: final_body.trim()
+    };
+
+    // save notification
+    saveNotification(database, notification);
+
+    // re broadcast it
+    reBroadcast(current_active.rawNotifications);
+
+    // check if scope matches and popup notification
+    if (current_active["scope"].branches.some(b => b === userData.branch_id || b === "all") && current_active["scope"].years.some(y => y === `${userData.year}` || y === "all") && current_active["scope"].sections.some(s => s === userData.section || s === "all")) {
+      // Alert.alert(notification.title, notification.body);
+      notify(notification);
+    }
+
+    delete announcements_registry[notification_id];
+  } else {
+    // console.log("⏳ Index sequences incomplete or contain gaps. Waiting for missing fragments to bridge...");
+  }
+}
+
+function base64ToHex(base64Str) {
+  const rawBinary = Buffer.from(base64Str, 'base64');
+  return rawBinary.toString('hex').toUpperCase();
+}
+
 
 /**
  * RECEIVER CALLBACK: Intercepts raw native BLE events
  */
 
-const handleDiscoverPeripheral = (peripheral) => {
-  const mData = peripheral.advertising?.manufacturerData;
-  
-  // 1. react-native-ble-advertise packs 16 bytes (UUID) + 2 bytes (Major) + 2 bytes (Minor) = 20 bytes total
-  if (mData && mData.bytes && mData.bytes.length >= 20) {
-    const bytes = mData.bytes;
+const handleDiscoverPeripheral = (device) => {
+  const manufacturerData = device.manufacturerData;
+  const { uuid, major, minor, rssi } = decodeAdvertisement(manufacturerData);
 
-    // 2. Extract UUID directly from the beginning (Indices 0 to 16)
-    const uuid = bytesToUUID(bytes.slice(0, 16));
-    
-    // 3. Shift Major and Minor indices up by 2 to account for the missing iBeacon preamble
-    const major = bytesToUnsignedShort(bytes[16], bytes[17]);
-    const minor = bytesToUnsignedShort(bytes[18], bytes[19]);
+  // console.log("payload: ", device.name, uuid, major, minor)
 
-    // 4. Validate against your App Identifier signature ("41545445" / "ATTE")
-    if (uuid.toUpperCase().startsWith("41545445")) {
-      console.log(`🎯 [MESH PACKET MATCH] -> UUID: ${uuid}, Major: ${major}, Minor: ${minor}`);
-      
-      // Attach metadata to object payload context
-      peripheral.iBeacon = { uuid, major, minor };
+  if (updateDevicesCallback) {
+    const devicePayload = {
+      device,
+      type: uuid?.substring(0, 8) === TARGET_APP_ID ? "attendease_native" : "general",
+      uuid,
+      major,
+      minor
+    };
 
-      // Route directly down to your frame reassembly engine
-      processIncomingFrame(uuid, major, minor);
-    }
+    discoveredDevicesMap.set(device.id, devicePayload);
+    updateDevicesCallback(Array.from(discoveredDevicesMap.values()));
+  }
+
+  if (manufacturerData) {
+    processIncomingFrame(uuid, major, minor);
   }
 };
 
 /**
  * INTERFACE EXPORT: Start scanning loop
  */
-/**
- * INTERFACE EXPORT: Seamless, Gapless Continuous Scanning Loop
- */
 
-// processIncomingFrame("41545445-0140-0002-0204-9999AAAC5221", 1280, 51210);
-// processIncomingFrame("41545445-1141-0011-0003-9999AAABCCC1", 1280, 51210);
+// processIncomingFrame("41545445-0140-0002-0204-1999AAAC5221", 1280, 51210);
+// processIncomingFrame("41545445-1141-0011-0003-9221EABCCC1", 1280, 51210);
 
-// processIncomingFrame("41545445-2DD8-4090-0002-62F23CA22000", 1280, 51210);
-// processIncomingFrame("41545445-0068-6900-0000-62F23CA22011", 0, 0);
-// processIncomingFrame("41545445-0068-6579-0000-62F23CA22021", 0, 0);
+// processIncomingFrame("41545445-2DD8-4090-0002-76F23CA22000", 1280, 51210);
+// processIncomingFrame("41545445-0068-6900-0000-76F23CA22011", 0, 0);
+// processIncomingFrame("41545445-0068-6579-0000-76F23CA22021", 0, 0);
 
 export async function startMeshScannerLoop() {
   if (isScanningLoopActive) return;
-
-  console.log('📡 BLE Core Scanner: Initializing...');
 
   const hasPermission = await requestBluetoothPermissions();
   if (!hasPermission) {
@@ -516,51 +538,33 @@ export async function startMeshScannerLoop() {
   }
 
   isScanningLoopActive = true;
-  
-  try {
-    await BleManager.start({ showAlert: false });
-    console.log('📱 BLE Core Scanner: Hardware initialized successfully.');
-  } catch (err) {
-    console.error('🛑 Failed to start Native BLE Manager:', err);
-    isScanningLoopActive = false;
-    return;
-  }
 
-  // =================================================================
-  // 🛠️ FIX: USE THE CORE GLOBAL DEVICE EVENT EMITTER
-  // This completely stops the strict "new NativeEventEmitter()" warnings!
-  // =================================================================
-  DeviceEventEmitter.removeAllListeners('BleManagerDiscoverPeripheral');
-  
-  DeviceEventEmitter.addListener(
-    'BleManagerDiscoverPeripheral', 
-    (peripheral) => {
-      // 🎯 THE SYSTEM GATES ARE OPEN! THIS WILL NOW PRINT COPIOUSLY!
-      console.log(`🔥 [ANTENNA SEES ENGINE] ID: ${peripheral.id} | Name: ${peripheral.name || 'Unknown'} | RSSI: ${peripheral.rssi}`);
-      
-      handleDiscoverPeripheral(peripheral);
+  // Start scanning immediately. Null filters mean look for absolutely EVERYTHING in range.
+  console.log('🟢 BLE Core Scanner Started');
+  plxManager.startDeviceScan(
+    null,
+    {
+      allowDuplicates: true,
+      scanMode: 2 // Maps directly to Android's native high-speed SCAN_MODE_LOW_LATENCY
+    },
+    (error, device) => {
+      if (error) {
+        console.error('🛑 PLX Scan Runtime Exception:', error);
+        return;
+      }
+
+      if (device) {
+        // FORCED DIAGNOSTIC LOG: This will flood your console instantly when it sees your Noise watch
+        // console.log(`🔥 [PLX SEES] MAC: ${device.id} | Name: ${device.name || 'Unknown'} | RSSI: ${device.rssi}`);
+
+        try {
+          handleDiscoverPeripheral(device);
+        } catch (e) {
+          console.warn(e);
+        }
+      }
     }
   );
-
-  // The active scan execution block...
-  const runScanCycle = async () => {
-    if (!isScanningLoopActive) return;
-    try {
-      console.log('🔍 [RX Window] Opening 20-second continuous active scan...');
-      await BleManager.scan({
-        serviceUUIDs: null, // Keeps kernel filters wide open
-        seconds: 20,
-        allowDuplicates: true,
-        scanMode: 2
-      });
-      console.log('🟢 [RX Window] Scan initiated successfully without bridge conflicts.');
-    } catch (err) {
-      console.error('🛑 Scan execution exception:', err);
-    }
-    setTimeout(runScanCycle, 21000);
-  };
-
-  runScanCycle();
 }
 
 /**
@@ -568,6 +572,6 @@ export async function startMeshScannerLoop() {
  */
 export async function stopMeshScannerLoop() {
   isScanningLoopActive = false;
-  DeviceEventEmitter.removeAllListeners('BleManagerDiscoverPeripheral');
-  console.log('🛑 BLE Core Scanner Loop Terminated.');
+  plxManager.stopDeviceScan();
+  console.log('🛑 BLE PLX Scanner Loop Terminated.');
 }

@@ -11,9 +11,8 @@ import notifee, { AndroidStyle, EventType, AndroidImportance, AndroidVisibility 
 import BleDataPropagation from './src/utils/BleDataPropagation';
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
-import { getDBConnection } from './src/database/database';
-
-import { saveNotification } from './src/database/database';
+import { getDBConnection, saveNotification } from './src/database/database';
+import {  } from './src/database/database';
 
 const isProduction = true;
 const BASE_URL = isProduction
@@ -24,7 +23,6 @@ const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
 // 1. Helper function for the channel
 const morningScheduleChannel = async () => {
-  r
   return await notifee.createChannel({
     id: 'daily_class_alerts',
     name: 'Morning Class Alerts',
@@ -33,6 +31,8 @@ const morningScheduleChannel = async () => {
     sound: 'notification',
   });
 };
+
+morningScheduleChannel();
 
 const pushNotifications = async () => {
   const ids = {};
@@ -76,6 +76,8 @@ const pushNotifications = async () => {
   return ids
 };
 
+pushNotifications();
+
 // 2. Define the background message handler
 const onMessageReceived = async (remoteMessage) => {
   console.log('Background Message Received:', remoteMessage.data);
@@ -98,7 +100,7 @@ const onMessageReceived = async (remoteMessage) => {
     const subtitle = `${totalClasses} ${totalClasses > 1 ? "classes" : "class"} today`;
 
     const timestamp = Date.now();
-    const scheduleImageUrl = buildUrl(`${remoteMessage?.data?.schedule_image}?v=${timestamp}`);
+    const scheduleImageUrl = !!remoteMessage?.data?.schedule_image ? buildUrl(`${remoteMessage?.data?.schedule_image}?v=${timestamp}`) : "";
 
     await notifee.displayNotification({
       id: 'daily_class_alerts',
@@ -120,11 +122,12 @@ const onMessageReceived = async (remoteMessage) => {
         style: {
           type: AndroidStyle.BIGPICTURE,
           picture: scheduleImageUrl,
+          text: remoteMessage.data.body
         },
 
-        fullScreenAction: {
-          id: 'default',
-        },
+        // fullScreenAction: {
+        //   id: 'default',
+        // },
 
         actions: [
           {
@@ -142,64 +145,6 @@ const onMessageReceived = async (remoteMessage) => {
       },
     });
   }
-  // else if (remoteMessage.data?.type === 'CLASS_CANCELLED') {
-  //   const channelIds = await pushNotifications();
-  //   const channelId = channelIds[remoteMessage.data?.type];
-
-  //   const data = JSON.parse(remoteMessage?.data?.data);
-  //   const from = new Date(data?.from).toLocaleDateString("en-Gb", {
-  //     day: "numeric",
-  //     month: "short",
-  //     year: "numeric"
-  //   });
-
-  //   const to = new Date(data?.to).toLocaleDateString("en-Gb", {
-  //     day: "numeric",
-  //     month: "short",
-  //     year: "numeric"
-  //   })
-
-  //   const on = new Date(data.on).toLocaleDateString();
-
-  //   const message = `Period ${data?.class.map((p => p.period_id)).join(", ")} of ${data?.class[0].teacher_name} Cancelled, ${!!on && from === to ? `for ${from}` : `from ${from} to ${to}`}`;
-
-  //   await notifee.displayNotification({
-  //     id: channelId,
-  //     title: remoteMessage.data?.title || "Notification",
-  //     subtitle: "",
-  //     android: {
-  //       channelId: channelId,
-  //       subText: "",
-  //       importance: AndroidImportance.HIGH,
-  //       priority: 'high',
-
-  //       ongoing: false,
-  //       autoCancel: true,
-  //       asForegroundService: false,
-
-  //       pressAction: { id: 'default' },
-
-  //       style: {
-  //         type: AndroidStyle.BIGTEXT,
-  //         text: message,
-  //       },
-
-  //       fullScreenAction: {
-  //         id: 'default',
-  //       },
-
-  //       actions: [
-  //         {
-  //           title: 'Mark as Done',
-  //           pressAction: { id: 'mark_done' }
-  //         },
-  //       ],
-
-  //       smallIcon: 'ic_launcher',
-  //       pressAction: { id: 'default' },
-  //     },
-  //   });
-  // }
   else {
     const channelIds = await pushNotifications();
     const channelId = channelIds[remoteMessage.data?.type];
@@ -223,11 +168,12 @@ const onMessageReceived = async (remoteMessage) => {
         style: {
           type: AndroidStyle.BIGTEXT,
           text: remoteMessage.data?.body || "Message",
+          title: remoteMessage.data?.title || "Notification",
         },
 
-        fullScreenAction: {
-          id: 'default',
-        },
+        // fullScreenAction: {
+        //   id: 'default',
+        // },
 
         actions: [
           {
