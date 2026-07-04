@@ -1,3 +1,4 @@
+const { type } = require("os");
 const express = require("express");
 const mysql = require("mysql2/promise");
 const cors = require("cors");
@@ -11,10 +12,8 @@ require("dotenv").config();
 const nodemailer = require("nodemailer");
 
 
-const createTableImage = require("./utility/createTableImage");
-
-const parseAttendanceTable = require("./utility/parseAttendanceTable");
-const { type } = require("os");
+const createTableImage = require("./src/utils/createTableImage");
+const parseAttendanceTable = require("./src/utils/parseAttendanceTable");
 const { default: scopes } = require("../AttendEaseApp/src/constant/scopes");
 
 const app = express();
@@ -49,8 +48,6 @@ const config2 = {
 const pool = mysql.createPool(config2);
 
 // nodemailer transporter
-// console.log(process.env.EMAIL, process.env.PASS)
-// Create a transporter with your email service credentials
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
@@ -73,6 +70,8 @@ transporter.verify(function (error, success) {
     console.log("✅ Transporter is ready to take our messages");
   }
 });
+
+
 
 
 app.get("/wake-me-up", (req, res) => {
@@ -120,6 +119,7 @@ app.post("/save-fcm-token", async (req, res) => {
 
 
 
+
 // ✅ Endpoint: Validate credentials
 const validateCreds = async (data) => {
   if (!data || Object.keys(data).length === 0) {
@@ -152,169 +152,7 @@ app.post("/api/auth/verify", async (req, res) => {
   }
 });
 
-
-app.post("/reset-password", async (req, res) => {
-  const { email, old_password, new_password, otp: userOtp, type } = req.body;
-
-  const [user] = await pool.query("select * from users where email = ?", [email]);
-
-  if (user?.length === 0) {
-    return res.status(400).json({ success: false, message: "User doesn't exists" });
-  }
-
-  if (type === "change") {
-    const isMatch = await bcrypt.compare(old_password, user[0].password_hash);
-
-    if (!isMatch) return res.json({ success: false, message: "Password not matched" });
-
-    const new_password_hash = await bcrypt.hash(new_password, 10);
-
-    // update the databse
-    const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
-
-    if (response.affectedRows > 0) return res.json({ success: true, message: "Password changed successfully" });
-
-    res.json({ success: false, message: "Internal server error" });
-  }
-
-  else if (type === "request_otp") {
-    const verifiedEmail = user[0].email;
-
-    const otpCode = generateOTP(); // Get the code first
-    const otpData = {
-      code: otpCode,
-      request_time: Date.now(),
-      ttl: 15,
-    };
-
-    try {
-      // 1. MUST use await here
-      // Note the [result] destructuring - this gets the actual result object
-      const [result] = await pool.query("UPDATE users SET otp = ? WHERE email = ?", [
-        JSON.stringify(otpData),
-        verifiedEmail
-      ]);
-
-      if (result.affectedRows <= 0) {
-        return res.json({ success: false, message: "User record not found in database" });
-      }
-
-      const mailOptions = {
-        from: '"AttendEase Support" <help.sudorv@gmail.com>',
-        to: verifiedEmail,
-        subject: `${otpData.code} is your AttendEase reset code`,
-        html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; width: 100%;">
-          <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-            <tr>
-              <td style="padding: 40px 40px 20px 40px; text-align: center;">
-                <h1 style="color: #4f46e5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">AttendEase</h1>
-              </td>
-            </tr>
-            
-            <tr>
-              <td style="padding: 0 20px 40px 20px; text-align: center;">
-                <h2 style="color: #1e293b; font-size: 20px; margin-bottom: 16px;">Reset Your Password</h2>
-                <p style="color: #64748b; font-size: 16px; line-height: 24px; margin-bottom: 32px;">
-                  We received a request to reset your password. Use the code below to proceed. This code will expire in 10 minutes.
-                </p>
-                
-                <div style="background-color: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 32px;">
-                  <span style="font-family: 'Courier New', Courier, monospace; font-size: 42px; font-weight: bold; color: #4f46e5; letter-spacing: 8px;">
-                    ${otpData.code}
-                  </span>
-                </div>
-  
-                <p style="font-size: 16px;">This OTP is valid only for ${otpData.ttl} min.</p>
-                
-                <p style="color: #94a3b8; font-size: 14px; line-height: 20px;">
-                  If you didn't request this, you can safely ignore this email. Your password won't change until you use this code to create a new one.
-                </p>
-              </td>
-            </tr>
-            
-            <tr>
-              <td style="padding: 30px 40px; background-color: #f8fafc; text-align: center; border-top: 1px solid #e2e8f0;">
-                <p style="color: #94a3b8; font-size: 12px; margin: 0;">
-                  &copy; 2026 AttendEase. All rights reserved.
-                </p>
-              </td>
-            </tr>
-          </table>
-        </div>
-      `
-      };
-
-      // 2. Use the Promise version of sendMail. 
-      // This prevents the "Hanging/Bad Gateway" issue on Render.
-      await transporter.sendMail(mailOptions);
-
-      // 3. Success response only after email is truly sent
-      return res.json({
-        success: true,
-        message: "OTP sent successfully. Check your email."
-      });
-
-    } catch (error) {
-      console.error("🔥 ERROR:", error);
-
-      // This ensures that even if SMTP times out, you return JSON, not a 502 HTML page
-      return res.status(500).json({
-        success: false,
-        message: "Mail server timeout.",
-        error: error.message
-      });
-    }
-  }
-
-  else if (type === "verify_reset") {
-    const otp = user[0].otp;
-
-    if (!otp.code || new Date(otp.request_time).getTime() + otp.ttl * 60 * 1000 < new Date().getTime() || otp.code !== userOtp) {
-      return res.status(400).json({ success: false, message: "OTP incorrect or expired" });
-    }
-
-    // reset password
-    const new_password_hash = await bcrypt.hash(new_password, 10);
-
-    // update the databse
-    const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
-
-    if (response.affectedRows > 0) return res.json({ success: true, message: "Password reset successfully" });
-
-    res.json({ success: false, message: "Internal server error" });
-  }
-})
-
-
-app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-
-  // basic validation
-  if (!email || !password) {
-    return res.status(400).json({ success: false, message: "Email and password required" });
-  }
-
-  // authentication from database / get password hash from databse
-  const [user] = await pool.query(`select * from users where email = ?`, email);
-
-  if (!user[0].email) {
-    res.json({ success: false, message: "user not found" });
-    return;
-  }
-
-  // compare the password hash
-  const isMatch = await bcrypt.compare(password, user[0].password_hash);
-
-  if (isMatch) {
-    delete user[0].password_hash;
-    res.json({ success: true, message: "user authenticated and authorised", user_creds: user[0] });
-  } else {
-    res.json({ success: false, message: "Incorrect password", });
-  }
-})
-
-app.post("/register", async (req, res) => {
+app.post("/api/auth/register", async (req, res) => {
   const { role, name, email, password, student_id, teacher_id, branch_id, year, semester, section } = req.body;
 
   if (!email || !password) {
@@ -354,145 +192,301 @@ app.post("/register", async (req, res) => {
   }
 })
 
-// fetch timetable
-app.get("/get-timetable", async (req, res) => {
-  try {
-    const { year, semester, branch, section = "A", day, teacher_id } = req.query;
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
 
-    // check if cancelled periods are expired or not
-    const cancel_cancelled_class_query = `UPDATE schedule
-      SET cancelled = 0,
-          cancelled_from = NULL,
-          cancelled_to = NULL,
-          substitute_teacher_id = NULL,
-          substitute_teacher_name = NULL
-      WHERE CURDATE() > DATE(cancelled_to);
-    `;
+  // basic validation
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: "Email and password required" });
+  }
 
-    try {
-      const response1 = await pool.query(cancel_cancelled_class_query);
-      if (response1.affectedRows > 0) {
-        console.log("removing expired leaves classes", response1);
-      }
-    } catch (error) {
-      throw error;
-    }
+  // authentication from database / get password hash from databse
+  const [user] = await pool.query(`select * from users where email = ?`, email);
 
-    // remove substitution 
-    const remove_substitution_query = `UPDATE schedule
-    SET substitute_teacher_id = NULL,
-        substitute_teacher_name = NULL,
-        substituted_till = NULL 
-    WHERE CURDATE() > DATE(substituted_till);`
+  if (!user[0].email) {
+    res.json({ success: false, message: "user not found" });
+    return;
+  }
 
-    try {
-      const response2 = await pool.query(remove_substitution_query);
-      if (response2.affectedRows > 0) {
-        console.log("removing expired substitution classes", response2);
-      }
-    } catch (error) {
-      throw error;
-    }
+  // compare the password hash
+  const isMatch = await bcrypt.compare(password, user[0].password_hash);
 
-    // teacher timetable
-    if (teacher_id && teacher_id !== "undefined") {
-      if (day === "null") {
-        const query = `select * from schedule where teacher_id = ? order by period_id group by day`;
-        const [rows] = await pool.query(query, [teacher_id]);
-
-        let timetable = {};
-        rows.forEach(row => {
-          if (!timetable[row.day]) {
-            timetable[row.day] = [];
-          }
-          timetable[row.day].push({
-            period_id: row.period_id,
-            subject_id: row.subject_id,
-            subject_name: row.subject_name,
-            teacher_name: row.teacher_name
-          });
-        });
-
-        res.json({
-          success: true,
-          timetable
-        });
-      } else {
-        const query = `select * from schedule where teacher_id = ? and day = ? order by period_id`;
-        const [classes] = await pool.query(query, [teacher_id, day
-        ]);
-
-        res.json({
-          success: true,
-          data: { day: day, classes: classes }
-        })
-
-      }
-    }
-
-    // student timetable
-    else {
-      if (day === "null") {
-        const query = `select * from schedule where year = ? and semester = ? and branch_id = ? and section = ? order by day, period_id`;
-        const [rows] = await pool.query(query, [
-          year, semester, branch, section,
-        ]);
-
-        let timetable = {};
-        rows.forEach(row => {
-          if (!timetable[row.day]) {
-            timetable[row.day] = [];
-          }
-          timetable[row.day].push(row);
-        });
-
-        res.json({
-          success: true,
-          timetable
-        });
-
-      } else {
-        const query = `select * from schedule where year = ? and semester = ? and branch_id = ? and section = ? and day = ? order by period_id`;
-        const [classes] = await pool.query(query, [
-          year, semester, branch, section, day
-        ]);
-
-        res.json({
-          success: true,
-          message: "thrown classes",
-          data: { day: day, classes: classes }
-        })
-      }
-    }
-  } catch (err) {
-    res.json({
-      success: false,
-      message: "Internal server error"
-    })
-    console.log(err);
+  if (isMatch) {
+    delete user[0].password_hash;
+    res.json({ success: true, message: "user authenticated and authorised", user_creds: user[0] });
+  } else {
+    res.json({ success: false, message: "Incorrect password", });
   }
 })
 
-// add / update schedule
-app.post("/update-schedule", async (req, res) => {
-  const { action, subject_data } = req.body;
+// change password
+app.patch("/api/auth/password", async (req, res) => {
+  const { email, old_password, new_password } = req.body;
 
-  let query = "";
-  let values = Object.values(subject_data?.changes);
+  const [user] = await pool.query("select * from users where email = ?", [email]);
 
-  if (action === "Update") {
-    query = `update schedule set ${Object.keys(subject_data?.changes).map(key => `${key} = ? where id = ?`).join(", ")}`;
-    values.push(subject_data.id);
-  } else if (action === "Insert") {
-    query = `insert into schedule (${Object.keys(subject_data?.changes).map(key => `${key}`).join(", ")}) values (${Object.keys(subject_data?.changes).map(key => "?").join(", ")})`;
-  } else {
-    query = "delete from schedule where id = ?";
-    values = [subject_data.id];
+  if (user?.length === 0) {
+    return res.status(400).json({ success: false, message: "User doesn't exists" });
   }
 
+  const isMatch = await bcrypt.compare(old_password, user[0].password_hash);
+  if (!isMatch) return res.json({ success: false, message: "Password not matched" });
+
+  const new_password_hash = await bcrypt.hash(new_password, 10);
+
+  // update the databse
+  const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
+
+  if (response.affectedRows > 0) return res.json({ success: true, message: "Password changed successfully" });
+
+  res.json({ success: false, message: "Internal server error" });
+})
+
+// ask otp to reset password
+app.post("/api/auth/request-otp", async (req, res) => {
+  const { email } = req.body;
+  const [user] = await pool.query("select * from users where email = ?", [email]);
+
+  const verifiedEmail = user[0].email;
+
+  const otpCode = generateOTP(); // Get the code first
+  const otpData = {
+    code: otpCode,
+    request_time: Date.now(),
+    ttl: 15,
+  };
 
   try {
-    const [result] = await pool.query(query, values);
+    // 1. MUST use await here
+    // Note the [result] destructuring - this gets the actual result object
+    const [result] = await pool.query("UPDATE users SET otp = ? WHERE email = ?", [
+      JSON.stringify(otpData),
+      verifiedEmail
+    ]);
+
+    if (result.affectedRows <= 0) {
+      return res.json({ success: false, message: "User record not found in database" });
+    }
+
+    const mailOptions = {
+      from: '"AttendEase Support" <help.sudorv@gmail.com>',
+      to: verifiedEmail,
+      subject: `${otpData.code} is your AttendEase reset code`,
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; width: 100%;">
+          <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <tr>
+              <td style="padding: 40px 40px 20px 40px; text-align: center;">
+                <h1 style="color: #4f46e5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">AttendEase</h1>
+              </td>
+            </tr>
+            
+            <tr>
+              <td style="padding: 0 20px 40px 20px; text-align: center;">
+                <h2 style="color: #1e293b; font-size: 20px; margin-bottom: 16px;">Reset Your Password</h2>
+                <p style="color: #64748b; font-size: 16px; line-height: 24px; margin-bottom: 32px;">
+                  We received a request to reset your password. Use the code below to proceed. This code will expire in 10 minutes.
+                </p>
+                
+                <div style="background-color: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 32px;">
+                  <span style="font-family: 'Courier New', Courier, monospace; font-size: 42px; font-weight: bold; color: #4f46e5; letter-spacing: 8px;">
+                    ${otpData.code}
+                  </span>
+                </div>
+  
+                <p style="font-size: 16px;">This OTP is valid only for ${otpData.ttl} min.</p>
+                
+                <p style="color: #94a3b8; font-size: 14px; line-height: 20px;">
+                  If you didn't request this, you can safely ignore this email. Your password won't change until you use this code to create a new one.
+                </p>
+              </td>
+            </tr>
+            
+            <tr>
+              <td style="padding: 30px 40px; background-color: #f8fafc; text-align: center; border-top: 1px solid #e2e8f0;">
+                <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                  &copy; 2026 AttendEase. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </div>
+      `
+    };
+
+    // 2. Use the Promise version of sendMail. 
+    // This prevents the "Hanging/Bad Gateway" issue on Render.
+    await transporter.sendMail(mailOptions);
+
+    // 3. Success response only after email is truly sent
+    return res.json({
+      success: true,
+      message: "OTP sent successfully. Check your email."
+    });
+
+  } catch (error) {
+    console.error("🔥 ERROR:", error);
+
+    // This ensures that even if SMTP times out, you return JSON, not a 502 HTML page
+    return res.status(500).json({
+      success: false,
+      message: "Mail server timeout.",
+      error: error.message
+    });
+  }
+})
+
+// verify otp and reset password
+app.post("/api/auth/password/reset/otp-verification", async (req, res) => {
+  const { email, new_password, otp: userOtp } = req.body;
+  const [user] = await pool.query("select * from users where email = ?", [email]);
+
+  const otp = user[0].otp;
+
+  if (!otp.code || new Date(otp.request_time).getTime() + otp.ttl * 60 * 1000 < new Date().getTime() || otp.code !== userOtp) {
+    return res.status(400).json({ success: false, message: "OTP incorrect or expired" });
+  }
+
+  // reset password
+  const new_password_hash = await bcrypt.hash(new_password, 10);
+
+  // update the databse
+  const response = await pool.query("update users set password_hash = ? where email = ?", [new_password_hash, email]);
+
+  if (response.affectedRows > 0) return res.json({ success: true, message: "Password reset successfully" });
+
+  res.json({ success: false, message: "Internal server error" });
+})
+
+
+
+
+// teacher timetable 
+app.get("/api/timetable/teacher", async (req, res) => {
+  const { day, teacher_id } = req.query;
+
+  // whole week timetable
+  if (day === "null") {
+    const query = `select * from schedule where teacher_id = ? order by period_id group by day`;
+    const [rows] = await pool.query(query, [teacher_id]);
+
+    let timetable = {};
+    rows.forEach(row => {
+      if (!timetable[row.day]) {
+        timetable[row.day] = [];
+      }
+      timetable[row.day].push({
+        period_id: row.period_id,
+        subject_id: row.subject_id,
+        subject_name: row.subject_name,
+        teacher_name: row.teacher_name
+      });
+    });
+
+    res.json({
+      success: true,
+      timetable
+    });
+  }
+  // specific day timetable
+  else {
+    const query = `select * from schedule where teacher_id = ? and day = ? order by period_id`;
+    const [classes] = await pool.query(query, [teacher_id, day
+    ]);
+
+    res.json({
+      success: true,
+      data: { day: day, classes: classes }
+    })
+  }
+})
+
+// student timetable 
+app.get("/api/timetable/student", async (req, res) => {
+  const { day, year, semester, branch, section = "A" } = req.query;
+
+  if (day === "null") {
+    const query = `select * from schedule where year = ? and semester = ? and branch_id = ? and section = ? order by day, period_id`;
+    const [rows] = await pool.query(query, [
+      year, semester, branch, section,
+    ]);
+
+    let timetable = {};
+    rows.forEach(row => {
+      if (!timetable[row.day]) {
+        timetable[row.day] = [];
+      }
+      timetable[row.day].push(row);
+    });
+
+    res.json({
+      success: true,
+      timetable
+    });
+
+  } else {
+    const query = `select * from schedule where year = ? and semester = ? and branch_id = ? and section = ? and day = ? order by period_id`;
+    const [classes] = await pool.query(query, [
+      year, semester, branch, section, day
+    ]);
+
+    res.json({
+      success: true,
+      message: "thrown classes",
+      data: { day: day, classes: classes }
+    })
+  }
+})
+
+// add class to timetable
+app.post("/api/timetable/class", async (req, res) => {
+  const { subject_data } = req.body;
+
+  const insertQuery = `insert into schedule (${Object.keys(subject_data?.changes).map(key => `${key}`).join(", ")}) values (${Object.keys(subject_data?.changes).map(key => "?").join(", ")})`;
+  const values = Object.values(subject_data?.changes);
+
+  try {
+    const [result] = await pool.query(insertQuery, values);
+    if (result.affectedRows > 0) {
+      res.json({ success: true });
+    } else {
+      res.json({ success: false });
+    }
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: "Internal server error" });
+  }
+})
+
+// update class to timetable
+app.put("/api/timetable/class", async (req, res) => {
+  const { subject_data } = req.body;
+
+  const updateQuery = `update schedule set ${Object.keys(subject_data?.changes).map(key => `${key} = ?`).join(", ")} where id = ?`;
+  const values = [...Object.values(subject_data?.changes), subject_data.id];
+
+  try {
+    const [result] = await pool.query(updateQuery, values);
+    if (result.affectedRows > 0) {
+      res.json({ success: true });
+    } else {
+      res.json({ success: false });
+    }
+  } catch (error) {
+    console.log(error)
+    res.json({ success: false, message: "Internal server error" });
+  }
+})
+
+// delete class from timetable
+app.delete("/api/timetable/class", async (req, res) => {
+  const { subject_data } = req.body;
+
+  const deleteQuery = "delete from schedule where id = ?";
+  const values = [subject_data.id];
+
+  try {
+    const [result] = await pool.query(deleteQuery, values);
     if (result.affectedRows > 0) {
       res.json({ success: true });
     } else {
@@ -505,178 +499,10 @@ app.post("/update-schedule", async (req, res) => {
 })
 
 
-// set substitution teacher 
-app.post("/set-substitutor", async (req, res) => {
-  const { class_id, substitutee, substitutor, action } = req.body;
 
-  // check if substitute teacher exists or not 
-  const [substitutionTeachers] = await pool.query("select user_id, teacher_id from users where teacher_id in (?)", [[substitutor.teacher_id, substitutee.teacher_id]]);
-
-  if (!!substitutionTeachers.find(tid => tid.teacher_id === substitutor.teacher_id)?.user_id) {
-    let result;
-    // substitution cancelled
-    if (action === "cancel") {
-      [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [null, null, null, class_id]);
-
-    } else {
-      // substitution acquired
-      // update database
-      [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [substitutor.teacher_id, substitutor.teacher_name, substitutor.substituted_till, class_id]);
-    }
-
-    if (result?.affectedRows > 0) {
-      res.status(200).json({ success: true, message: (action === "acquired" ? "Class substituted successfully" : "Substitution cancelled.") });
-
-      //notify students
-      const [substitutedClass] = await pool.query("select period_id, subject_id, subject_name, teacher_id, teacher_name, year, branch_id, section from schedule where id = ?", [class_id]);
-
-      const message = action === "acquired" ? `Class ${substitutedClass[0].subject_name} of ${substitutedClass[0].teacher_name} is substituted by ${substitutor.teacher_name}` : `Substitution of class ${substitutedClass[0].subject_name} cancelled by ${substitutor.teacher_name}`;
-
-      // notify students
-      if (substitutedClass[0]?.subject_id) {
-        notifyGroup("Class Substitution", message, "CLASS_SUBSTITUTION", {
-          metadata: JSON.stringify({
-            status: action === "acquired" ? "1" : "0",
-            period_id: substitutedClass[0].period_id,
-            substitutor: substitutor.teacher_id
-          })
-        }, [substitutedClass[0].year], [substitutedClass[0].branch_id], [substitutedClass[0].section], "students");
-      }
-
-      // notify absent teacher
-      const substituteeUserId = substitutionTeachers.find(tid => tid.teacher_id === substitutee.teacher_id).user_id;
-
-      if (!!substituteeUserId) {
-        const [absentTeacher] = await pool.query("select * from fcm_tokens where user_id = ?", [substituteeUserId]);
-
-        const tokens = absentTeacher.map(at => at.fcm_token);
-
-        const message = {
-          data: {
-            type: "CLASS_SUBSTITUTION",
-            title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
-            body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.teacher_name}` : `Your class ${substitutedClass[0].subject_name} substitution cancelled by ${substitutor.teacher_name}`,
-          },
-          tokens: tokens,
-
-          android: {
-            priority: "high",
-          },
-
-          webpush: {
-            headers: {
-              Urgency: "high"
-            },
-
-            notification: {
-              title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
-              body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.teacher_name}` : `Your class ${substitutedClass[0].subject_name} substitution cancelled by ${substitutor.teacher_name}`,
-            },
-
-            fcmOptions: {
-              link: "https://attendease-nivr.onrender.com/"
-            }
-          }
-        };
-
-        const response = await admin.messaging().sendEachForMulticast(message);
-      }
-
-    } else {
-      res.status(400).json({ success: false, message: "Something went wrong." });
-    }
-  } else {
-    res.status(400).json({ success: false, message: "Substitutor doesn't exist." });
-  }
-})
-
-
-// fetch leave
-app.get("/fetch-leaves", async (req, res) => {
-  const { user_data, filter: leaveFilter, time } = req.query;
-  const userData = JSON.parse((user_data));
-
-  let filter = {};
-  if (leaveFilter) {
-    filter = JSON.parse(leaveFilter);
-  } else {
-    filter = { month: new Date().getMonth() };
-  }
-
-  let query = "";
-  let query2 = "";
-  let values = [];
-  let values2 = []
-
-  // student fetching leave
-  if (userData?.role === "Student") {
-    query = "select id, name, year, branch, student_id, subject, application, applicable_from, applicable_to, status, created_at from leaves where student_id = ? and month(created_at) = ? and year(created_at) = year(current_date()) order by created_at desc";
-    values = [userData?.student_id, filter.month + 1];
-
-    // teacher leaves
-    query2 = `
-      SELECT DISTINCT l.id, l.teacher_id, l.name, l.applicable_from, l.applicable_to, l.status
-      FROM leaves l
-      JOIN schedule s ON l.teacher_id = s.teacher_id
-      WHERE s.year = ? 
-      AND s.branch_id = ? 
-      AND s.section = ?
-      AND applicable_to > ?
-      `;
-    values2 = [userData.year, userData.branch_id, userData.section || "A", new Date(time)];
-
-  }
-  // teacher fetching leave
-  else {
-    query = `SELECT
-      l.id, 
-      l.name,
-      l.year,
-      l.branch,
-      l.student_id,
-      l.subject,
-      l.application,
-      l.applicable_from,
-      l.applicable_to,
-      l.status,
-      l.created_at,
-      COUNT(*) OVER (PARTITION BY l.student_id) AS total_leaves
-    FROM leaves l
-
-    WHERE
-      l.applicable_to > ? 
-      AND EXISTS (
-        SELECT 1
-        FROM schedule s
-        WHERE s.teacher_id = ?
-          AND s.year = l.year
-          AND s.branch_id = l.branch
-          AND s.section = l.section
-          AND FIND_IN_SET(s.day, l.affected_days)
-      )
-    
-    ORDER BY l.created_at DESC;
-    `;
-    values = [new Date(time), userData?.teacher_id]
-
-    // teacher leaves
-    query2 = `select teacher_id, id, name, applicable_from, applicable_to, status from leaves where teacher_id != 'not a teacher' and applicable_to > ?`;
-    values2 = [new Date(time)];
-  }
-
-  try {
-    const [teacher_leaves] = await pool.query(query2, values2);
-    const [leaves] = await pool.query(query, values);
-
-    res.json({ success: true, data: leaves, teacher_leaves, message: "leaves fetched" });
-  } catch (err) {
-    console.log(err);
-    res.json({ success: false, message: err });
-  }
-})
 
 // save leave
-app.post("/upload-leave", async (req, res) => {
+app.post("/api/leaves/students", async (req, res) => {
   const { applicant, subject, application, applicable_from, applicable_to } = req.body;
 
   const affected_days = getAffectedDays(applicable_from, applicable_to);
@@ -731,9 +557,8 @@ app.post("/upload-leave", async (req, res) => {
   }
 })
 
-
 // verify leave ( reject approve )
-app.post("/verify-leave", async (req, res) => {
+app.post("/api/leaves/students/verify", async (req, res) => {
   const { action, applicant, verifier } = req.body;
 
   const query = `update leaves l set l.status = ? where l.student_id = ? 
@@ -768,8 +593,104 @@ app.post("/verify-leave", async (req, res) => {
   }
 })
 
-// teacher availability
-app.post("/teacher-availability", async (req, res) => {
+// fetch leaves students
+app.get("/api/leaves/students", async (req, res) => {
+  const { user_data, filter: leaveFilter, time } = req.query;
+  const userData = JSON.parse((user_data));
+
+  let filter = {};
+  if (leaveFilter) {
+    filter = JSON.parse(leaveFilter);
+  } else {
+    filter = { month: new Date().getMonth() };
+  }
+
+  // student leaves
+  let studentLeavesQuery;
+  let studentValues;
+
+  if (userData?.role === "Student") {
+    studentLeavesQuery = `
+      select id, name, year, branch, student_id, subject, application, applicable_from, applicable_to, status, created_at 
+      from leaves 
+      where student_id = ? 
+      and month(created_at) = ? 
+      and year(created_at) = year(current_date()) 
+      order by created_at desc`;
+    studentValues = [userData?.student_id, filter.month + 1];
+  } else {
+    studentLeavesQuery = `
+      SELECT l.id, l.name,l.year, l.branch, l.student_id, l.subject, l.application, l.applicable_from, l.applicable_to, l.status, l.created_at,
+      COUNT(*) OVER (PARTITION BY l.student_id) AS total_leaves
+      FROM leaves l
+      WHERE l.applicable_to > ? 
+        AND EXISTS (
+          SELECT 1
+          FROM schedule s
+          WHERE s.teacher_id = ?
+            AND s.year = l.year
+            AND s.branch_id = l.branch
+            AND s.section = l.section
+            AND FIND_IN_SET(s.day, l.affected_days)
+        )
+      ORDER BY l.created_at DESC;`;
+    studentValues = [new Date(time), userData?.teacher_id]
+  }
+
+  try {
+    const [studentLeaves] = await pool.query(studentLeavesQuery, studentValues);
+    res.json({ success: true, message: "leaves fetched successfully.", leaves: studentLeaves });
+  } catch (err) {
+    console.log(err);
+    res.json({ success: false, message: err });
+  }
+})
+
+// fetch leaves teachers
+app.get("/api/leaves/teachers", async (req, res) => {
+  const { user_data, filter: leaveFilter, time } = req.query;
+  const userData = JSON.parse((user_data));
+
+  let filter = {};
+  if (leaveFilter) {
+    filter = JSON.parse(leaveFilter);
+  } else {
+    filter = { month: new Date().getMonth() };
+  }
+
+  // teacher leaves
+  let teacherLeavesQuery;
+  let teacherValue;
+
+  if (userData?.role === "teacher") {
+    teacherLeavesQuery = `select teacher_id, id, name, applicable_from, applicable_to, status from leaves where teacher_id != 'not a teacher' and applicable_to > ?`;
+    teacherValue = [new Date(time)];
+  } else {
+    teacherLeavesQuery = `
+      SELECT DISTINCT l.id, l.teacher_id, l.name, l.applicable_from, l.applicable_to, l.status
+      FROM leaves l
+      JOIN schedule s ON l.teacher_id = s.teacher_id
+      WHERE s.year = ? 
+        AND s.branch_id = ? 
+        AND s.section = ?
+        AND applicable_to > ?`;
+    teacherValues = [userData.year, userData.branch_id, userData.section || "A", new Date(time)];
+  }
+
+  try {
+    const [teacherLeaves] = await pool.query(teacherLeavesQuery, teacherValues);
+    res.json({ success: true, teacher: teacherLeaves, message: "leaves fetched" });
+  } catch (err) {
+    console.log(err);
+    res.json({ success: false, message: err });
+  }
+})
+
+
+
+
+// teacher leaves
+app.post("/api/leaves/teachers", async (req, res) => {
   const { applicant, leave_type, classes } = req.body;
 
   const affected_days = getAffectedDays(req.body.from || req.body.on, req.body.to || req.body.on);
@@ -931,9 +852,122 @@ app.post("/teacher-availability", async (req, res) => {
   }
 })
 
+// set substitution teacher 
+app.put("/api/timetable/class/substitution", async (req, res) => {
+  const { class_id, substitutee, substitutor, action } = req.body;
 
-// fetch announcemetns
-app.get("/announcements", async (req, res) => {
+  // check if substitute teacher exists or not 
+  const [substitutionTeachers] = await pool.query("select user_id, teacher_id from users where teacher_id in (?)", [[substitutor.teacher_id, substitutee.teacher_id]]);
+
+  if (!!substitutionTeachers.find(tid => tid.teacher_id === substitutor.teacher_id)?.user_id) {
+    let result;
+    // substitution cancelled
+    if (action === "cancel") {
+      [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [null, null, null, class_id]);
+
+    } else {
+      // substitution acquired
+      // update database
+      [result] = await pool.query("update schedule set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", [substitutor.teacher_id, substitutor.teacher_name, substitutor.substituted_till, class_id]);
+    }
+
+    if (result?.affectedRows > 0) {
+      res.status(200).json({ success: true, message: (action === "acquired" ? "Class substituted successfully" : "Substitution cancelled.") });
+
+      //notify students
+      const [substitutedClass] = await pool.query("select period_id, subject_id, subject_name, teacher_id, teacher_name, year, branch_id, section from schedule where id = ?", [class_id]);
+
+      const message = action === "acquired" ? `Class ${substitutedClass[0].subject_name} of ${substitutedClass[0].teacher_name} is substituted by ${substitutor.teacher_name}` : `Substitution of class ${substitutedClass[0].subject_name} cancelled by ${substitutor.teacher_name}`;
+
+      // notify students
+      if (substitutedClass[0]?.subject_id) {
+        notifyGroup("Class Substitution", message, "CLASS_SUBSTITUTION", {
+          metadata: JSON.stringify({
+            status: action === "acquired" ? "1" : "0",
+            period_id: substitutedClass[0].period_id,
+            substitutor: substitutor.teacher_id
+          })
+        }, [substitutedClass[0].year], [substitutedClass[0].branch_id], [substitutedClass[0].section], "students");
+      }
+
+      // notify absent teacher
+      const substituteeUserId = substitutionTeachers.find(tid => tid.teacher_id === substitutee.teacher_id).user_id;
+
+      if (!!substituteeUserId) {
+        const [absentTeacher] = await pool.query("select * from fcm_tokens where user_id = ?", [substituteeUserId]);
+
+        const tokens = absentTeacher.map(at => at.fcm_token);
+
+        const message = {
+          data: {
+            type: "CLASS_SUBSTITUTION",
+            title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
+            body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.teacher_name}` : `Your class ${substitutedClass[0].subject_name} substitution cancelled by ${substitutor.teacher_name}`,
+          },
+          tokens: tokens,
+
+          android: {
+            priority: "high",
+          },
+
+          webpush: {
+            headers: {
+              Urgency: "high"
+            },
+
+            notification: {
+              title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
+              body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.teacher_name}` : `Your class ${substitutedClass[0].subject_name} substitution cancelled by ${substitutor.teacher_name}`,
+            },
+
+            fcmOptions: {
+              link: "https://attendease-nivr.onrender.com/"
+            }
+          }
+        };
+
+        const response = await admin.messaging().sendEachForMulticast(message);
+      }
+
+    } else {
+      res.status(400).json({ success: false, message: "Something went wrong." });
+    }
+  } else {
+    res.status(400).json({ success: false, message: "Substitutor doesn't exist." });
+  }
+})
+
+
+
+
+// announce 
+app.post("/api/announcements", async (req, res) => {
+  const { title, body, status, target_year, target_branch, target_section, created_by, scope, expires_at } = req.body;
+
+  const query = "insert into announcements (title, body, created_by, scope, target_year, target_branch, target_section, expires_at) values(?, ?, ?, ?, ?, ?, ?, ?)"
+
+  try {
+    const response = await pool.query(query, [title, body, JSON.stringify(created_by), scope, JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), new Date(expires_at)]);
+
+    // send notification 
+    const resp = await notifyGroup(title, body, "ANNOUNCEMENT", {
+      metadata: JSON.stringify({
+        scope,
+        target_year,
+        target_branch,
+        target_section,
+      })
+    }, target_year, target_branch, target_section, scope);
+    res.json({ success: true, message: "saved to server and notified to target: " });
+
+  } catch (err) {
+    console.log(err)
+    res.json({ success: false, message: "Something went wrong." });
+  }
+})
+
+// fetch announcements
+app.get("/api/announcements", async (req, res) => {
   const { role, teacher_id, year, branch, section, time } = req.query;
 
   const query = `
@@ -989,35 +1023,11 @@ app.get("/announcements", async (req, res) => {
   }
 })
 
-// Announce 
-app.post("/announce", async (req, res) => {
-  const { title, body, status, target_year, target_branch, target_section, created_by, scope, expires_at } = req.body;
-
-  const query = "insert into announcements (title, body, created_by, scope, target_year, target_branch, target_section, expires_at) values(?, ?, ?, ?, ?, ?, ?, ?)"
-
-  try {
-    const response = await pool.query(query, [title, body, JSON.stringify(created_by), scope, JSON.stringify({ years: target_year }), JSON.stringify({ branches: target_branch }), JSON.stringify({ sections: target_section }), new Date(expires_at)]);
-
-    // send notification 
-    const resp = await notifyGroup(title, body, "ANNOUNCEMENT", {
-      metadata: JSON.stringify({
-        scope,
-        target_year,
-        target_branch,
-        target_section,
-      })
-    }, target_year, target_branch, target_section, scope);
-    res.json({ success: true, message: "saved to server and notified to target: " });
-
-  } catch (err) {
-    console.log(err)
-    res.json({ success: false, message: "Something went wrong." });
-  }
-})
 
 
-// save student utm credentials 
-app.post("/save/utu-creds", async (req, res) => {
+
+// save student utu credentials 
+app.put("/api/attendance/portal/credentials", async (req, res) => {
   const { collegeId, admissionId, courseId, branchId, durationId, startMonth, roll } = req.body;
 
   const notFound = Object.keys(req.body).filter(v => req.body[v] === "");
@@ -1085,7 +1095,7 @@ async function fetchAttendance(creds) {
   return attendance;
 }
 
-app.get("/fetch-attendance", async (req, res) => {
+app.get("/api/attendance", async (req, res) => {
   if (!req.headers.creds) res.status(400).json({ success: false, error: "provide credentials !" })
   const creds = JSON.parse(req.headers.creds);
   const attendance = await fetchAttendance(creds);
@@ -1095,11 +1105,16 @@ app.get("/fetch-attendance", async (req, res) => {
 })
 
 
-app.use('/schedule_images', express.static(path.join(__dirname, 'static/schedule_images'), {
+
+
+app.use("/api/timetable/classes/image", express.static(path.join(__dirname, 'static/schedule_images'), {
   setHeaders: (res, path) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); // Tell phones not to cache
   }
 }));
+
+
+
 
 // notify for next day timetable
 // Night 10:00 pm
@@ -1113,7 +1128,6 @@ cron.schedule("0 8 * * *", () => {
   console.log("Running task at 08:00 AM every day");
   notifyTimetable(new Date().toLocaleDateString("en-Gb", { weekday: "long" }));
 }, { timezone: "Asia/Kolkata" })
-
 
 async function notifyTimetable(day) {
   const years = [1, 2, 3, 4, 5];
@@ -1198,18 +1212,19 @@ async function notifyTimetable(day) {
   });
 }
 
-// route all client endpoints to react build files except api calls
+
+// routing all client endpoints to react build files except api calls
 app.use(express.static(path.join(__dirname, "build")));
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, "build", "index.html"));
 });
 
-// ✅ Start server
+// ✅ START SERVER
 const PORT = 8000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
 
 
-// helpers
+// HELPER FUNCTIONS
 function generateOTP() {
   const otp = crypto.randomInt(100000, 1000000);
   return otp.toString();

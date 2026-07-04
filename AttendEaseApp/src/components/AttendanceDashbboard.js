@@ -99,8 +99,8 @@ const AttendanceDashboard = forwardRef((props, ref) => {
       return;
     }
 
-    const response = await fetch(buildUrl("/save/utu-creds"), {
-      method: "POST",
+    const response = await fetch(buildUrl("/api/attendance/portal/credentials"), {
+      method: "PUT",
       headers: {
         "Content-Type": "application/json"
       },
@@ -134,7 +134,7 @@ const AttendanceDashboard = forwardRef((props, ref) => {
   async function loadAttendance(form) {
     setLoading(true); // 🔹 Start Loading
     try {
-      const response = await fetch(buildUrl("/fetch-attendance"), {
+      const response = await fetch(buildUrl("/api/attendance"), {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

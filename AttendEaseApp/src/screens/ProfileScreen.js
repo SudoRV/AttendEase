@@ -93,14 +93,13 @@ export default function ProfileScreen() {
 
     try {
       if (authMode === "change") {
-        const response = await fetch(buildUrl("/reset-password"), {
-          method: "POST",
+        const response = await fetch(buildUrl("/api/auth/password"), {
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: userData.email,
             old_password: form.oldPassword,
             new_password: form.newPassword,
-            type: "change"
           }),
         });
 
@@ -116,10 +115,10 @@ export default function ProfileScreen() {
         }
       } else if (authMode === "reset") {
         if (resetStep === 1) {
-          const response = await fetch(buildUrl("/reset-password"), {
+          const response = await fetch(buildUrl("/api/auth/request-otp"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: userData?.email, type: "request_otp" }),
+            body: JSON.stringify({ email: userData?.email}),
           });
           const resData = await response.json();
 
@@ -130,14 +129,13 @@ export default function ProfileScreen() {
             Alert.alert("Error", resData.message);
           }
         } else {
-          const response = await fetch(buildUrl("/reset-password"), {
+          const response = await fetch(buildUrl("/api/auth/password/reset/otp-verification"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               email: userData.email,
               otp: form.otp,
               new_password: form.newPassword,
-              type: "verify_reset"
             }),
           });
           const resData = await response.json();

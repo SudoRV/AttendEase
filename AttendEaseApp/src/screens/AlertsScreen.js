@@ -33,7 +33,7 @@ const AlertsScreen = () => {
 
   const loadAnnouncements = async (user) => {
     try {
-      const endpoint = `/announcements?role=${user?.role || "Student"}&teacher_id=${user?.teacher_id || null}&year=${user.year || ""}&branch=${user.branch_id || ""}&section=${user.section || ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+      const endpoint = `/api/announcements?role=${user?.role || "Student"}&teacher_id=${user?.teacher_id || null}&year=${user.year || ""}&branch=${user.branch_id || ""}&section=${user.section || ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
       const response = await fetch(buildUrl(endpoint));
       const json = await response.json();
 

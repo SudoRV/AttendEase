@@ -36,7 +36,7 @@ const TimeTableScreen = () => {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedSlotIndex, setSelectedSlotIndex] = useState(null);
   const [teacherLeaves, setTeacherLeaves] = useState([]);
-  const [currentActionOption, setCurrentActionOption] = useState(""); // "insert", "edit", or "delete"
+  const [longPressAction, setlongPressAction] = useState(""); // "insert", "edit", or "delete"
   const [formData, setFormData] = useState({});
 
   const attendanceRef = useRef(null);
@@ -65,7 +65,7 @@ const TimeTableScreen = () => {
       } finally {
         // Open the app viewport smoothly
         const consumedTime = (new Date().getTime() - startedTime);
-        if(consumedTime < 2500) {
+        if(consumedTime < 2000) {
           const loadTimeout = setTimeout(() => {
             setIsInitialLoading(false);
             clearTimeout(loadTimeout);
@@ -88,7 +88,7 @@ const TimeTableScreen = () => {
   // Setup options menu routing based on choice
   const handleContextOption = (option) => {
     setContextModalVisible(false);
-    setCurrentActionOption(option);
+    setlongPressAction(option);
 
     if (option === "leaves") {
       if (!selectedSlot?.teacher_id) {
@@ -101,7 +101,6 @@ const TimeTableScreen = () => {
       }
       setLeaveModalVisible(true);
     } else if (option === "edit") {
-      console.log("here")
       const data = activeClassesArray?.[selectedSlotIndex];
       if (data) {
         setFormData({
@@ -145,7 +144,7 @@ const TimeTableScreen = () => {
   // Backend sync engine matching web CRUD logic using Native Fetch API
   const updateSubject = async () => {
     let changes = {};
-    const actionParam = currentActionOption === "insert" ? "Insert" : currentActionOption === "edit" ? "Update" : "Delete";
+    const actionParam = longPressAction === "insert" ? "Insert" : longPressAction === "edit" ? "Update" : "Delete";
 
     if (actionParam === "Update") {
       Object.keys(formData).forEach(key => {
@@ -184,9 +183,11 @@ const TimeTableScreen = () => {
       }
     };
 
+    console.log(longPressAction, payload, longPressAction === "insert" ? "POST" : longPressAction === "edit" ? "PUT" : "DELETE")
+
     try {
-      const response = await fetch(buildUrl("/update-schedule"), {
-        method: "POST",
+      const response = await fetch(buildUrl("/api/timetable/class"), {
+        method: longPressAction === "insert" ? "POST" : longPressAction === "edit" ? "PUT" : "DELETE",
         headers: {
           "Content-Type": "application/json"
         },
@@ -549,10 +550,10 @@ const TimeTableScreen = () => {
         <View className="flex-1 bg-black/50 justify-center items-center p-4">
           <View className="bg-white dark:bg-neutral-900 rounded-2xl p-5 w-full max-w-[340px] space-y-4 elevation-md">
             <Text className="text-xl font-bold text-slate-800 dark:text-neutral-300 capitalize mb-4">
-              {currentActionOption} Subject
+              {longPressAction} Subject
             </Text>
 
-            {currentActionOption === "delete" ? (
+            {longPressAction === "delete" ? (
               <Text className="text-base text-center text-slate-600 dark:text-neutral-400 my-2">
                 Are you sure you want to delete this subject slot?
               </Text>
@@ -683,10 +684,10 @@ const TimeTableScreen = () => {
 
               <TouchableOpacity
                 onPress={updateSubject}
-                className={`px-5 py-2 rounded-lg ${currentActionOption === 'delete' ? 'bg-red-500' : 'bg-blue-600'}`}
+                className={`px-5 py-2 rounded-lg ${longPressAction === 'delete' ? 'bg-red-500' : 'bg-blue-600'}`}
               >
                 <Text className="font-semibold text-white">
-                  {currentActionOption === "insert" ? "Insert" : currentActionOption === "edit" ? "Update" : "Yes, Delete"}
+                  {longPressAction === "insert" ? "Insert" : longPressAction === "edit" ? "Update" : "Yes, Delete"}
                 </Text>
               </TouchableOpacity>
             </View>

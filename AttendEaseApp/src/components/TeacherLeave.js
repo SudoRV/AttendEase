@@ -74,7 +74,7 @@ const TeacherLeave = () => {
             };
 
             const response = await fetch(
-                buildUrl("/teacher-availability"),
+                buildUrl("/api/leaves/teachers"),
                 {
                     method: "POST",
                     headers: {
@@ -385,7 +385,7 @@ const renderTeacherLeaves = (
 
     useEffect(() => {
         if (isSubstitutorVisible?.visible && isSubstitutorVisible.teacher_id) {
-            fetch(buildUrl(`/get-timetable?day=${new Date().toLocaleDateString("en-Gb", { weekday: "long" })}&teacher_id=${isSubstitutorVisible.teacher_id}`))
+            fetch(buildUrl(`/api/timetable/teacher?day=${new Date().toLocaleDateString("en-Gb", { weekday: "long" })}&teacher_id=${isSubstitutorVisible.teacher_id}`))
                 .then(response => response.json())
                 .then(timetable => {
                     setAbsentTeacherClasses(timetable?.data?.classes);
@@ -395,8 +395,8 @@ const renderTeacherLeaves = (
 
     const processSubstitution = async (clas, action) => {
 
-        const response = await fetch(buildUrl("/set-substitutor"), {
-            method: "POST",
+        const response = await fetch(buildUrl("/api/timetable/class/substitution"), {
+            method: "PUT",
             headers: {
                 "Content-Type": "application/json"
             },

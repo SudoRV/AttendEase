@@ -72,7 +72,7 @@ export default function Announce() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${BASE_URL}/announce`, {
+      const response = await fetch(`${BASE_URL}/api/announcements`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

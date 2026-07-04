@@ -18,7 +18,7 @@ const THEME_STORAGE_KEY = '@user_theme_preference';
 // Replace this with your computer’s local IP
 const BASE_URL = isProduction
   ? "https://attendease-nivr.onrender.com"
-  : "http://10.221.217.208:8000";
+  : "http://10.30.212.249:8000";
 
 const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
@@ -151,9 +151,9 @@ export const GlobalProvider = ({ children }) => {
     let endpoint = "";
 
     if (role === "student") {
-      endpoint = `/get-timetable?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
+      endpoint = `/api/timetable/student?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
     } else if (role === "teacher") {
-      endpoint = `/get-timetable?teacher_name=${encodeURIComponent(
+      endpoint = `/api/timetable/student?teacher_name=${encodeURIComponent(
         userCreds?.name || ""
       )}&teacher_id=${userCreds?.teacher_id}&day=${day}`;
     } else {
@@ -217,31 +217,42 @@ export const GlobalProvider = ({ children }) => {
   /* =====================
      LEAVES
   ===================== */
+
   const loadLeaves = async (filter) => {
     if (!userData?.email) return;
 
     try {
-      const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
+      // student leaves
+      const studentLeavesEndpoint = `/api/leaves/students?user_data=${encodeURIComponent(
         JSON.stringify(userData)
-      )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+      )}${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
-      const response = await fetch(buildUrl(endpoint));
-      const json = await response.json();
+      const studentLeavesResponse = await fetch(buildUrl(studentLeavesEndpoint));
+      const studentLeaves = studentLeavesResponse.ok ? await studentLeavesResponse.json() : {};
+
+      // teacher leaves
+      const teacherLeavesEndpoint = `/api/leaves/teachers?user_data=${encodeURIComponent(
+        JSON.stringify(userData)
+      )}${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+
+      const teacherLeavesResponse = await fetch(buildUrl(teacherLeavesEndpoint));
+      const teacherLeaves = teacherLeavesResponse.ok ? await teacherLeavesResponse.json() : {};
 
       if (!!filter && !filter?.set) {
         return {
           month: filter?.month,
-          ...json
+          student_leaves: studentLeaves?.leaves || [],
+          teacher_leaves: teacherLeaves?.leaves || []
         };
       }
       else {
-        setLeaveHistory(json?.data || []);
-        setTeacherLeaveHistory(json?.teacher_leaves || []);
+        setLeaveHistory(studentLeaves?.leaves || []);
+        setTeacherLeaveHistory(teacherLeaves?.leaves || []);
       }
     } catch (err) {
       console.log("Leaves error:", err);
     }
-  };
+  }
 
   /* =====================
      INIT USER (AsyncStorage)

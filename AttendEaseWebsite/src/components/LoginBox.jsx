@@ -123,7 +123,7 @@ function LoginPage() {
       const form = new FormData(e.target);
       const formData = Object.fromEntries(form.entries());
 
-      const response = await fetch(buildUrl("/login"), {
+      const response = await fetch(buildUrl("/api/auth/login"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

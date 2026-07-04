@@ -169,7 +169,7 @@ async function createTableImage(class_topic, day, classess) {
 
         fs.writeFileSync(filepath, imageBuffer);
 
-        return `/schedule_images/${filename}`;
+        return `/api/timetable/classes/image/${filename}`;
     } catch (error) {
         console.error("Error saving image:", error);
         throw error;

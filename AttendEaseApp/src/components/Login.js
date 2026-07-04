@@ -37,7 +37,7 @@ export default function LoginPage({ onSwitch }) {
     setIsLoggingIn(true);
 
     try {
-      const response = await fetch(buildUrl("/login"), {
+      const response = await fetch(buildUrl("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
