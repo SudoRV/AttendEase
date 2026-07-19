@@ -3,7 +3,7 @@ const express = require("express");
 const mysql = require("mysql2/promise");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
-const admin = require("./firebaseAdmin");
+const admin = require("./src/config/firebaseAdmin");
 const cron = require("node-cron");
 const path = require("path");
 const crypto = require('crypto');
@@ -73,7 +73,7 @@ transporter.verify(function (error, success) {
 
 
 
-
+// general routes
 app.get("/wake-me-up", (req, res) => {
   res.json({ success: true, message: "i already wokeup" });
 })
@@ -243,7 +243,7 @@ app.patch("/api/auth/password", async (req, res) => {
 })
 
 // ask otp to reset password
-app.post("/api/auth/request-otp", async (req, res) => {
+app.post("/api/auth/password/reset/request-otp", async (req, res) => {
   const { email } = req.body;
   const [user] = await pool.query("select * from users where email = ?", [email]);
 
@@ -439,7 +439,7 @@ app.get("/api/timetable/student", async (req, res) => {
 })
 
 // add class to timetable
-app.post("/api/timetable/class", async (req, res) => {
+app.put("/api/timetable/class", async (req, res) => {
   const { subject_data } = req.body;
 
   const insertQuery = `insert into schedule (${Object.keys(subject_data?.changes).map(key => `${key}`).join(", ")}) values (${Object.keys(subject_data?.changes).map(key => "?").join(", ")})`;
@@ -459,7 +459,7 @@ app.post("/api/timetable/class", async (req, res) => {
 })
 
 // update class to timetable
-app.put("/api/timetable/class", async (req, res) => {
+app.patch("/api/timetable/class", async (req, res) => {
   const { subject_data } = req.body;
 
   const updateQuery = `update schedule set ${Object.keys(subject_data?.changes).map(key => `${key} = ?`).join(", ")} where id = ?`;
@@ -502,7 +502,7 @@ app.delete("/api/timetable/class", async (req, res) => {
 
 
 // save leave
-app.post("/api/leaves/students", async (req, res) => {
+app.put("/api/leaves/students", async (req, res) => {
   const { applicant, subject, application, applicable_from, applicable_to } = req.body;
 
   const affected_days = getAffectedDays(applicable_from, applicable_to);
@@ -690,7 +690,7 @@ app.get("/api/leaves/teachers", async (req, res) => {
 
 
 // teacher leaves
-app.post("/api/leaves/teachers", async (req, res) => {
+app.put("/api/leaves/teachers", async (req, res) => {
   const { applicant, leave_type, classes } = req.body;
 
   const affected_days = getAffectedDays(req.body.from || req.body.on, req.body.to || req.body.on);

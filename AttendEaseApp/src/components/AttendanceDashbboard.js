@@ -15,6 +15,7 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import AttendanceRing from "./ui/AttendanceRing";
 import AttendanceTable from "./ui/AttendanceTable";
 import { AppStates } from "../context/AppStates";
+import { Fetch } from "../services/api";
 
 const injectionCode = `javascript:(()=>{
   // 1. Fixed: Used normal single quotes and string concatenation to bypass backtick parsing errors
@@ -99,7 +100,7 @@ const AttendanceDashboard = forwardRef((props, ref) => {
       return;
     }
 
-    const response = await fetch(buildUrl("/api/attendance/portal/credentials"), {
+    const response = await Fetch("/api/attendance/portal/credentials", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json"
@@ -134,7 +135,7 @@ const AttendanceDashboard = forwardRef((props, ref) => {
   async function loadAttendance(form) {
     setLoading(true); // 🔹 Start Loading
     try {
-      const response = await fetch(buildUrl("/api/attendance"), {
+      const response = await Fetch("/api/attendance", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

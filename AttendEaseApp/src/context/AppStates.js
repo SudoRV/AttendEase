@@ -2,14 +2,18 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import requestFcmToken from "../utils/requestFcmToken";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
-import BleDataPropagation from "../utils/BleDataPropagation";
-import { startMeshScannerLoop } from "../utils/BleDataScanning";
-import { getDBConnection, saveNotification } from "../database/database";
 import { useColorScheme } from 'nativewind';
 import { enableBluetooth } from "../components/BleToggle";
 import changeNavigationBarColor from 'react-native-navigation-bar-color';
 
+import BleDataPropagation from "../utils/BleDataPropagation";
+import { startMeshScannerLoop } from "../utils/BleDataScanning";
+import { getDBConnection, saveNotification } from "../database/database";
+
 import { initializeScannerCallbacks } from '../utils/BleDataScanning';
+
+// custom fetch api
+import { Fetch } from "../services/api";
 
 const isProduction = false;
 const THEME_STORAGE_KEY = '@user_theme_preference';
@@ -153,15 +157,13 @@ export const GlobalProvider = ({ children }) => {
     if (role === "student") {
       endpoint = `/api/timetable/student?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
     } else if (role === "teacher") {
-      endpoint = `/api/timetable/student?teacher_name=${encodeURIComponent(
-        userCreds?.name || ""
-      )}&teacher_id=${userCreds?.teacher_id}&day=${day}`;
+      endpoint = `/api/timetable/student?teacher_id=${userCreds?.teacher_id}&day=${day}`;
     } else {
       return;
     }
 
     try {
-      const response = await fetch(buildUrl(endpoint));
+      const response = await Fetch(endpoint);
       const json = await response.json();
       const data = json?.data;
 
@@ -227,7 +229,7 @@ export const GlobalProvider = ({ children }) => {
         JSON.stringify(userData)
       )}${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
-      const studentLeavesResponse = await fetch(buildUrl(studentLeavesEndpoint));
+      const studentLeavesResponse = await Fetch(studentLeavesEndpoint);
       const studentLeaves = studentLeavesResponse.ok ? await studentLeavesResponse.json() : {};
 
       // teacher leaves
@@ -235,7 +237,7 @@ export const GlobalProvider = ({ children }) => {
         JSON.stringify(userData)
       )}${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
-      const teacherLeavesResponse = await fetch(buildUrl(teacherLeavesEndpoint));
+      const teacherLeavesResponse = await Fetch(teacherLeavesEndpoint);
       const teacherLeaves = teacherLeavesResponse.ok ? await teacherLeavesResponse.json() : {};
 
       if (!!filter && !filter?.set) {
@@ -313,7 +315,7 @@ export const GlobalProvider = ({ children }) => {
         : ["teachers"];
 
       // 3. Save to your database
-      const response = await fetch(buildUrl("/save-fcm-token"), {
+      const response = await Fetch("/save-fcm-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

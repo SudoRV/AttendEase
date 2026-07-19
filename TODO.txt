@@ -1,0 +1,2 @@
+verify session token and user retrieval completed
+correct the rest of code to use that middleware ( partially implemented in timetable controller )

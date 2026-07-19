@@ -18,6 +18,8 @@ import { AppStates } from "../context/AppStates";
 import Auth from "../components/Auth";
 import BleToggle from "../components/BleToggle";
 
+import { Fetch } from "../services/api";
+
 export default function ProfileScreen() {
   const { userData, setUserData, buildUrl, setLogout, bleOn, setBleOn, themePreference, updateTheme } = AppStates();
   const messagingInstance = getMessaging();
@@ -93,7 +95,7 @@ export default function ProfileScreen() {
 
     try {
       if (authMode === "change") {
-        const response = await fetch(buildUrl("/api/auth/password"), {
+        const response = await Fetch("/api/auth/password", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -115,7 +117,7 @@ export default function ProfileScreen() {
         }
       } else if (authMode === "reset") {
         if (resetStep === 1) {
-          const response = await fetch(buildUrl("/api/auth/request-otp"), {
+          const response = await Fetch("/api/auth/password/reset/request-otp", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email: userData?.email}),
@@ -129,7 +131,7 @@ export default function ProfileScreen() {
             Alert.alert("Error", resData.message);
           }
         } else {
-          const response = await fetch(buildUrl("/api/auth/password/reset/otp-verification"), {
+          const response = await Fetch("/api/auth/password/reset/otp-verification", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

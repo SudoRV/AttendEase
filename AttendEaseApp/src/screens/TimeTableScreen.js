@@ -12,6 +12,7 @@ import { AppStates } from "../context/AppStates";
 import Selector from "../components/ui/Selector";
 import PullToRefresh from "../components/ui/PullToRefresh";
 import TeacherLeave from "../components/TeacherLeave";
+import { Fetch } from "../services/api";
 
 const { width, height } = Dimensions.get("window");
 
@@ -186,8 +187,8 @@ const TimeTableScreen = () => {
     console.log(longPressAction, payload, longPressAction === "insert" ? "POST" : longPressAction === "edit" ? "PUT" : "DELETE")
 
     try {
-      const response = await fetch(buildUrl("/api/timetable/class"), {
-        method: longPressAction === "insert" ? "POST" : longPressAction === "edit" ? "PUT" : "DELETE",
+      const response = await Fetch("/api/timetable/class", {
+        method: longPressAction === "insert" ? "PUT" : longPressAction === "edit" ? "PATCH" : "DELETE",
         headers: {
           "Content-Type": "application/json"
         },

@@ -11,6 +11,7 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { AppStates } from "../context/AppStates";
+import { Fetch } from "../services/api";
 
 const YEARS = ["1", "2", "3", "4", "5"];
 const BRANCHES = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
@@ -72,7 +73,7 @@ export default function Announce() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${BASE_URL}/api/announcements`, {
+      const response = await Fetch("/api/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

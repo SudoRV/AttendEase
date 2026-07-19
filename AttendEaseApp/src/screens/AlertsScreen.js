@@ -7,6 +7,8 @@ import { AppStates } from "../context/AppStates";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
+import { Fetch } from "../services/api";
+
 const AlertsScreen = () => {
   const { userData, buildUrl, formatDate } = AppStates();
   const [announcements, setAnnouncements] = useState([]);
@@ -34,7 +36,7 @@ const AlertsScreen = () => {
   const loadAnnouncements = async (user) => {
     try {
       const endpoint = `/api/announcements?role=${user?.role || "Student"}&teacher_id=${user?.teacher_id || null}&year=${user.year || ""}&branch=${user.branch_id || ""}&section=${user.section || ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
-      const response = await fetch(buildUrl(endpoint));
+      const response = await Fetch(endpoint);
       const json = await response.json();
 
       if (json?.data) setAnnouncements(json.data);

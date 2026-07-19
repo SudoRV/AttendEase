@@ -14,6 +14,7 @@ import dayjs from 'dayjs';
 
 import { AppStates } from "../context/AppStates";
 import PullToRefresh from "./ui/PullToRefresh";
+import { Fetch } from "../services/api";
 
 const TeacherLeave = () => {
     const { userData, classes, loadTimetable, loadLeaves, buildUrl, teacherLeaveHistory, formatDate } = AppStates();
@@ -73,10 +74,9 @@ const TeacherLeave = () => {
                 on: onDate ? formatDate(onDate?.setHours(0, 5, 0, 0)) : onDate,
             };
 
-            const response = await fetch(
-                buildUrl("/api/leaves/teachers"),
+            const response = await Fetch("/api/leaves/teachers",
                 {
-                    method: "POST",
+                    method: "PUT",
                     headers: {
                         "Content-Type": "application/json",
                     },
@@ -385,7 +385,7 @@ const renderTeacherLeaves = (
 
     useEffect(() => {
         if (isSubstitutorVisible?.visible && isSubstitutorVisible.teacher_id) {
-            fetch(buildUrl(`/api/timetable/teacher?day=${new Date().toLocaleDateString("en-Gb", { weekday: "long" })}&teacher_id=${isSubstitutorVisible.teacher_id}`))
+            Fetch(`/api/timetable/teacher?day=${new Date().toLocaleDateString("en-Gb", { weekday: "long" })}&teacher_id=${isSubstitutorVisible.teacher_id}`)
                 .then(response => response.json())
                 .then(timetable => {
                     setAbsentTeacherClasses(timetable?.data?.classes);
@@ -395,7 +395,7 @@ const renderTeacherLeaves = (
 
     const processSubstitution = async (clas, action) => {
 
-        const response = await fetch(buildUrl("/api/timetable/class/substitution"), {
+        const response = await Fetch("/api/timetable/class/substitution", {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json"

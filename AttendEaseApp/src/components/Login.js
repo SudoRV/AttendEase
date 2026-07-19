@@ -15,6 +15,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColorScheme } from 'nativewind';
 import { AppStates } from "../context/AppStates";
 
+import { Fetch } from "../services/api";
+
 export default function LoginPage({ onSwitch }) {
   const { setUserData, buildUrl } = AppStates();
   const { colorScheme } = useColorScheme();
@@ -37,16 +39,17 @@ export default function LoginPage({ onSwitch }) {
     setIsLoggingIn(true);
 
     try {
-      const response = await fetch(buildUrl("/api/auth/login"), {
+      const response = await Fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, clientType: "mobile" }),
       });
 
       const data = await response.json();
 
       if (data?.user_creds) {
         await AsyncStorage.setItem("user_creds", JSON.stringify(data.user_creds));
+        await AsyncStorage.setItem("session_token", data.token);
 
         setTimeout(() => {
           setUserData(data.user_creds);
@@ -72,7 +75,7 @@ export default function LoginPage({ onSwitch }) {
     }
 
     try {
-      const response = await fetch(buildUrl("/api/auth/verify"), {
+      const response = await Fetch("/api/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: value }),
@@ -191,7 +194,7 @@ export default function LoginPage({ onSwitch }) {
               <ActivityIndicator size="large" color={isDark ? "#60a5fa" : "#18181b"} />
               <View className="gap-y-1">
                 <Text className="text-zinc-900 dark:text-neutral-50 font-bold text-lg text-center tracking-tight">Authenticating</Text>
-                <Text className="text-zinc-400 dark:text-neutral-400 text-xs text-center leading-relaxed">Synchronizing security profile context...</Text>
+                <Text className="text-zinc-400 dark:text-neutral-400 text-sm text-center leading-relaxed">Synchronizing security profile context...</Text>
               </View>
             </View>
           </View>
@@ -246,7 +249,7 @@ function ResetPasswordModal({ visible, onClose, initialEmail, buildUrl, setUserD
 
     try {
       if (resetStep === 1) {
-        const response = await fetch(buildUrl("/reset-password"), {
+        const response = await Fetch("/reset-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: form?.email, type: "request_otp" }),
@@ -262,7 +265,7 @@ function ResetPasswordModal({ visible, onClose, initialEmail, buildUrl, setUserD
           Alert.alert("Error", data.message);
         }
       } else {
-        const response = await fetch(buildUrl("/reset-password"), {
+        const response = await Fetch("/reset-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

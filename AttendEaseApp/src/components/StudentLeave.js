@@ -15,6 +15,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import CustomButton from "./ui/CustomButton";
 import Selector from "./ui/Selector";
 import PullToRefresh from "./ui/PullToRefresh";
+import { Fetch } from "../services/api";
 
 const StudentLeave = () => {
   const { userData, leaveHistory, loadLeaves, BASE_URL, buildUrl, formatDate } = AppStates();
@@ -36,7 +37,6 @@ const StudentLeave = () => {
   async function fetchLeaves() {
     if (!userData?.email) return;
     const leaves_by_month = await loadLeaves(leavesFilter);
-    console.log("here", leavesFilter, leaves_by_month)
 
     if (leaves_by_month?.student_leaves?.length > 0) {
       setLeavesByMonth(leaves_by_month);
@@ -47,7 +47,6 @@ const StudentLeave = () => {
 
   useEffect(() => {
     fetchLeaves();
-    console.log("fetching...")
   }, [userData, leavesFilter]);
 
   async function submitLeave() {
@@ -77,8 +76,8 @@ const StudentLeave = () => {
     try {
       setLoading(true);
 
-      const response = await fetch(buildUrl("/api/leaves/students"), {
-        method: "POST",
+      const response = await Fetch("/api/leaves/students", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(leave)
       });

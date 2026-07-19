@@ -14,6 +14,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useColorScheme } from "nativewind";
 import { AppStates } from "../context/AppStates";
+import { Fetch } from "../services/api";
 
 const StudentLeaveManagement = () => {
   const {
@@ -66,7 +67,7 @@ const StudentLeaveManagement = () => {
 
   async function verifyLeave(action, applicant) {
     try {
-      const response = await fetch(`${BASE_URL}/api/leaves/students/verify`, {
+      const response = await Fetch(`${BASE_URL}/api/leaves/students/verify`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
