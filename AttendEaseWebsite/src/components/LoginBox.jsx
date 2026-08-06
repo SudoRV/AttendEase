@@ -17,6 +17,8 @@ import { AiOutlineLoading3Quarters } from "react-icons/ai";
 import LandingHeader from './LandingHeader';
 import LandingFooter from './LandingFooter';
 
+import { Fetch } from "../services/api";
+
 function LoginPage() {
   const navigate = useNavigate();
   const { setUserData, buildUrl } = AppStates();
@@ -70,7 +72,7 @@ function LoginPage() {
     try {
       if (resetStep === 1) {
         // REQUEST RESET (SEND OTP)
-        const response = await fetch(buildUrl("/reset-password"), {
+        const response = await Fetch("/api/auth/password/reset/request-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: resetForm?.email, type: "request_otp" }),
@@ -84,7 +86,7 @@ function LoginPage() {
         }
       } else {
         // SUBMIT RESET WITH OTP
-        const response = await fetch(buildUrl("/reset-password"), {
+        const response = await Fetch("/api/auth/password/reset/otp-verification", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -123,7 +125,7 @@ function LoginPage() {
       const form = new FormData(e.target);
       const formData = Object.fromEntries(form.entries());
 
-      const response = await fetch(buildUrl("/api/auth/login"), {
+      const response = await Fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -132,12 +134,13 @@ function LoginPage() {
       });
 
       const data = await response.json();
-      window.localStorage.setItem("user_creds", JSON.stringify(data.user_creds));
-      setLoading(false);
-      //alert(data.message);
 
       if (data.success) {
         setUserData(data.user_creds);
+        window.localStorage.setItem("user_creds", JSON.stringify(data.user_creds));
+
+        //alert(data.message);
+        setLoading(false);
         navigate('/dashboard');
       }
       else {
@@ -163,7 +166,7 @@ function LoginPage() {
     }
 
     try {
-      const response = await fetch(buildUrl("/validate-creds"), {
+      const response = await Fetch("/api/auth/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

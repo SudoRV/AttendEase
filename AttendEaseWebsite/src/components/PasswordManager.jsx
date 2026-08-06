@@ -13,6 +13,9 @@ import {
   FiEyeOff,
 } from "react-icons/fi";
 import {AppStates} from "../services/states";
+import { Fetch } from "../services/api";
+
+
 export default function PasswordSettings() {
   const { buildUrl, userData } = AppStates();
   const [modalVisible, setModalVisible] = useState(false);
@@ -53,8 +56,8 @@ export default function PasswordSettings() {
     try {
       // ---------------- CHANGE PASSWORD ----------------
       if (authMode === "change") {
-        const response = await fetch(API_URL, {
-          method: "POST",
+        const response = await Fetch("/api/auth/password", {
+          method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
@@ -82,7 +85,7 @@ export default function PasswordSettings() {
       else if (authMode === "reset") {
         // STEP 1 → Send OTP
         if (resetStep === 1) {
-          const response = await fetch(API_URL, {
+          const response = await Fetch("/api/auth/password/reset/request-otp", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -103,7 +106,7 @@ export default function PasswordSettings() {
 
         // STEP 2 → Verify OTP + Reset Password
         else {
-          const response = await fetch(API_URL, {
+          const response = await Fetch("/api/auth/password/reset/otp-verification", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -150,7 +153,7 @@ export default function PasswordSettings() {
   return (
     <div className="flex items-center justify-center mt-2">
       {/* SETTINGS CARD */}
-      <div className="w-full bg-slate-100 dark:bg-neutral-900 rounded-3xl shadow-lg p-6">
+      <div className="w-full bg-slate-100 dark:bg-neutral-950/40 rounded-3xl shadow-lg p-6">
         <div className="flex items-center gap-2 mb-6">
           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">
             Manage Password
@@ -165,7 +168,7 @@ export default function PasswordSettings() {
               setAuthMode("change");
               setModalVisible(true);
             }}
-            className="w-full bg-slate-100 dark:bg-neutral-800 flex justify-between items-center p-4 rounded-2xl border border-slate-200 dark:border-neutral-600 hover:border-indigo-500 transition"
+            className="w-full bg-slate-100 dark:bg-neutral-900/40 flex justify-between items-center p-4 rounded-2xl border border-slate-200 dark:border-neutral-600 hover:border-indigo-500 transition"
           >
             <span className="font-semibold text-slate-800/80 dark:text-slate-200">
               Change Password
@@ -183,7 +186,7 @@ export default function PasswordSettings() {
               setAuthMode("reset");
               setModalVisible(true);
             }}
-            className="w-full bg-slate-100 dark:bg-neutral-800 flex justify-between items-center p-4 rounded-2xl border border-slate-200 dark:border-neutral-600 hover:border-indigo-500 transition"
+            className="w-full bg-slate-100 dark:bg-neutral-900/40 flex justify-between items-center p-4 rounded-2xl border border-slate-200 dark:border-neutral-600 hover:border-indigo-500 transition"
           >
             <span className="font-semibold text-slate-700 dark:text-slate-300">
               Reset Password

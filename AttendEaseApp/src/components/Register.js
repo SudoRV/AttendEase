@@ -11,9 +11,10 @@ import { Picker } from "@react-native-picker/picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColorScheme } from 'nativewind';
 import { AppStates } from "../context/AppStates";
+import { Fetch } from "../services/api";
 
 function RegisterPage({ onSwitch }) {
-  const { setUserData, buildUrl } = AppStates();
+  const { setUserData } = AppStates();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -39,7 +40,7 @@ function RegisterPage({ onSwitch }) {
   ===================== */
   const validateField = async (field, value) => {
     try {
-      const response = await fetch(buildUrl("/api/auth/verify"), {
+      const response = await Fetch("/api/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: value })
@@ -78,7 +79,7 @@ function RegisterPage({ onSwitch }) {
     }, {});
 
     try {
-      const response = await fetch(buildUrl("/api/auth/register"), {
+      const response = await Fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(cleanedData)

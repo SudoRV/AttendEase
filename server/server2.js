@@ -1,7 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const admin = require("./src/config/fcm");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
+
+
 
 
 const verifySessionToken = require("./src/middlewares/auth.middleware");
@@ -10,11 +14,39 @@ const authRoutes = require("./src/routes/auth.routes");
 const timetableRoutes = require("./src/routes/timetable.routes");
 const leaveRoutes = require("./src/routes/leave.routes");
 const announcementRoutes = require("./src/routes/announcement.routes");
+const attendanceRouter = require("./src/routes/attendance.routes");
+
+const morningTimetableReminder = require("./src/crons/reminder.timetable.morning");
+const nightTimetableReminder = require("./src/crons/reminder.timetable.night")
+
+
+
 
 const app = express();
 app.use(express.json());
-app.use(cors());
-app.use(verifySessionToken);
+app.use(cookieParser());
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://10.30.212.249:8000'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps, curl, or Postman)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
+
+
+
 
 
 
@@ -38,10 +70,10 @@ app.get('/download/app', (req, res) => {
 });
 
 // get fcm token from client
-app.post("/save-fcm-token", async (req, res) => {
-  const { user_data, token, topics } = req.body;
+app.post("/save-fcm-token", verifySessionToken, async (req, res) => {
+  const { token, topics } = req.body;
+  const userData = req.user;
 
-  // console.log(user_data)
   const query = `INSERT INTO fcm_tokens (user_id, device_id, fcm_token, device_name, active) 
   VALUES (?, ?, ?, ?, '1') 
   ON DUPLICATE KEY UPDATE 
@@ -55,8 +87,8 @@ app.post("/save-fcm-token", async (req, res) => {
   })
 
   try {
-    const result = await pool.query(query, [user_data.user_id, "device-1", token, null]);
-    // console.log("token saved successfully: ", result)
+    const result = await pool.query(query, [userData.user_id, "device-1", token, null]);
+    console.log("token saved successfully: ", result)
     res.json({ success: true });
   } catch (err) {
     res.json({ success: false, error: err });
@@ -70,18 +102,23 @@ app.post("/save-fcm-token", async (req, res) => {
 app.use("/api/auth", authRoutes);
 
 // timetable routes
-app.use("/api/timetable", timetableRoutes);
+app.use("/api/timetable", verifySessionToken, timetableRoutes);
 
 // leave management
-app.use("/api/leaves", leaveRoutes);
+app.use("/api/leaves", verifySessionToken, leaveRoutes);
 
 // announcements
-app.use("/api/announcements", announcementRoutes);
+app.use("/api/announcements", verifySessionToken, announcementRoutes);
+
+// attendance
+app.use("/api/attendance", verifySessionToken, attendanceRouter);
 
 
 
 
-
+// reminders for night and morning timetable
+nightTimetableReminder();
+morningTimetableReminder();
 
 
 // timetable images for morning classes notification
@@ -100,29 +137,3 @@ app.get(/.*/, (req, res) => {
 // ✅ START SERVER
 const PORT = 8000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
-
-
-
-
-// critical
-// Node.js Firebase Admin SDK
-// const admin = require("./src/config/fcm");
-// const pool = require("./src/config/mysql");
-
-// async function wipeSavedTokens() {
-//   // Grab your list of saved FCM tokens from your database
-//   const [savedFcmTokens] = await pool.query("select fcm_token from fcm_tokens", []); 
-
-//   for (const token of savedFcmTokens) {
-//     try {
-//       // This accepts the full tokens perfectly in chunks of up to 1,000
-//       const topicToClear = "CSE_4_A"
-//       const response = await admin.messaging().unsubscribeFromTopic(token.fcm_token, topicToClear);
-//       console.log(`Successfully removed ${response.successCount} devices from ${topicToClear}`);
-//     } catch (error) {
-//       console.error('Failed to unsubscribe tokens from topic:', error);
-//     }
-//   }
-// }
-
-// // wipeSavedTokens();

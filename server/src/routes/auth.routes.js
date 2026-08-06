@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const verifySessionToken = require("../middlewares/auth.middleware");
 
 const authController = require("../controllers/auth.controller");
 
@@ -13,12 +14,12 @@ router.post("/verify", authController.validateCreds);
 router.post("/login", authController.login);
 
 // change password
-router.patch("/password", authController.changePassword);
+router.patch("/password", verifySessionToken, authController.changePassword);
 
 // ask otp to reset password
-router.post("/password/reset/request-otp", authController.requestOtp);
+router.post("/password/reset/request-otp", verifySessionToken, authController.requestOtp);
 
 // verify otp and reset password
-router.post("/password/reset/otp-verification", authController.resetPassword);
+router.post("/password/reset/otp-verification", verifySessionToken, authController.resetPassword);
 
 module.exports = router;

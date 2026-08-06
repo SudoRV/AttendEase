@@ -3,7 +3,7 @@ const router = express.Router();
 
 const leaveController = require("../controllers/leave.controller");
 
-// submit leave
+// submit student leave
 router.put("/students", leaveController.submitStudentLeave);
 
 // verify student leave

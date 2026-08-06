@@ -12,14 +12,7 @@ import BleDataPropagation from './src/utils/BleDataPropagation';
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
 import { getDBConnection, saveNotification } from './src/database/database';
-import {  } from './src/database/database';
-
-const isProduction = true;
-const BASE_URL = isProduction
-  ? "https://attendease-nivr.onrender.com"
-  : "http://10.73.202.96:8000";
-
-const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
+import { } from './src/database/database';
 
 // 1. Helper function for the channel
 const morningScheduleChannel = async () => {
@@ -82,7 +75,7 @@ pushNotifications();
 const onMessageReceived = async (remoteMessage) => {
   console.log('Background Message Received:', remoteMessage.data);
   // save notifications 
-  saveNotification(null, { notification_id: remoteMessage.messageId, scope: remoteMessage.data.scope,  source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body });
+  saveNotification(null, { notification_id: remoteMessage.messageId, scope: remoteMessage.data.scope, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body });
   // propagate message via ble advertise
   try {
     const database = getDBConnection();
@@ -100,7 +93,7 @@ const onMessageReceived = async (remoteMessage) => {
     const subtitle = `${totalClasses} ${totalClasses > 1 ? "classes" : "class"} today`;
 
     const timestamp = Date.now();
-    const scheduleImageUrl = !!remoteMessage?.data?.schedule_image ? buildUrl(`${remoteMessage?.data?.schedule_image}?v=${timestamp}`) : "";
+    const scheduleImageUrl = remoteMessage?.data?.schedule_image;
 
     await notifee.displayNotification({
       id: 'daily_class_alerts',
@@ -119,11 +112,16 @@ const onMessageReceived = async (remoteMessage) => {
 
         pressAction: { id: 'default' },
 
-        style: {
-          type: AndroidStyle.BIGPICTURE,
-          picture: scheduleImageUrl,
-          text: remoteMessage.data.body
-        },
+        style: !!scheduleImageUrl
+          ? {
+            type: AndroidStyle.BIGPICTURE,
+            picture: scheduleImageUrl,
+            text: remoteMessage.data?.body,
+          }
+          : {
+            type: AndroidStyle.BIGTEXT,
+            text: remoteMessage.data?.body,
+          },
 
         // fullScreenAction: {
         //   id: 'default',

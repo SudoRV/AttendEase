@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const isProduction = false;
 const BASE_URL = isProduction
     ? "https://attendease-nivr.onrender.com"
-    : "http://10.30.212.249:8000";
+    : "http://10.195.195.137:8000";
 
 export const Fetch = async (endpoint, options = {}) => {
     options.headers = options.headers || {};

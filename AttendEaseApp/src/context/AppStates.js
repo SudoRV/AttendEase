@@ -15,16 +15,7 @@ import { initializeScannerCallbacks } from '../utils/BleDataScanning';
 // custom fetch api
 import { Fetch } from "../services/api";
 
-const isProduction = false;
 const THEME_STORAGE_KEY = '@user_theme_preference';
-
-// ⚠️ IMPORTANT:
-// Replace this with your computer’s local IP
-const BASE_URL = isProduction
-  ? "https://attendease-nivr.onrender.com"
-  : "http://10.30.212.249:8000";
-
-const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
 const formatDate = (date) => {
   if (!date) return "Select Date";
@@ -157,7 +148,7 @@ export const GlobalProvider = ({ children }) => {
     if (role === "student") {
       endpoint = `/api/timetable/student?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
     } else if (role === "teacher") {
-      endpoint = `/api/timetable/student?teacher_id=${userCreds?.teacher_id}&day=${day}`;
+      endpoint = `/api/timetable/teacher?teacher_id=${userCreds?.teacher_id}&day=${day}`;
     } else {
       return;
     }
@@ -225,17 +216,13 @@ export const GlobalProvider = ({ children }) => {
 
     try {
       // student leaves
-      const studentLeavesEndpoint = `/api/leaves/students?user_data=${encodeURIComponent(
-        JSON.stringify(userData)
-      )}${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+      const studentLeavesEndpoint = `/api/leaves/students?${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
       const studentLeavesResponse = await Fetch(studentLeavesEndpoint);
       const studentLeaves = studentLeavesResponse.ok ? await studentLeavesResponse.json() : {};
 
       // teacher leaves
-      const teacherLeavesEndpoint = `/api/leaves/teachers?user_data=${encodeURIComponent(
-        JSON.stringify(userData)
-      )}${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+      const teacherLeavesEndpoint = `/api/leaves/teachers?${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
       const teacherLeavesResponse = await Fetch(teacherLeavesEndpoint);
       const teacherLeaves = teacherLeavesResponse.ok ? await teacherLeavesResponse.json() : {};
@@ -319,7 +306,6 @@ export const GlobalProvider = ({ children }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_data: { ...userData, device_info: {} },
           token: token,
           topics: topics
         })
@@ -330,7 +316,7 @@ export const GlobalProvider = ({ children }) => {
         return false;
       }
 
-      // console.log("✅ FCM Token & Topics saved successfully!");
+      console.log("✅ FCM Token & Topics saved successfully!");
       return true;
 
     } catch (error) {
@@ -420,9 +406,6 @@ export const GlobalProvider = ({ children }) => {
     <GlobalContext.Provider
       value={{
         activeTab, setActiveTab,
-        isProduction,
-        BASE_URL,
-        buildUrl,
         userData, setUserData,
         classes,
         leaveHistory,

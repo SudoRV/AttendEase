@@ -18,7 +18,7 @@ const { width, height } = Dimensions.get("window");
 
 const TimeTableScreen = () => {
   const navigation = useNavigation();
-  const { classes, userData, teacherLeaveHistory, loadTimetable, buildUrl } = AppStates();
+  const { classes, userData, teacherLeaveHistory, loadTimetable } = AppStates();
 
   const [rotated, setRotated] = useState(false);
   const [selectedDay, setSelectedDay] = useState(classes?.day || new Date().toLocaleString("en-Gb", { weekday: "long" }));

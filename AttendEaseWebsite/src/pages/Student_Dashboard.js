@@ -6,7 +6,7 @@ import Announcements from "../components/Announcements";
 import LeaveBox from "../components/Student_Leave";
 import TimeTable from "../components/TimeTable";
 import attendease_logo from "../images/attendease_icon.png";
-import AttendanceDashboard from '../components/AttendanceDashboard';
+// import AttendanceDashboard from '../components/AttendanceDashboard';
 import PasswordSettings from '../components/PasswordManager';
 import LandingHeader from "../components/LandingHeader.jsx";
 import LandingFooter from "../components/LandingFooter.jsx";
@@ -36,7 +36,7 @@ const StudentDashboard = () => {
             <LandingHeader toggleSidebar={toggleDrawer} />
 
             {/* Sidebar Overlay */}
-            <div className={`sidebar h-full flex flex-col p-6 bg-white dark:bg-neutral-800 border-r border-gray-100 ${isOpen ? 'open' : ''}`}>
+            <div className={`sidebar h-full flex flex-col p-6 bg-white dark:bg-neutral-900 border-r border-gray-100 ${isOpen ? 'open' : ''}`}>
                     {/* Header: Title & Close */}
                     <div className="flex flex-row justify-between items-center mb-8">
                       <div>
@@ -96,7 +96,7 @@ const StudentDashboard = () => {
             
                     {/* Logout Button */}
                     <button
-                      className="group mt-auto flex items-center justify-center gap-3 w-full py-4 rounded-xl
+                      className="group mt-auto flex items-center justify-center gap-3 w-full py-3 rounded-lg
                                       border-none bg-red-500 text-slate-100 font-semibold hover:bg-red-50 hover:text-red-600 hover:shadow-md transition-all duration-200 active:scale-95"
                       onClick={logout}
                       disabled={loading}
@@ -124,7 +124,7 @@ const StudentDashboard = () => {
                         <Announcements />
                     </div>
                     <div className='attendance !shadow-xl other '>
-                        <AttendanceDashboard />
+                        {/* <AttendanceDashboard /> */}
                     </div>
                 </div>
 

@@ -12,6 +12,8 @@ import AttendanceRing from "./AttendanceRing";
 import AttendanceTable from "./AttendanceTable";
 import { AppStates } from "../services/states";
 
+import { Fetch } from "../services/api";
+
 const injectionCode = `javascript:(()=>{
   // 1. Fixed: Used normal single quotes and string concatenation to bypass backtick parsing errors
   const get = n => document.querySelector('[name=' + n + ']')?.value || "";
@@ -87,8 +89,8 @@ export default function AttendanceDashboard() {
       alert("Please provide all ID fields.");
       return;
     }
-    const response = await fetch(buildUrl("/save/utu-creds"), {
-      method: "POST",
+    const response = await Fetch("/api/attendance/portal/credentials", {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form)
     });
@@ -108,7 +110,7 @@ export default function AttendanceDashboard() {
   async function loadAttendance(creds) {
     setLoading(true);
     try {
-      const response = await fetch(buildUrl("/fetch-attendance"), {
+      const response = await Fetch("/api/attendance", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

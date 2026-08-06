@@ -3,6 +3,7 @@ import { AppStates } from "../services/states";
 import { FiCalendar, FiRotateCw } from "react-icons/fi";
 import { IoRestaurantOutline } from 'react-icons/io5';
 import DaySelector from "./ui/DaySelector";
+import { Fetch } from "../services/api";
 
 /**
  * Student/Teacher Timetable Component
@@ -15,7 +16,7 @@ const TimeTable = () => {
     "04:00 PM", "05:00 PM",
   ];
 
-  const { classes, userData, doFetch, loadTimetable, teacherLeaveHistory, buildUrl } = AppStates();
+  const { classes, userData, loadTimetable, teacherLeaveHistory, buildUrl } = AppStates();
   const slots = defaultTimeSlots;
   const editMenuRef = useRef(null);
   const longPressTimer = useRef(null);
@@ -216,8 +217,8 @@ const TimeTable = () => {
     };
 
     try {
-      const response = await fetch(buildUrl("/update-schedule"), {
-        method: "POST",
+      const response = await Fetch("/api/timetable/class", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
       });

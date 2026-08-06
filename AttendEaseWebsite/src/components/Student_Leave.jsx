@@ -1,6 +1,6 @@
 import { AppStates } from "../services/states";import React, { useEffect, useState } from "react";
 import { FiX, FiChevronDown, FiChevronUp, FiCalendar, FiFileText } from "react-icons/fi";
-
+import { Fetch } from "../services/api";
 
 const StudentLeave = () => {
   const { userData, leaveHistory, loadLeaves, buildUrl, formatDate } = AppStates();
@@ -13,14 +13,15 @@ const StudentLeave = () => {
 
   const [latestLeaveModal, setLatestLeaveModal] = useState(false);
   const [latestLeaveCollapsed, setLatestLeaveCollapsed] = useState({ collapsed: false, index: 0 });
-  const [leavesFilter, setLeavesFilter] = useState({ month: new Date().getMonth(), set: true });
+  const [leavesFilter, setLeavesFilter] = useState({ month: new Date().getMonth(), set: true, return: true });
+  
   const [leavesByMonth, setLeavesByMonth] = useState({});
 
   async function fetchLeaves() {
     if (!userData?.email) return;
     const leaves_by_month = await loadLeaves(leavesFilter);
     
-    if (leaves_by_month?.data?.length > 0) {
+    if (leaves_by_month?.student_leaves?.length > 0) {
       setLeavesByMonth(leaves_by_month);
     } else {
       setLeavesByMonth([]);
@@ -62,8 +63,8 @@ const StudentLeave = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(buildUrl("/upload-leave"), {
-        method: "POST",
+      const response = await Fetch("/api/leaves/students", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(leave)
       });
@@ -90,26 +91,26 @@ const StudentLeave = () => {
     return <label className="block text-slate-600 dark:text-slate-400 text-sm font-medium mb-2">{text}</label>;
   }
 
-  const latestLeaveSource = leavesByMonth?.data?.length > 0 ? leavesByMonth : { data: leaveHistory };
+  const latestLeaveSource = leavesByMonth?.student_leaves?.length > 0 ? leavesByMonth : { student_leaves: leaveHistory };
   const todayString = new Date().toISOString().split("T")[0];
 
   return (
-    <div className="border border-slate-200 shadow-xl rounded-2xl bg-white dark:bg-neutral-950/60 p-4 sm:p-6 md:p-8 transition-colors duration-200">
+    <div className="px-1.5 transition-colors duration-200">
       <div className="max-w-xl mx-auto space-y-6">
         
         {/* HEADER */}
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">Leave Portal</h1>
+          <h1 className="text-3xl font-bold text-indigo-500 tracking-tight">Leave Portal</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Submit and track your leave applications</p>
         </div>
 
         {/* LEAVE SUMMARY */}
-        <div className="bg-slate-100 dark:bg-neutral-900 rounded-3xl p-6 shadow-md border border-slate-200/60 dark:border-slate-800/80 transition-colors">
+        <div className="bg-neutral-100 dark:bg-neutral-950/40 rounded-3xl p-6 shadow-md border border-slate-200/60 dark:border-slate-800/80 transition-colors">
           <div className="flex justify-between items-center mb-2">
             <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200">Leave History</h2>
             <button 
               onClick={() => setLatestLeaveModal(true)}
-              className="text-white text-xs font-semibold px-4 py-1.5 bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-800 dark:hover:bg-indigo-500 rounded-full transition-colors border-slate-400"
+              className="text-white text-xs font-semibold px-4 py-1.5 bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-800 dark:hover:bg-indigo-500 rounded-full transition-colors border-slate-400 border-none"
             >
               View All
             </button>
@@ -119,7 +120,7 @@ const StudentLeave = () => {
         </div>
 
         {/* LATEST STATUS */}
-        <div className="bg-slate-100 dark:bg-neutral-900 rounded-3xl p-6 shadow-md border border-slate-200/60 dark:border-slate-800/80 transition-colors">
+        <div className="bg-neutral-100 dark:bg-neutral-950/40 rounded-3xl p-6 shadow-md border border-slate-200/60 dark:border-slate-800/80 transition-colors">
           <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">Leave Status</h2>
 
           {leaveHistory?.length ? (
@@ -142,7 +143,7 @@ const StudentLeave = () => {
 
                 <button 
                   onClick={() => setLatestLeaveModal(true)}
-                  className="text-sm font-semibold text-indigo-500 dark:text-indigo-400 hover:underline"
+                  className="text-sm font-semibold text-indigo-500 dark:text-indigo-400 dark:bg-transparent hover:underline border-none"
                 >
                   View Details
                 </button>
@@ -154,7 +155,7 @@ const StudentLeave = () => {
         </div>
 
         {/* SUBMIT FORM */}
-        <form onSubmit={submitLeave} className="bg-slate-100  dark:bg-neutral-900 rounded-3xl p-6 shadow-md border border-slate-200/60 dark:border-slate-800/80 space-y-4 transition-colors">
+        <form onSubmit={submitLeave} className="bg-neutral-100  dark:bg-neutral-950/40 rounded-3xl p-6 shadow-md !border-0 space-y-4 transition-colors">
           <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2">Submit Leave</h2>
 
           <div>
@@ -195,7 +196,7 @@ const StudentLeave = () => {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all transform active:scale-[0.98] ${
+            className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg border-none transition-all transform active:scale-[0.98] ${
               loading ? "bg-indigo-300 dark:bg-indigo-800/50 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 shadow-indigo-100 dark:shadow-none"
             }`}
           >
@@ -215,15 +216,15 @@ const StudentLeave = () => {
               <h3 className="font-bold text-xl text-slate-800 dark:text-slate-100">Latest Application Details</h3>
               <button 
                 onClick={() => setLatestLeaveModal(false)}
-                className="px-2 py-1 bg-slate-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-slate-500 dark:text-slate-400 transition-colors"
+                className="px-2 py-1 bg-neutral-100 dark:bg-neutral-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full text-slate-500 dark:text-slate-400 transition-colors"
               >
                 <FiX size={18} />
               </button>
             </div>
 
             {/* Collapsible Active Leave Preview */}
-            {latestLeaveSource?.data?.length > 0 && (
-              <div className="mt-4 bg-slate-100 shadow-md dark:bg-neutral-800 rounded-xl border border-slate-200/60 dark:border-slate-800 p-4 space-y-3 relative overflow-hidden transition-all duration-300">
+            {latestLeaveSource?.student_leaves?.length > 0 && (
+              <div className="mt-4 bg-neutral-100 shadow-md dark:bg-neutral-800 rounded-xl border border-slate-200/60 dark:border-slate-800 p-4 space-y-3 relative overflow-hidden transition-all duration-300">
                 <button 
                   onClick={() => setLatestLeaveCollapsed(prev => ({ ...prev, collapsed: !prev.collapsed }))}
                   className="absolute right-3 top-3 py-1 px-2 text-slate-600 dark:text-neutral-400 hover:text-slate-600 dark:hover:text-slate-400 bg-slate-200 dark:bg-neutral-700 rounded-full transition-colors"
@@ -235,26 +236,26 @@ const StudentLeave = () => {
                   <>
                     <div className="flex flex-wrap gap-2 text-xs font-bold">
                       <span className="bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 px-2 py-1 rounded-md">
-                        From: {new Date(latestLeaveSource.data[latestLeaveCollapsed.index]?.applicable_from).toLocaleDateString("en-IN")}
+                        From: {new Date(latestLeaveSource.student_leaves[latestLeaveCollapsed.index]?.applicable_from).toLocaleDateString("en-IN")}
                       </span>
                       <span className="bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 px-2 py-1 rounded-md">
-                        To: {new Date(latestLeaveSource.data[latestLeaveCollapsed.index]?.applicable_to).toLocaleDateString("en-IN")}
+                        To: {new Date(latestLeaveSource.student_leaves[latestLeaveCollapsed.index]?.applicable_to).toLocaleDateString("en-IN")}
                       </span>
                     </div>
                     <p className="text-xs font-bold bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400 px-2 py-1 rounded-md inline-block">
-                      Subject: {latestLeaveSource.data[latestLeaveCollapsed.index]?.subject}
+                      Subject: {latestLeaveSource.student_leaves[latestLeaveCollapsed.index]?.subject}
                     </p>
                     <div className="pt-1">
                       <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1"><FiFileText /> Description</span>
                       <p className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-slate-800 text-sm text-slate-700 dark:text-slate-300 min-h-[80px] p-2.5 rounded-xl mt-1.5 whitespace-pre-wrap overflow-y-auto max-h-32">
-                        {latestLeaveSource.data[latestLeaveCollapsed.index]?.application}
+                        {latestLeaveSource.student_leaves[latestLeaveCollapsed.index]?.application}
                       </p>
                     </div>
                   </>
                 )}
                 {latestLeaveCollapsed.collapsed && (
                   <p className="text-slate-600 dark:text-slate-400 text-sm font-semibold truncate pr-6">
-                    Viewing Description: {latestLeaveSource.data[latestLeaveCollapsed.index]?.subject}
+                    Viewing Description: {latestLeaveSource.student_leaves[latestLeaveCollapsed.index]?.subject}
                   </p>
                 )}
               </div>
@@ -265,8 +266,8 @@ const StudentLeave = () => {
               <h4 className="font-bold text-slate-800 dark:text-slate-200">History</h4>
               <select 
                 value={leavesFilter.month}
-                onChange={(e) => setLeavesFilter(prev => ({ ...prev, month: parseInt(e.target.value), set: false }))}
-                className="bg-slate-100 dark:bg-neutral-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-sm font-medium text-slate-800 dark:text-slate-200 focus:border-indigo-500 outline-none transition-colors"
+                onChange={(e) => setLeavesFilter({month: parseInt(e.target.value), set: false, return: true })}
+                className="bg-neutral-100 dark:bg-neutral-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-sm font-medium text-slate-800 dark:text-slate-200 focus:border-indigo-500 outline-none transition-colors"
               >
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(m => (
                   <option key={m} value={m}>
@@ -278,8 +279,8 @@ const StudentLeave = () => {
 
             {/* Scrollable list items */}
             <div className="overflow-y-auto space-y-3 pr-1 flex-1">
-              {leavesByMonth?.data?.length > 0 ? (
-                leavesByMonth.data.map((leave, idx) => (
+              {leavesByMonth?.student_leaves?.length > 0 ? (
+                leavesByMonth.student_leaves.map((leave, idx) => (
                   <button
                     key={idx}
                     onClick={() => setLatestLeaveCollapsed({ collapsed: false, index: idx })}

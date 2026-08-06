@@ -18,7 +18,7 @@ const BRANCHES = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
 const SECTIONS = ["A", "B", "C"];
 
 export default function Announce() {
-  const { userData, BASE_URL, formatDate, isDark } = AppStates();
+  const { formatDate, isDark } = AppStates();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -57,11 +57,6 @@ export default function Announce() {
     const payload = {
       title,
       body,
-      created_by: {
-        name: userData?.name,
-        id: userData?.teacher_id,
-        user_id: userData?.user_id
-      },
       scope,
       target_year: targetYears,
       target_branch: targetBranches,

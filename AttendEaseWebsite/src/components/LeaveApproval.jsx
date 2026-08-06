@@ -12,6 +12,8 @@ import {
   FiGrid
 } from "react-icons/fi";
 
+import { Fetch } from "../services/api";
+
 const StudentLeaveManagement = () => {
   const {
     userData,
@@ -51,7 +53,7 @@ const StudentLeaveManagement = () => {
   /* ---------------- verify action ---------------- */
   async function verifyLeave(action, applicant) {
     try {
-      const response = await fetch(buildUrl("/verify-leave"), {
+      const response = await Fetch("/api/leaves/students/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

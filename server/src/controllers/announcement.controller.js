@@ -5,6 +5,8 @@ exports.postAnnouncement = async (req, res) => {
     const { title, body, status, target_year, target_branch, target_section, scope, expires_at } = req.body;
     const created_by = req.user;
 
+    if (req.user.role !== "Teacher") return res.status(401).json({success: false, message: "Unauthorized access!"});
+
     const query = "insert into announcements (title, body, created_by, scope, target_year, target_branch, target_section, expires_at) values(?, ?, ?, ?, ?, ?, ?, ?)"
 
     try {

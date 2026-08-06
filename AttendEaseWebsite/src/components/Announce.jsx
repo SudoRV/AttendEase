@@ -11,6 +11,8 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { useEffect } from "react";
 
+import { Fetch } from "../services/api";
+
 const YEAR_OPTIONS = [
   { value: "all", label: "All Years" },
   { value: "1", label: "1st Year" },
@@ -81,7 +83,7 @@ export default function Announce() {
     };
 
     try {
-      const response = await fetch(buildUrl("/announce"), {
+      const response = await Fetch("/api/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

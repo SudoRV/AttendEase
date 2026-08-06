@@ -1,7 +1,9 @@
 const pool = require("../config/mysql");
+const admin = require("../config/fcm");
 
 exports.submitStudentLeave = async (req, res) => {
-    const { applicant, subject, application, applicable_from, applicable_to } = req.body;
+    const { subject, application, applicable_from, applicable_to } = req.body;
+    const applicant = req.user;
 
     const affected_days = getAffectedDays(applicable_from, applicable_to);
 
@@ -57,7 +59,10 @@ exports.submitStudentLeave = async (req, res) => {
 }
 
 exports.verifyStudentLeave = async (req, res) => {
-    const { action, applicant, verifier } = req.body;
+    const { action, applicant } = req.body;
+    const verifier = req.user;
+
+    if (req.user.role !== "Teacher") return res.status(401).json({success: false, message: "Unauthorized access!"});
 
     const query = `update leaves l set l.status = ? where l.student_id = ? 
     and id = ? and exists (
@@ -92,8 +97,8 @@ exports.verifyStudentLeave = async (req, res) => {
 }
 
 exports.studentsLeaves = async (req, res) => {
-    const { user_data, filter: leaveFilter, time } = req.query;
-    const userData = JSON.parse((user_data));
+    const { filter: leaveFilter, time } = req.query;
+    const userData = req.user;
 
     let filter = {};
     if (leaveFilter) {
@@ -146,6 +151,8 @@ exports.studentsLeaves = async (req, res) => {
 exports.submitTeacherLeaves = async (req, res) => {
     const { leave_type, classes } = req.body;
     const applicant = req.user;
+
+    if (req.user.role !== "Teacher") return res.status(401).json({success: false, message: "Unauthorized access!"});
 
     const affected_days = getAffectedDays(req.body.from || req.body.on, req.body.to || req.body.on);
 
@@ -307,8 +314,8 @@ exports.submitTeacherLeaves = async (req, res) => {
 }
 
 exports.teachersLeaves = async (req, res) => {
-    const { user_data, filter: leaveFilter, time } = req.query;
-    const userData = JSON.parse((user_data));
+    const { filter: leaveFilter, time } = req.query;
+    const userData = req.user;
 
     let filter = {};
     if (leaveFilter) {
@@ -364,4 +371,44 @@ function getAffectedDays(from, to, timeZone = "Asia/Kolkata") {
     }
 
     return [...days].join(",");
+}
+
+async function notify(token, title, body, dataType, data) {
+  const message = {
+    token,
+    data: {
+      type: dataType,
+      title,
+      body,
+      data: JSON.stringify(data)
+    },
+
+    android: {
+      priority: "high",
+    },
+
+    webpush: {
+      headers: {
+        Urgency: "high"
+      },
+
+      notification: {
+        title,
+        body,
+      },
+
+      fcmOptions: {
+        link: "https://attendease-nivr.onrender.com/"
+      }
+    }
+
+  };
+
+  try {
+    const response = await admin.messaging().send(message);
+    console.log("Notification sent:", response);
+    return response;
+  } catch (err) {
+    console.error("FCM error:", err.message);
+  }
 }

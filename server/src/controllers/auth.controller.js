@@ -58,7 +58,7 @@ exports.validateCreds = async (req, res) => {
 
 // login
 exports.login = async (req, res) => {
-    const { email, password, clientType } = req.body;
+    const { email, password, clientType="web" } = req.body;
 
     // basic validation
     if (!email || !password) {
@@ -88,15 +88,17 @@ exports.login = async (req, res) => {
         token_version: user.token_version || 1
     }, process.env.JWT_SECRET);
 
+    console.log(clientType)
+
     if (isMatch) {
         if (clientType === "web") {
             res.cookie("token", token, {
                 httpOnly: true,
-                secure: false,
-                sameSite: "strict",
+                secure: false, // true
+                sameSite: "lax", // none
                 maxAge: 10 * 365 * 24 * 60 * 60 * 1000 // 10 years
             })
-            res.json({ success: true, message: "user authenticated and authorised", user_creds: user });
+            return res.json({ success: true, message: "user authenticated and authorised", user_creds: user });
         }
 
         res.json({ success: true, message: "user authenticated and authorised", token, user_creds: user });

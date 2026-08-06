@@ -15,6 +15,8 @@ import {
     FiInbox
 } from 'react-icons/fi';
 
+import { Fetch } from "../services/api";
+
 const TeacherLeave = ({ onClose }) => {
     const {
         userData, 
@@ -76,8 +78,8 @@ const TeacherLeave = ({ onClose }) => {
                 on: onDate ? formatDate(onDate?.setHours(0, 5, 0, 0)) : onDate,
             };
 
-            const response = await fetch(
-                buildUrl("/teacher-availability"),
+            const response = await Fetch(
+                buildUrl("/api/timetable/class/substitution"),
                 {
                     method: "POST",
                     headers: {
@@ -108,7 +110,7 @@ const TeacherLeave = ({ onClose }) => {
     useEffect(() => {
         if (substView.visible && substView.teacher_id) {
             const day = classes?.day || new Date().toLocaleDateString("en-Gb", { weekday: "long" });
-            fetch(buildUrl(`/get-timetable?day=${day}&teacher_id=${substView.teacher_id}`))
+            Fetch(`/api/timetable/teacher?day=${day}&teacher_id=${substView.teacher_id}`)
                 .then(res => res.json())
                 .then(json => setAbsentTeacherClasses(json?.data?.classes || []));
         }
@@ -126,8 +128,8 @@ const TeacherLeave = ({ onClose }) => {
     };
 
     const processSubstitution = async (clas, action) => {
-        const response = await fetch(buildUrl("/set-substitutor"), {
-            method: "POST",
+        const response = await Fetch("/api/timetable/class/substitution", {
+            method: "PUT",
             headers: {
                 "Content-Type": "application/json"
             },

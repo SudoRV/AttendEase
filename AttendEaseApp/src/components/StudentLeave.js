@@ -18,7 +18,7 @@ import PullToRefresh from "./ui/PullToRefresh";
 import { Fetch } from "../services/api";
 
 const StudentLeave = () => {
-  const { userData, leaveHistory, loadLeaves, BASE_URL, buildUrl, formatDate } = AppStates();
+  const { userData, leaveHistory, loadLeaves, formatDate } = AppStates();
 
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
@@ -66,7 +66,6 @@ const StudentLeave = () => {
       : "Leave Application";
 
     const leave = {
-      applicant: userData,
       subject,
       application,
       applicable_from: formatDate(fromDate),

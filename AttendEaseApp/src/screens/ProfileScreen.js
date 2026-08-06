@@ -21,7 +21,7 @@ import BleToggle from "../components/BleToggle";
 import { Fetch } from "../services/api";
 
 export default function ProfileScreen() {
-  const { userData, setUserData, buildUrl, setLogout, bleOn, setBleOn, themePreference, updateTheme } = AppStates();
+  const { userData, setUserData, setLogout, bleOn, setBleOn, themePreference, updateTheme } = AppStates();
   const messagingInstance = getMessaging();
 
   // --- LOGOUT LOADING STATE ---

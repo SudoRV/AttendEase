@@ -12,7 +12,7 @@ require("dotenv").config();
 const nodemailer = require("nodemailer");
 
 
-const createTableImage = require("./src/utils/createTableImage");
+const createTableImage = require("./src/services/createTableImage");
 const parseAttendanceTable = require("./src/utils/parseAttendanceTable");
 const { default: scopes } = require("../AttendEaseApp/src/constant/scopes");
 
@@ -115,7 +115,7 @@ app.post("/save-fcm-token", async (req, res) => {
   } catch (err) {
     res.json({ success: false, error: err });
   }
-})
+});
 
 
 
@@ -190,7 +190,7 @@ app.post("/api/auth/register", async (req, res) => {
   } else {
     res.json({ success: false, message: "Already Registered" })
   }
-})
+});
 
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
@@ -217,7 +217,7 @@ app.post("/api/auth/login", async (req, res) => {
   } else {
     res.json({ success: false, message: "Incorrect password", });
   }
-})
+});
 
 // change password
 app.patch("/api/auth/password", async (req, res) => {
@@ -240,7 +240,7 @@ app.patch("/api/auth/password", async (req, res) => {
   if (response.affectedRows > 0) return res.json({ success: true, message: "Password changed successfully" });
 
   res.json({ success: false, message: "Internal server error" });
-})
+});
 
 // ask otp to reset password
 app.post("/api/auth/password/reset/request-otp", async (req, res) => {
@@ -334,7 +334,7 @@ app.post("/api/auth/password/reset/request-otp", async (req, res) => {
       error: error.message
     });
   }
-})
+});
 
 // verify otp and reset password
 app.post("/api/auth/password/reset/otp-verification", async (req, res) => {
@@ -356,7 +356,7 @@ app.post("/api/auth/password/reset/otp-verification", async (req, res) => {
   if (response.affectedRows > 0) return res.json({ success: true, message: "Password reset successfully" });
 
   res.json({ success: false, message: "Internal server error" });
-})
+});
 
 
 
@@ -399,7 +399,7 @@ app.get("/api/timetable/teacher", async (req, res) => {
       data: { day: day, classes: classes }
     })
   }
-})
+});
 
 // student timetable 
 app.get("/api/timetable/student", async (req, res) => {
@@ -436,7 +436,7 @@ app.get("/api/timetable/student", async (req, res) => {
       data: { day: day, classes: classes }
     })
   }
-})
+});
 
 // add class to timetable
 app.put("/api/timetable/class", async (req, res) => {
@@ -456,7 +456,7 @@ app.put("/api/timetable/class", async (req, res) => {
     console.log(error)
     res.json({ success: false, message: "Internal server error" });
   }
-})
+});
 
 // update class to timetable
 app.patch("/api/timetable/class", async (req, res) => {
@@ -476,7 +476,7 @@ app.patch("/api/timetable/class", async (req, res) => {
     console.log(error)
     res.json({ success: false, message: "Internal server error" });
   }
-})
+});
 
 // delete class from timetable
 app.delete("/api/timetable/class", async (req, res) => {
@@ -496,7 +496,7 @@ app.delete("/api/timetable/class", async (req, res) => {
     console.log(error)
     res.json({ success: false, message: "Internal server error" });
   }
-})
+});
 
 
 
@@ -555,7 +555,7 @@ app.put("/api/leaves/students", async (req, res) => {
     console.log(err);
     res.json({ success: false, message: "error while submitting" })
   }
-})
+});
 
 // verify leave ( reject approve )
 app.post("/api/leaves/students/verify", async (req, res) => {
@@ -591,7 +591,7 @@ app.post("/api/leaves/students/verify", async (req, res) => {
     console.log(error)
     res.json({ success: false, message: "error occuered" });
   }
-})
+});
 
 // fetch leaves students
 app.get("/api/leaves/students", async (req, res) => {
@@ -644,7 +644,7 @@ app.get("/api/leaves/students", async (req, res) => {
     console.log(err);
     res.json({ success: false, message: err });
   }
-})
+});
 
 // fetch leaves teachers
 app.get("/api/leaves/teachers", async (req, res) => {
@@ -684,7 +684,7 @@ app.get("/api/leaves/teachers", async (req, res) => {
     console.log(err);
     res.json({ success: false, message: err });
   }
-})
+});
 
 
 
@@ -850,7 +850,7 @@ app.put("/api/leaves/teachers", async (req, res) => {
       res.json({ success: false, message: "Error occured" });
     }
   }
-})
+});
 
 // set substitution teacher 
 app.put("/api/timetable/class/substitution", async (req, res) => {
@@ -935,7 +935,7 @@ app.put("/api/timetable/class/substitution", async (req, res) => {
   } else {
     res.status(400).json({ success: false, message: "Substitutor doesn't exist." });
   }
-})
+});
 
 
 
@@ -964,7 +964,7 @@ app.post("/api/announcements", async (req, res) => {
     console.log(err)
     res.json({ success: false, message: "Something went wrong." });
   }
-})
+});
 
 // fetch announcements
 app.get("/api/announcements", async (req, res) => {
@@ -1021,7 +1021,7 @@ app.get("/api/announcements", async (req, res) => {
     console.log(error);
     res.json({ success: false, data: [] });
   }
-})
+});
 
 
 
@@ -1045,7 +1045,16 @@ app.put("/api/attendance/portal/credentials", async (req, res) => {
   } else {
     res.status(200).json({ success: false, message: "Student not found" });
   }
-})
+});
+
+app.get("/api/attendance", async (req, res) => {
+  if (!req.headers.creds) res.status(400).json({ success: false, error: "provide credentials !" })
+  const creds = JSON.parse(req.headers.creds);
+  const attendance = await fetchAttendance(creds);
+
+  // console.log(attendance)
+  res.json({ attendance })
+});
 
 // fetch attendance data function
 async function fetchAttendance(creds) {
@@ -1093,16 +1102,7 @@ async function fetchAttendance(creds) {
   }
 
   return attendance;
-}
-
-app.get("/api/attendance", async (req, res) => {
-  if (!req.headers.creds) res.status(400).json({ success: false, error: "provide credentials !" })
-  const creds = JSON.parse(req.headers.creds);
-  const attendance = await fetchAttendance(creds);
-
-  // console.log(attendance)
-  res.json({ attendance })
-})
+};
 
 
 
@@ -1121,13 +1121,13 @@ app.use("/api/timetable/classes/image", express.static(path.join(__dirname, 'sta
 cron.schedule("0 22 * * *", () => {
   console.log("Running task at 10:00 PM every day");
   notifyTimetable(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1).toLocaleDateString("en-Gb", { weekday: "long" }));
-}, { timezone: "Asia/Kolkata" })
+}, { timezone: "Asia/Kolkata" });
 
 // Morning 08:00 am
 cron.schedule("0 8 * * *", () => {
   console.log("Running task at 08:00 AM every day");
   notifyTimetable(new Date().toLocaleDateString("en-Gb", { weekday: "long" }));
-}, { timezone: "Asia/Kolkata" })
+}, { timezone: "Asia/Kolkata" });
 
 async function notifyTimetable(day) {
   const years = [1, 2, 3, 4, 5];
@@ -1210,7 +1210,7 @@ async function notifyTimetable(day) {
       });
     });
   });
-}
+};
 
 
 // routing all client endpoints to react build files except api calls

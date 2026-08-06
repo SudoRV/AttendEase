@@ -18,7 +18,7 @@ import { AppStates } from "../context/AppStates";
 import { Fetch } from "../services/api";
 
 export default function LoginPage({ onSwitch }) {
-  const { setUserData, buildUrl } = AppStates();
+  const { setUserData } = AppStates();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -180,7 +180,6 @@ export default function LoginPage({ onSwitch }) {
           visible={resetPassModalVisible}
           onClose={() => setResetPassModalVisible(false)}
           initialEmail={email}
-          buildUrl={buildUrl}
           setUserData={setUserData}
           isDark={isDark}
         />
@@ -207,7 +206,7 @@ export default function LoginPage({ onSwitch }) {
 /* ==========================================================================
    INLINE SUB-COMPONENT: RESET PASSWORD MODAL (DELAY OPTIMIZED)
    ========================================================================== */
-function ResetPasswordModal({ visible, onClose, initialEmail, buildUrl, setUserData, isDark }) {
+function ResetPasswordModal({ visible, onClose, initialEmail, setUserData, isDark }) {
   const [resetStep, setResetStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);

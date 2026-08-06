@@ -17,7 +17,7 @@ import PullToRefresh from "./ui/PullToRefresh";
 import { Fetch } from "../services/api";
 
 const TeacherLeave = () => {
-    const { userData, classes, loadTimetable, loadLeaves, buildUrl, teacherLeaveHistory, formatDate } = AppStates();
+    const { userData, classes, loadTimetable, loadLeaves, teacherLeaveHistory, formatDate } = AppStates();
 
     const [leaveType, setLeaveType] = useState("period");
     const [periods, setPeriods] = useState([]);
@@ -64,13 +64,9 @@ const TeacherLeave = () => {
             
             const payload = {
                 leave_type: leaveType,
-                applicant: userData,
                 classes: periods,
-
                 from: formatDate(fromDate?.setHours(0, 5, 0, 0) || (onDate ? onDate.setHours(0, 5, 0, 0) : new Date().setHours(0, 5, 0, 0))),
-
                 to: formatDate(toDate?.setHours(23, 55, 0, 0) || (onDate ? new Date(onDate).setHours(23, 55, 0, 0) : new Date().setHours(23, 55, 0, 0))),
-
                 on: onDate ? formatDate(onDate?.setHours(0, 5, 0, 0)) : onDate,
             };
 
@@ -357,8 +353,6 @@ const renderTeacherLeaves = (
     setFilter,
     loadLeaves
 ) => {
-
-    const { buildUrl } = AppStates();
 
     const filteredLeaves = (() => {
         switch (filter) {

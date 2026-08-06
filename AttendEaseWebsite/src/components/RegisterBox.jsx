@@ -19,6 +19,8 @@ import { AiOutlineLoading3Quarters } from "react-icons/ai";
 import LandingHeader from "./LandingHeader";
 import LandingFooter from "./LandingFooter";
 
+import { Fetch } from "../services/api";
+
 function RegisterPage() {
   const { buildUrl } = AppStates();
   const navigate = useNavigate();
@@ -52,7 +54,7 @@ function RegisterPage() {
 
 
     try {
-      const response = await fetch(buildUrl("/api/auth/register"), {
+      const response = await Fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -131,7 +133,7 @@ function RegisterPage() {
         return;
       }
 
-      const response = await fetch(buildUrl("/validate-creds"), {
+      const response = await Fetch("/api/auth/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

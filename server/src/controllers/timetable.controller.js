@@ -1,4 +1,5 @@
 const pool = require("../config/mysql");
+const admin = require("../config/fcm");
 
 // fetch student timetable
 exports.studentTimetable = async (req, res) => {
@@ -222,4 +223,78 @@ exports.deleteClass = async (req, res) => {
     console.log(error)
     res.json({ success: false, message: "Internal server error" });
   }
+}
+
+
+
+
+
+
+
+async function notifyGroup(title, body, dataType, data, target_year, target_branch, target_section, scope) {
+  return new Promise(async (resolve, reject) => {
+
+    let topics = []
+
+    if (scope === "students") {
+      const YEARS = ["1", "2", "3", "4"];
+      const BRANCHES = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
+      const SECTIONS = ["A", "B", "C"];
+
+      const years =
+        target_year.includes("all") ? YEARS : target_year;
+
+      const branches =
+        target_branch.includes("all") ? BRANCHES : target_branch;
+
+      const sections =
+        target_section.includes("all") ? SECTIONS : target_section;
+
+      for (const branch of branches) {
+        for (const year of years) {
+          for (const section of sections) {
+            topics.push(`${branch}_${year}_${section}`);
+          }
+        }
+      }
+    } else {
+      topics.push("teachers");
+    }
+
+    topics.forEach(async (topic) => {
+      await admin.messaging().send({
+        topic: topic,
+
+        data: {
+          type: dataType,
+          title: title,
+          body: body,
+          scope: topic,
+          ...data
+        },
+
+        android: {
+          priority: "high",
+        },
+
+        webpush: {
+          headers: {
+            Urgency: "high"
+          },
+
+          notification: {
+            title,
+            body,
+          },
+
+          fcmOptions: {
+            link: "https://attendease-nivr.onrender.com/"
+          }
+        }
+
+      });
+    })
+
+    resolve({ success: true })
+  })
 }

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { requestFCMToken } from "./requestToken";
 import { messaging } from "./firebase";
 import { onMessage } from "firebase/messaging";
+import { Fetch } from "../services/api";
 
 const GlobalContext = createContext();
 
@@ -66,17 +67,15 @@ export const GlobalProvider = ({ children }) => {
         let endpoint = "";
 
         if (role === "student") {
-            endpoint = `/get-timetable?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
+            endpoint = `/api/timetable/student?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
         } else if (role === "teacher") {
-            endpoint = `/get-timetable?teacher_name=${encodeURIComponent(
-                userCreds?.name || ""
-            )}&teacher_id=${userCreds?.teacher_id}&day=${day}`;
+            endpoint = `/api/timetable/teacher?teacher_id=${userCreds?.teacher_id}&day=${day}`;
         } else {
             return;
         }
 
         try {
-            const response = await fetch(buildUrl(endpoint));
+            const response = await Fetch(endpoint);
             const json = await response.json();
             const data = json?.data;
 
@@ -156,7 +155,7 @@ export const GlobalProvider = ({ children }) => {
             const token = await requestFCMToken();
             if (!token) return false;
 
-            const response = await fetch(buildUrl("/save-fcm-token"), {
+            const response = await Fetch("/save-fcm-token", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -187,50 +186,48 @@ export const GlobalProvider = ({ children }) => {
         if (!userData?.email) return;
 
         try {
-            const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
-                JSON.stringify(userData)
-            )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+            // student leaves
+            const studentLeavesEndpoint = `/api/leaves/students?${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
-            const response = await fetch(buildUrl(endpoint));
-            const json = await response.json();
+            const studentLeavesResponse = await Fetch(studentLeavesEndpoint);
+            const studentLeaves = studentLeavesResponse.ok ? await studentLeavesResponse.json() : {};
 
-            // console.log(json)
+            // teacher leaves
+            const teacherLeavesEndpoint = `/api/leaves/teachers?${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
-            if (filter?.month) {
-                return {
-                    month: filter?.month,
-                    ...json
-                };
+            const teacherLeavesResponse = await Fetch(teacherLeavesEndpoint);
+            const teacherLeaves = teacherLeavesResponse.ok ? await teacherLeavesResponse.json() : {};
+
+            // console.log(studentLeaves, filter.month, !!filter, filter?.return, filter?.set)
+
+            if(!!filter && filter?.set) {
+                setLeaveHistory(studentLeaves?.leaves || []);
+                setTeacherLeaveHistory(teacherLeaves?.leaves || []);
             }
             else {
-                setLeaveHistory(json?.data || []);
-                setTeacherLeaveHistory(json?.teacher_leaves || []);
+                setLeaveHistory(studentLeaves?.leaves || []);
+                setTeacherLeaveHistory(teacherLeaves?.leaves || []);
+            }
+
+            if (!!filter && filter?.return) {
+                return {
+                    month: filter?.month,
+                    student_leaves: studentLeaves?.leaves || [],
+                    teacher_leaves: teacherLeaves?.leaves || []
+                };
             }
         } catch (err) {
             console.log("Leaves error:", err);
         }
-    };
-
-    // functions
-    async function doFetch(url, method = "GET", headers = {}, body = null) {
-        try {
-            const response = await fetch(buildUrl(url), {
-                method,
-                headers,
-                body
-            });
-
-            return { data: response, error: null };
-        } catch (err) {
-            return { data: null, error: err };
-        }
     }
 
-    async function loadAnnouncements() {
-        const endpoint = `/announcements?role=${userData?.role || "Student"}&teacher_id=${userData?.teacher_id || null}&year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
-        const response = await doFetch(endpoint, "GET");
-        const res_data = await response.data.json();
+    async function loadAnnouncements() {
+        const endpoint = `/api/announcements?role=${userData?.role || "Student"}&teacher_id=${userData?.teacher_id || null}&year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}&time=${encodeURIComponent(formatDate(new Date()))}`;
+
+        const response = await Fetch(endpoint);
+
+        const res_data = await response.json();
 
         const announcements = res_data.data;
         if (announcements.length > 0) {
@@ -276,7 +273,6 @@ export const GlobalProvider = ({ children }) => {
     const exports = {
         BASE_URL,
         buildUrl,
-        doFetch,
         userData, setUserData,
         classes, setClasses,
         loadTimetable,
