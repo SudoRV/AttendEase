@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const admin = require("./src/config/fcm");
+const pool = require("./src/config/mysql");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
@@ -81,16 +82,21 @@ app.post("/save-fcm-token", verifySessionToken, async (req, res) => {
       device_name = VALUES(device_name),
       active = '1';`;
 
-  // subscribe to topics
-  topics.forEach(async (topic) => {
-    await admin.messaging().subscribeToTopic(token, topic);
-  })
-
   try {
     const result = await pool.query(query, [userData.user_id, "device-1", token, null]);
-    console.log("token saved successfully: ", result)
+
+    console.log("Token saved successfully: ", token);
+
+    // subscribe to topics
+    topics.forEach(async (topic) => {
+      await admin.messaging().subscribeToTopic(token, topic);
+    });
+
+    console.log("Subscribed to topics: ", topics);
+
     res.json({ success: true });
   } catch (err) {
+    console.warn(err)
     res.json({ success: false, error: err });
   }
 })

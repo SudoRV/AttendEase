@@ -13,6 +13,12 @@ router.post("/verify", authController.validateCreds);
 // login
 router.post("/login", authController.login);
 
+// logout
+router.post("/logout", verifySessionToken, authController.logout);
+
+// me
+router.get("/me", verifySessionToken, authController.me);
+
 // change password
 router.patch("/password", verifySessionToken, authController.changePassword);
 

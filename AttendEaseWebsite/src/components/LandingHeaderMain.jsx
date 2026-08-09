@@ -51,7 +51,7 @@ export default function LandingHeader({ toggleSidebar }) {
                 !!!userData?.user_id?.trim() && (
                   <Link
                     to="/login"
-                    className="px-4 py-2 text-center text-indigo-500 border border-indigo-500 rounded-lg"
+                    className="px-4 py-2 text-center text-indigo-500 border border-indigo-500 rounded-lg !bg-red-400"
                   >
                     Sign In
                   </Link>

@@ -58,7 +58,7 @@ exports.validateCreds = async (req, res) => {
 
 // login
 exports.login = async (req, res) => {
-    const { email, password, clientType="web" } = req.body;
+    const { email, password, clientType = "web" } = req.body;
 
     // basic validation
     if (!email || !password) {
@@ -79,7 +79,7 @@ exports.login = async (req, res) => {
 
     // Mask password hash
     delete user.password_hash;
-    
+
     // generate jwt
     const token = jwt.sign({
         user_id: user.user_id,
@@ -88,14 +88,12 @@ exports.login = async (req, res) => {
         token_version: user.token_version || 1
     }, process.env.JWT_SECRET);
 
-    console.log(clientType)
-
     if (isMatch) {
         if (clientType === "web") {
             res.cookie("token", token, {
                 httpOnly: true,
-                secure: false, // true
-                sameSite: "lax", // none
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: "lax",
                 maxAge: 10 * 365 * 24 * 60 * 60 * 1000 // 10 years
             })
             return res.json({ success: true, message: "user authenticated and authorised", user_creds: user });
@@ -105,6 +103,27 @@ exports.login = async (req, res) => {
     } else {
         res.json({ success: false, message: "Incorrect password", });
     }
+}
+
+// logout
+exports.logout = async (req, res) => {
+    const user = req.user;
+
+    res.cookie('token', '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        expires: new Date(0)
+    });
+
+    return res.status(200).json({ success: true, message: 'Logged out successfully' });
+}
+
+// me
+exports.me = async (req, res) => {
+    const user = req.user;
+
+    if (user) return res.json({ success: true, message: "User authenticated and authorized.", user });
 }
 
 // change password 
@@ -135,8 +154,8 @@ exports.requestOtp = async (req, res) => {
     const { email } = req.body;
     const [user] = await pool.query("select email from users where email = ?", [email]);
 
-    if(!user.email) {
-        return res.json({success: false, message: "User doesn't exists!"});
+    if (!user.email) {
+        return res.json({ success: false, message: "User doesn't exists!" });
     }
 
     const otpCode = generateOTP();

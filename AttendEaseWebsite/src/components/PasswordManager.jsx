@@ -14,6 +14,7 @@ import {
 } from "react-icons/fi";
 import {AppStates} from "../services/states";
 import { Fetch } from "../services/api";
+import logout from "../utils/logout";
 
 
 export default function PasswordSettings() {
@@ -73,9 +74,8 @@ export default function PasswordSettings() {
 
         if (response.ok) {
           alert("Password changed successfully. Please log in again.");
-          localStorage.removeItem("user_creds");
           closeModal();
-          setTimeout(() => {window.location.href = "/login";}, 1000);
+          logout();
         } else {
           alert(result.message || "Failed to change password.");
         }
@@ -121,9 +121,8 @@ export default function PasswordSettings() {
 
           if (response.ok) {
             alert("Password reset successful. Please log in with your new password.");
-            localStorage.removeItem("user_creds");
             closeModal();
-            setTimeout(() => {window.location.href = "/login";}, 1000);
+            logout();
           } else {
             alert("Invalid OTP or reset failed.");
           }

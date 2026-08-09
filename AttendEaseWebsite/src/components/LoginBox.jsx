@@ -138,8 +138,6 @@ function LoginPage() {
       if (data.success) {
         setUserData(data.user_creds);
         window.localStorage.setItem("user_creds", JSON.stringify(data.user_creds));
-
-        //alert(data.message);
         setLoading(false);
         navigate('/dashboard');
       }

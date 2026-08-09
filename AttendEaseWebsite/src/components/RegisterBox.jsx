@@ -64,9 +64,9 @@ function RegisterPage() {
 
       const responseJSON = await response.json();
       alert(responseJSON.message);
+      alert("Please login to continue");
 
       if (responseJSON.success === true) {
-        window.localStorage.setItem("user_creds", JSON.stringify(formData));
         setFormData({
           role: "",
           name: "",
@@ -82,7 +82,7 @@ function RegisterPage() {
         setSelectedRole('');
         setEmailValid(null);
         setIDValid(null);
-        navigate('/dashboard');
+        navigate('/login');
       } else {
         setFormData(prevData => ({
           ...prevData,

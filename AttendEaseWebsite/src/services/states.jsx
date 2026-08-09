@@ -2,11 +2,16 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { requestFCMToken } from "./requestToken";
 import { messaging } from "./firebase";
 import { onMessage } from "firebase/messaging";
-import { Fetch } from "../services/api";
+import { Fetch } from "./api";
 
 const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
+    const [userData, setUserData] = useState({});
+    const [classes, setClasses] = useState([]);
+    const [leaveHistory, setLeaveHistory] = useState([]);
+    const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
+    const [announcements, setAnnouncements] = useState([]);
 
     const isProduction = true;
 
@@ -16,7 +21,6 @@ export const GlobalProvider = ({ children }) => {
     const BASE_URL = isProduction
         ? "https://attendease-nivr.onrender.com"
         : `http://${window.location.hostname}:8000`;
-
     const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
     const formatDate = (date) => {
@@ -24,12 +28,6 @@ export const GlobalProvider = ({ children }) => {
         return new Date(date)
             .toISOString()
     };
-
-    const [userData, setUserData] = useState({});
-    const [classes, setClasses] = useState([]);
-    const [leaveHistory, setLeaveHistory] = useState([]);
-    const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
-    const [announcements, setAnnouncements] = useState([]);
 
     // highlight current period
     function runAtWholeHour(fn) {
@@ -125,37 +123,12 @@ export const GlobalProvider = ({ children }) => {
         }
     }
 
-    async function requestNotification() {
-        return new Promise((resolve, reject) => {
-            if (!("Notification" in window)) {
-                alert("This browser does not support notifications.");
-                reject();
-            } else {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") {
-                        console.log("Notification permission granted!");
-                        resolve(true);
-                    } else if (permission === "denied") {
-                        console.log("Permission denied.");
-                        resolve(false);
-                    } else {
-                        console.log("Permission dismissed.");
-                        reject(true);
-                    }
-                });
-            }
-        })
-    }
-
     async function SubscribePushNotification(userCreds) {
-        const granted = await requestNotification();
-        if (!granted) return false;
-
         try {
             const token = await requestFCMToken();
             if (!token) return false;
 
-            const response = await Fetch("/save-fcm-token", {
+            const res = await Fetch("/save-fcm-token", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -173,8 +146,8 @@ export const GlobalProvider = ({ children }) => {
                 })
             });
 
-            const res_data = await response.json();
-            return !!res_data.success;
+            const response = await res.json();
+            return !!response.success;
 
         } catch (err) {
             console.error("Push subscription failed:", err);
@@ -221,7 +194,6 @@ export const GlobalProvider = ({ children }) => {
         }
     }
 
-
     async function loadAnnouncements() {
         const endpoint = `/api/announcements?role=${userData?.role || "Student"}&teacher_id=${userData?.teacher_id || null}&year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
@@ -235,6 +207,32 @@ export const GlobalProvider = ({ children }) => {
         }
     }
 
+    useEffect(() => {
+        // fetch user data
+        const fetchUser = async () => {
+            if(window.location.pathname === "/login" || window.location.pathname === "/signup") return;
+            const res = await Fetch("/api/auth/me");
+            const response = await res.json();
+            const user = response.user;
+
+            if(user) {
+                setUserData(user);
+            } else setUserData(null);
+        }
+        fetchUser();
+    }, [])
+
+    useEffect(() => {
+        if (!userData?.email) return;
+        loadTimetable(userData);
+
+        if (Notification.permission === "granted") {
+            SubscribePushNotification(userData)
+        };
+
+        // load announcement
+        loadAnnouncements();
+    }, [userData])
 
     // listen for incoming notification
     onMessage(messaging, (payload) => {
@@ -245,30 +243,9 @@ export const GlobalProvider = ({ children }) => {
         loadTimetable(userData);
         // load leaves
         loadLeaves(userData?.role);
-
         // load announcement
         loadAnnouncements();
     });
-
-
-    useEffect(() => {
-        const user_creds = localStorage.getItem("user_creds");
-        const userCreds = user_creds ? JSON.parse(user_creds) : undefined;
-
-        if (userCreds?.email !== undefined) {
-            setUserData(userCreds);
-        }
-    }, [])
-
-    useEffect(() => {
-        if (!userData?.email) return;
-        loadTimetable(userData);
-        if (Notification.permission === "granted") SubscribePushNotification(userData);
-
-        // load announcement
-        loadAnnouncements();
-    }, [userData])
-
 
     const exports = {
         BASE_URL,
@@ -280,8 +257,6 @@ export const GlobalProvider = ({ children }) => {
         announcements, loadAnnouncements,
         leaveHistory, setLeaveHistory,
         teacherLeaveHistory,
-        requestNotification,
-        SubscribePushNotification,
         formatDate
     }
 

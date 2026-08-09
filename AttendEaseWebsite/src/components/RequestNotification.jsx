@@ -1,48 +1,40 @@
 import { useEffect, useRef, useState } from "react";
+// import { AppStates } from "../services/states";
+
+export async function requestNotification() {
+  return new Promise((resolve, reject) => {
+    if (!("Notification" in window)) {
+      alert("This browser does not support notifications.");
+      reject();
+    } else {
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+          // console.log("Notification permission granted!");
+          resolve(true);
+        } else if (permission === "denied") {
+          // console.log("Permission denied.");
+          resolve(false);
+        } else {
+          // console.log("Permission dismissed.");
+          reject(true);
+        }
+      });
+    }
+  })
+}
 
 export default function RequestNotification() {
-  const [permissionStatus, setPermissionStatus] = useState("default");
+  // const { userData, SubscribePushNotification } = AppStates();
+  const [permissionStatus, setPermissionStatus] = useState(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      return Notification.permission;
+    }
+    return "default";
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const notificationRef = useRef(null);
-
-  async function requestNotification() {
-    return new Promise((resolve, reject) => {
-      if (!("Notification" in window)) {
-        alert("This browser does not support notifications.");
-        reject();
-      } else {
-        Notification.requestPermission().then(permission => {
-          if (permission === "granted") {
-            console.log("Notification permission granted!");
-            resolve(true);
-          } else if (permission === "denied") {
-            console.log("Permission denied.");
-            resolve(false);
-          } else {
-            console.log("Permission dismissed.");
-            reject(true);
-          }
-        });
-      }
-    })
-  }
-
-  useEffect(() => {
-    if (!("Notification" in window)) {
-      setPermissionStatus("denied");
-      setErrorMessage("Push notifications are not supported on this browser.");
-      return;
-    }
-
-    const initialPermission = Notification.permission;
-    setPermissionStatus(initialPermission);
-
-    if (initialPermission === "denied") {
-      setErrorMessage("Notifications are blocked. Please reset permissions in your browser address bar.");
-    }
-  }, []);
 
   useEffect(() => {
     function handleFocus() {
@@ -67,7 +59,6 @@ export default function RequestNotification() {
     }
 
     window.addEventListener("focus", handleFocus);
-
     return () => {
       window.removeEventListener("focus", handleFocus);
     };

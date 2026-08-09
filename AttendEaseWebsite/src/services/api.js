@@ -10,11 +10,12 @@ export const Fetch = async (endpoint, options = {}) => {
     });
 
     if (response.status === 401) {
+        if(window.location.pathname !== "/dashboard") return response;
         // perform logout
         window.localStorage.removeItem("user_creds");
-        window.location.reload();
-        window.location.href = "/login";
-        throw new Error("Unauthorized access token.");
+        setTimeout(() => {
+            window.location.href = "/login";
+        }, 2600);
     }
 
     return response;

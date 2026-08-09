@@ -27,7 +27,10 @@ const verifySessionToken = async (req, res, next) => {
         return res.status(401).json({ success: false, message: "Session expired or revoked. Please log in again." });
     }
 
-    req.user = user;
+    req.user = {
+        ...user,
+        token
+    };
     next();
 }
 
