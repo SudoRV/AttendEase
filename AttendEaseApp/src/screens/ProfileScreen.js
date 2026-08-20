@@ -10,19 +10,20 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
-import { getMessaging, deleteToken } from '@react-native-firebase/messaging';
+import { useNavigation } from "@react-navigation/native";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppStates } from "../context/AppStates";
 import Auth from "../components/Auth";
 import BleToggle from "../components/BleToggle";
+import Logout from "../utils/logout";
 
 import { Fetch } from "../services/api";
 
 export default function ProfileScreen() {
+  const navigator = useNavigation();
   const { userData, setUserData, setLogout, bleOn, setBleOn, themePreference, updateTheme } = AppStates();
-  const messagingInstance = getMessaging();
 
   // --- LOGOUT LOADING STATE ---
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -59,20 +60,13 @@ export default function ProfileScreen() {
         onPress: async () => {
           setIsLoggingOut(true); // Engages the global visual loading screen layer
           try {
-            // Delete device tokens cleanly across messaging channels
-            await deleteToken(messagingInstance);
-          } catch (tokenErr) {
-            console.log("Push Token release warning:", tokenErr);
-          }
-
-          try {
+            await Logout();
             setUserData(null);
+            navigator.navigate("Profile");
             setLogout(true);
           } catch (err) {
             Alert.alert("Error", "Failed to clear terminal identity profile: " + err);
           } finally {
-            // Ensure runtime context resets safely even on unexpected storage errors
-            setUserData(null);
             setIsLoggingOut(false);
           }
         }
@@ -205,15 +199,12 @@ export default function ProfileScreen() {
               {userData?.name || "User"}
             </Text>
 
-            <Text className="text-indigo-100 text-base mt-1">
-              {userData?.email}
-            </Text>
-
-            <View className="mt-3 bg-white/20 px-4 py-1 rounded-full">
-              <Text className="text-white font-medium text-sm">
-                {userData?.role}
-              </Text>
+            <View className="my-2 bg-white/20 px-4 py-1 rounded-full">
+            <Text className="text-indigo-100 font-bold">{userData?.role} @</Text>
             </View>
+            <Text className="text-indigo-50 text-base text-center font-medium">
+               {userData?.college_name}
+            </Text>
           </View>
         </LinearGradient>
 
@@ -221,23 +212,24 @@ export default function ProfileScreen() {
         <GlassCard title="Academic Information" icon="school-outline">
           {userData?.role === "Student" ? (
             <>
-              <InfoRow label="Year" value={userData?.year} />
+              <InfoRow label="Course" value={userData?.course_name} />
               <InfoRow label="Branch" value={userData?.branch_id} />
+              <InfoRow label="Year" value={userData?.year} />
+              <InfoRow label="Semester" value={userData?.semester} />
               <InfoRow label="Section" value={userData?.section} />
-              <InfoRow label="Student ID" value={userData?.student_id} />
             </>
           ) : (
             <>
               <InfoRow label="Teacher ID" value={userData?.teacher_id} />
-              <InfoRow label="Department" value={userData?.branch_id} />
             </>
           )}
         </GlassCard>
 
         {/* ACCOUNT */}
         <GlassCard title="Account Details" icon="person-circle-outline">
-          <InfoRow label="Email" value={userData?.email} />
           <InfoRow label="Role" value={userData?.role} />
+          <InfoRow label="ID" value={userData?.student_id || userData?.teacher_id} />
+          <InfoRow label="Email" value={userData?.email} />
         </GlassCard>
 
         {/* SECURITY SETTINGS */}

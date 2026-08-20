@@ -4,8 +4,8 @@ const path = require("path");
 const admin = require("./src/config/fcm");
 const pool = require("./src/config/mysql");
 const cookieParser = require("cookie-parser");
+const { buildFcmTopicsByTarget } = require("./src/utils/buildFcmTopics");
 require("dotenv").config();
-
 
 
 
@@ -30,7 +30,7 @@ app.use(cookieParser());
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  'http://10.30.212.249:8000'
+  
 ];
 
 app.use(cors({
@@ -42,6 +42,8 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'QUERY', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
 
@@ -72,32 +74,86 @@ app.get('/download/app', (req, res) => {
 
 // get fcm token from client
 app.post("/save-fcm-token", verifySessionToken, async (req, res) => {
-  const { token, topics } = req.body;
-  const userData = req.user;
+  const { token } = req.body;
+  const user = req.user;
 
-  const query = `INSERT INTO fcm_tokens (user_id, device_id, fcm_token, device_name, active) 
-  VALUES (?, ?, ?, ?, '1') 
+  const topics = await buildFcmTopicsByTarget(user.college_id, [user.course_id], [user.branch_id], [user.year], [user.section], user.role === "Student" ? "students" : "teachers");
+
+  const query = `INSERT INTO fcm_tokens (user_id, device_name, device_id, fcm_token) 
+  VALUES (?, ?, ?, ?) 
   ON DUPLICATE KEY UPDATE 
       fcm_token = VALUES(fcm_token),
-      device_name = VALUES(device_name),
-      active = '1';`;
+      device_name = VALUES(device_name)`;
 
   try {
-    const result = await pool.query(query, [userData.user_id, "device-1", token, null]);
-
-    console.log("Token saved successfully: ", token);
+    const result = await pool.query(query, [user.id, "device-1", null, token]);
 
     // subscribe to topics
     topics.forEach(async (topic) => {
       await admin.messaging().subscribeToTopic(token, topic);
     });
 
-    console.log("Subscribed to topics: ", topics);
-
     res.json({ success: true });
   } catch (err) {
     console.warn(err)
     res.json({ success: false, error: err });
+  }
+})
+
+// potentially new route
+app.get("/college/metadata/all", verifySessionToken, async (req, res) => {
+  const user = req.user;
+
+  const [ rows ] = await pool.query("select group_concat(distinct branch_id) as branch, group_concat(distinct year) as year, group_concat(distinct section) as section, group_concat(distinct day) as day from schedule where college_id = ?", [user.college_id]);
+
+  if(rows.length > 0) res.json({success: true, message: "successfully fetched college metadata!", data: rows[0]});
+  else res.json({success: false, message: `failed to fetch metadata of college id: ${user.college_id}`});
+})
+
+app.query("/college/metadata", verifySessionToken, async (req, res) => {
+  const { query } = req.query;
+  const { college_id: collegeId, course_id: courseId, branch_id: branchId, year } = req.body;
+
+  // console.log(req.query, collegeId, courseId, branchId, year)
+
+  if (query === "colleges") {
+    const [colleges] = await pool.query("select id, college_id, college_name, university from colleges");
+    // console.log(colleges);
+
+    if (colleges.length > 0) return res.status(200).json({success: true, colleges, message: "Successfully fetched colleges."});
+    else res.status(200).json({success: false, colleges: [], message: "No college found!"});
+  } 
+
+  else if (query === "courses") {
+    const [courses] = await pool.query("select distinct c.id, c.course_name, c.course_id, c.total_semesters from courses c inner join schedule s on s.college_id = c.college_id where s.college_id in (?)", [collegeId]);
+    // console.log(courses);
+
+    if (courses.length > 0) return res.status(200).json({success: true, courses, message: "Successfully fetched courses."});
+    else res.status(200).json({success: false, courses: [], message: "No course found for the selected college!"});
+  }
+
+  else if (query === "branches") {
+    const [branches] = await pool.query("select distinct b.id, b.branch_name, b.branch_id from schedule s inner join branches b on s.branch_id = b.branch_id where s.college_id in (?) and s.course_id in (?)", [collegeId, courseId]);
+    // console.log(branches);
+
+    if (branches.length > 0) return res.status(200).json({success: true, branches, message: "Successfully fetched branches."});
+    else res.status(200).json({success: false, branches: [], message: "No branch found for the selected college and course!"});
+  }
+
+  else if (query === "years") {
+    const [years] = await pool.query("select distinct year from schedule where college_id in (?) and course_id in (?) and branch_id in (?)", [collegeId, courseId, branchId]);
+    // console.log(years);
+
+    if (years.length > 0) return res.status(200).json({success: true, years, message: "Successfully fetched years."});
+    else res.status(200).json({success: false, years: [], message: "No year found for the selected college, course and branch!"});
+  }
+
+  else if (query === "sections") {
+    const [sections] = await pool.query("select distinct section from schedule where college_id in (?) and course_id in (?) and branch_id in (?) and year in (?)", [collegeId, courseId, branchId, year]);
+    // console.log(sections);
+
+    if (sections.length > 0) return res.status(200).json({success: true, sections, message: "Successfully fetched sections."});
+    else res.status(200).json({success: false, sections: [], message: "No section found for the selected college, course, branch and year!"});
   }
 })
 
@@ -120,7 +176,7 @@ app.use("/api/announcements", verifySessionToken, announcementRoutes);
 app.use("/api/attendance", verifySessionToken, attendanceRouter);
 
 
-
+ 
 
 // reminders for night and morning timetable
 nightTimetableReminder();
@@ -135,10 +191,10 @@ app.use("/api/timetable/classes/image", express.static(path.join(__dirname, 'sta
 }));
 
 // routing all client endpoints to react build files except api calls
-app.use(express.static(path.join(__dirname, "build")));
-app.get(/.*/, (req, res) => {
-  res.sendFile(path.join(__dirname, "build", "index.html"));
-});
+// app.use(express.static(path.join(__dirname, "build")));
+// app.get(/.*/, (req, res) => {
+//   res.sendFile(path.join(__dirname, "build", "index.html"));
+// });
 
 // ✅ START SERVER
 const PORT = 8000;

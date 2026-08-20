@@ -3,6 +3,8 @@ const BASE_URL = isProduction
     ? "https://attendease-nivr.onrender.com"
     : "http://localhost:8000";
 
+export const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
+
 export const Fetch = async (endpoint, options = {}) => {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
         ...options,

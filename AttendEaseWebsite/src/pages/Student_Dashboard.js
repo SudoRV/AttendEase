@@ -122,10 +122,10 @@ const StudentDashboard = () => {
 
 
       {loading && (
-        <div className="fixed inset-0 z-[999] bg-gradient-to-b from-neutral-900/60 to-neutral-900/60 via-neutral-900/30 backdrop-blur-md flex items-center justify-center">
+        <div className="fixed inset-0 z-[999] bg-gradient-to-b from-neutral-900/60 to-neutral-900/60 via-neutral-900/30 backdrop-blur-lg flex items-center justify-center">
           <div className="bg-transparent px-6 py-4 rounded-2xl  items-center text-center">
-            <p className="text-4xl font-bold text-neutral-800 dark:text-neutral-200">Logging out...</p>
-            <AiOutlineLoading3Quarters className="text-indigo-500 text-6xl animate-spin mt-5 font-semibold" />
+          <AiOutlineLoading3Quarters className="text-indigo-500 text-4xl animate-spin mt-5 font-semibold" />
+            <p className="text-3xl font-bold text-neutral-800 dark:text-neutral-200">Logging out...</p>
           </div>
         </div>
       )}

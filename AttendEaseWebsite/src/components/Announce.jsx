@@ -9,46 +9,97 @@ import {
   FiArrowRight
 } from "react-icons/fi";
 import { useTheme } from '../context/ThemeContext';
-import { useEffect } from "react";
-
+import { useEffect, useRef } from "react";
 import { Fetch } from "../services/api";
 
-const YEAR_OPTIONS = [
-  { value: "all", label: "All Years" },
-  { value: "1", label: "1st Year" },
-  { value: "2", label: "2nd Year" },
-  { value: "3", label: "3rd Year" },
-  { value: "4", label: "4th Year" },
-];
-
-const BRANCH_OPTIONS = [
-  { value: "all", label: "All Branches" },
-  { value: "CSE", label: "CSE" },
-  { value: "AI", label: "AI / ML" },
-  { value: "RA", label: "Robotics" },
-  { value: "ME", label: "ME" },
-  { value: "CE", label: "Civil" },
-  { value: "BCA", label: "BCA" },
-];
-
-const SECTION_OPTIONS = [
-  { value: "all", label: "All Sections" },
-  { value: "A", label: "A" },
-  { value: "B", label: "B" },
-  { value: "C", label: "C" },
-];
 
 export default function Announce() {
-  const { userData, buildUrl, formatDate, loadAnnouncements } = AppStates();
+  const { userData, formatDate, loadAnnouncements } = AppStates();
   const { isDark } = useTheme();
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ title: "", body: "", expires_at: "" });
+  const [targetCourses, setTargetCourses] = useState([]);
   const [targetYears, setTargetYears] = useState([]);
   const [targetBranches, setTargetBranches] = useState([]);
   const [targetSections, setTargetSections] = useState([]);
-
   const [scope, setScope] = useState("students");
+
+
+
+
+  // load colleges, courses, branches, year, semester
+  const [metadata, setMetadata] = useState({
+    courses: [
+      // { value: "all", label: "All Courses" }
+    ],
+    branches: [
+      // { value: "all", label: "All Branches" }
+    ],
+    years: [
+      // { value: "all", label: "All Years" }
+    ],
+    sections: [
+      // { value: "all", label: "All Sections" }
+    ]
+  });
+
+  const queryRef = useRef({
+    query: "courses",
+    added: true
+  });
+
+  let queryTimeout;
+
+  useEffect(() => {
+    if (!userData?.email || scope === "teachers") return;
+  
+    const query = queryRef.current?.query;
+    // console.log(query, queryRef.current)
+
+    if (!queryRef.current.added) return;
+    if(query === "courses" && !userData?.college_id) return;
+    if(query === "branches" && targetCourses.length == 0) return;
+    if(query === "years" && targetBranches.length == 0) return;
+    if(query === "sections" && targetYears.length == 0) return;
+
+    const payload = {
+      college_id: userData?.college_id,
+      course_id: targetCourses.map(c => c.value),
+      branch_id: targetBranches.map(b => b.value),
+      year: targetYears.map(y => y.value)
+    }
+
+    async function fetchMetadata() {
+      const response = await Fetch(`/college/metadata?query=${query}`, {
+        method: "QUERY",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+
+      // console.log(data)
+
+      if (data.courses) setMetadata(prev => ({ ...prev, courses: data.courses.map(c => ({ value: c.course_id, label: c.course_name })) }));
+
+      if (data.branches) setMetadata(prev => ({ ...prev, branches: data.branches.map(b => ({ value: b.branch_id, label: b.branch_name })) }));
+
+      if (data.years) setMetadata(prev => ({ ...prev, years: data.years.map(y => ({ value: y.year, label: y.year })) }));
+
+      if (data.sections) setMetadata(prev => ({ ...prev, sections: data.sections.map(s => ({ value: s.section, label: s.section })) }));
+    }
+
+    if (queryTimeout) clearTimeout(queryTimeout);
+    queryTimeout = setTimeout(() => {
+      fetchMetadata();
+    }, 1000);
+
+  }, [userData, targetCourses, targetBranches, targetYears])
+
+
+
 
   useEffect(() => {
     setTargetYears([]);
@@ -70,11 +121,13 @@ export default function Announce() {
       created_by: {
         name: userData?.name,
         id: userData?.teacher_id,
-        user_id: userData?.user_id
+
       },
+      target_college: userData?.college_id,
       scope,
-      target_year: targetYears.map((o) => o.value),
+      target_course: targetCourses.map((o) => o.value),
       target_branch: targetBranches.map((o) => o.value),
+      target_year: targetYears.map((o) => o.value),
       target_section: targetSections.map((o) => o.value),
       status: "Active",
       expires_at: formData.expires_at
@@ -92,8 +145,9 @@ export default function Announce() {
       const resData = await response.json();
       if (resData.success) {
         loadAnnouncements();
-        setTargetYears([]);
+        setTargetCourses([])
         setTargetBranches([]);
+        setTargetYears([]);
         setTargetSections([]);
         alert("Announcement posted successfully!");
       }
@@ -247,26 +301,57 @@ export default function Announce() {
               <div className="grid gap-3">
                 <Select
                   isMulti
-                  placeholder="Filter Target Year(s)"
-                  options={YEAR_OPTIONS}
-                  value={targetYears}
-                  onChange={setTargetYears}
+                  placeholder="Filter Target Course(s)"
+                  options={metadata?.courses}
+                  value={targetCourses}
+                  onChange={(selectedOption, actionMeta) => {
+                    queryRef.current = {
+                      query: "branches",
+                      added: actionMeta.option ? true : false
+                    };
+                    setTargetCourses(selectedOption);
+                  }}
                   styles={selectStyles}
                 />
+
                 <Select
                   isMulti
                   placeholder="Filter Target Branch(es)"
-                  options={BRANCH_OPTIONS}
+                  options={metadata?.branches}
                   value={targetBranches}
-                  onChange={setTargetBranches}
+                  onChange={(selectedOption, actionMeta) => {
+                    queryRef.current = {
+                      query: "years",
+                      added: actionMeta.option ? true : false
+                    };
+                    setTargetBranches(selectedOption);
+                  }}
                   styles={selectStyles}
                 />
+
+                <Select
+                  isMulti
+                  placeholder="Filter Target Year(s)"
+                  options={metadata?.years}
+                  value={targetYears}
+                  onChange={(selectedOption, actionMeta) => {
+                    queryRef.current = {
+                      query: "sections",
+                      added: actionMeta.option ? true : false
+                    };
+                    setTargetYears(selectedOption);
+                  }}
+                  styles={selectStyles}
+                />
+
                 <Select
                   isMulti
                   placeholder="Filter Target Section(s)"
-                  options={SECTION_OPTIONS}
+                  options={metadata?.sections}
                   value={targetSections}
-                  onChange={setTargetSections}
+                  onChange={(s) => {
+                    setTargetSections(s);
+                  }}
                   styles={selectStyles}
                 />
               </div>

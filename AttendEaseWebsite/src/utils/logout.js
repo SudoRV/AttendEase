@@ -2,9 +2,15 @@ import { Fetch } from "../services/api";
 
 export default async function logout(setLoading) {
     if (setLoading) setLoading(true);
+    const token = await window.localStorage.getItem("fcm_token");
+
     // ask for logout 
     const res = await Fetch("/api/auth/logout", {
-        method: "POST"
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({token: token})
     });
     const response = await res.json();
     const loggedOut = response.success;

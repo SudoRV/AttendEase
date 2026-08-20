@@ -18,7 +18,7 @@ import logout from "../utils/logout";
 
 
 export default function PasswordSettings() {
-  const { buildUrl, userData } = AppStates();
+  const { userData } = AppStates();
   const [modalVisible, setModalVisible] = useState(false);
   const [authMode, setAuthMode] = useState(""); // "change" or "reset"
   const [loading, setLoading] = useState(false);
@@ -30,10 +30,6 @@ export default function PasswordSettings() {
     confirmPassword: "",
     otp: "",
   });
-
-  // Replace this with your backend API URL
-  
-  const API_URL = buildUrl("/reset-password");
 
   const handlePasswordAction = async (e) => {
     e.preventDefault();

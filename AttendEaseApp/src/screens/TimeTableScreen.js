@@ -27,6 +27,7 @@ const TimeTableScreen = () => {
 
   // --- NEW STATE FOR ROOT BOOTSTRAPPING LOCK ---
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const loadingSubjectRef = useRef(false);
 
   // Modal Control States
   const [contextModalVisible, setContextModalVisible] = useState(false);
@@ -39,7 +40,6 @@ const TimeTableScreen = () => {
   const [teacherLeaves, setTeacherLeaves] = useState([]);
   const [longPressAction, setlongPressAction] = useState(""); // "insert", "edit", or "delete"
   const [formData, setFormData] = useState({});
-
   const attendanceRef = useRef(null);
 
   const defaultTimeSlots = [
@@ -51,6 +51,70 @@ const TimeTableScreen = () => {
   // Single truth definition for active data array mapping
   const activeTimetableSource = selectedTimetable?.day ? selectedTimetable : classes;
   const activeClassesArray = activeTimetableSource?.classes || [];
+
+
+  // load colleges, courses, branches, year, semester
+  const [metadata, setMetadata] = useState({
+    courses: [],
+    branches: [],
+    years: [],
+    sections: []
+  });
+
+  const queryRef = useRef("null");
+
+  useEffect(() => {
+    async function fetchMetadata(rKey) {
+      if (!longPressAction) return;
+
+      const queries = {
+        null: "courses", course_id: "branches", branch_id: "years", year: "sections", section: ""
+      };
+      const query = queries[rKey || queryRef.current];
+      if (query === null) return;
+
+      Object.keys(queries).slice(Object.keys(queries).indexOf(query)).forEach(q => {
+        if (!loadingSubjectRef.current) setFormData(prev => ({ ...prev, [q]: "" }));
+      });
+
+      const payload = {
+        college_id: [userData?.college_id],
+        course_id: [formData?.course_id],
+        branch_id: [formData?.branch_id],
+        year: [formData?.year]
+      };
+
+      const q = `/college/metadata?query=${query}`;
+
+      const response = await Fetch(q, {
+        method: "QUERY",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) throw new Error("Metadata query failed");
+      const data = await response.json();
+      // console.log(data)
+      setMetadata(prev => ({ ...prev, ...data }));
+
+      if (loadingSubjectRef.current) {
+        const key = Object.keys(queries)[Object.keys(queries).indexOf(rKey) + 1];
+        // console.log(rKey, query, key, formData[key])
+
+        if (key === "section") {
+          loadingSubjectRef.current = false;
+        }
+        else {
+          if (formData?.course_id) fetchMetadata(key);
+        };
+      }
+
+    }
+
+    fetchMetadata();
+  }, [longPressAction, userData?.college_id, formData?.course_id, formData?.branch_id, formData?.year])
 
   // --- INITIAL BOOTSTRAP SYNC CALL ---
   useEffect(() => {
@@ -66,7 +130,7 @@ const TimeTableScreen = () => {
       } finally {
         // Open the app viewport smoothly
         const consumedTime = (new Date().getTime() - startedTime);
-        if(consumedTime < 2000) {
+        if (consumedTime < 2000) {
           const loadTimeout = setTimeout(() => {
             setIsInitialLoading(false);
             clearTimeout(loadTimeout);
@@ -106,7 +170,9 @@ const TimeTableScreen = () => {
       if (data) {
         setFormData({
           day: data.day || activeTimetableSource.day || "",
-          year: data.year ? String(data.year) : "",
+          year: data.year || "",
+          college_id: userData?.college_id,
+          course_id: userData?.course_id,
           branch_id: data.branch_id || "",
           branch_name: data.branch_name || "",
           section: data.section || "",
@@ -116,12 +182,16 @@ const TimeTableScreen = () => {
           subject_name: data.subject_name || "",
           semester: data.semester ? String(data.semester) : ""
         });
+
+        loadingSubjectRef.current = true;
       }
       setFormModalVisible(true);
     } else if (option === "insert") {
       setFormData({
         day: activeTimetableSource.day || classes.day || "",
         year: "",
+        college_id: "",
+        course_id: "",
         branch_id: "",
         branch_name: "",
         section: "",
@@ -139,6 +209,7 @@ const TimeTableScreen = () => {
 
   // Form value updater
   const handleFormChange = (name, value) => {
+    queryRef.current = name;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -183,8 +254,6 @@ const TimeTableScreen = () => {
         changes: changes
       }
     };
-
-    console.log(longPressAction, payload, longPressAction === "insert" ? "POST" : longPressAction === "edit" ? "PUT" : "DELETE")
 
     try {
       const response = await Fetch("/api/timetable/class", {
@@ -340,10 +409,6 @@ const TimeTableScreen = () => {
           <View className="w-full px-4 flex-row justify-between items-center gap-4 mt-2">
             <Selector
               value={selectedDay || classes.day}
-              defaultOption={{
-                label: classes.day || new Date().toLocaleString("en-Gb", { weekday: "long" }),
-                value: classes.day || new Date().toLocaleString("en-Gb", { weekday: "long" })
-              }}
               options={[
                 { label: "Monday", value: "Monday" },
                 { label: "Tuesday", value: "Tuesday" },
@@ -561,16 +626,29 @@ const TimeTableScreen = () => {
             ) : (
               <ScrollView className="max-h-[380px] pr-1" contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
                 <View className="flex-row gap-2">
+
                   <View className="flex-1">
                     <Text className="text-base font-semibold text-slate-500 mb-1">Day</Text>
-                    <TextInput
+                    <Selector
                       value={formData.day}
-                      onChangeText={(val) => handleFormChange("day", val)}
-                      placeholder="Day Name"
-                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
+                      onChange={(val) => handleFormChange("day", val)}
+                      options={[{ label: "Day", value: "" }, ...["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(d => ({ label: d, value: d }))]}
+                      styleSelector={"w-full bg-zinc-50/50 dark:bg-neutral-950/40 rounded-lg px-3 py-1 border border-zinc-200 dark:border-neutral-800"}
+                      styleButton={"bg-transparent"} />
+                  </View>
+
+                  <View className="w-[65px]">
+                    <Text className="text-base font-semibold text-slate-500 mb-1">Room No</Text>
+                    <TextInput
+                      value={formData.room_number}
+                      onChangeText={(val) => handleFormChange("room_number", val)}
+                      placeholder="Room"
+                      keyboardType="numeric"
+                      className="border border-zinc-200 dark:border-neutral-800 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
-                  <View className="w-[80px]">
+
+                  <View className="w-[65px]">
                     <Text className="text-base font-semibold text-slate-500 mb-1">Period No</Text>
                     <TextInput
                       value={String(formData.period_id ?? "")}
@@ -581,7 +659,7 @@ const TimeTableScreen = () => {
                         handleFormChange("period_id", sanitizedVal === "" ? "" : parseInt(sanitizedVal, 10));
                       }}
                       placeholder="0-9"
-                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
+                      className="border border-zinc-200 dark:border-neutral-800 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
                 </View>
@@ -594,83 +672,64 @@ const TimeTableScreen = () => {
                       onChangeText={(val) => handleFormChange("subject_id", val)}
                       placeholder="e.g. CS-401"
                       autoCapitalize="characters"
-                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
+                      className="border border-zinc-200 dark:border-neutral-800 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
+
                   <View className="flex-1">
                     <Text className="text-base font-semibold text-slate-500 mb-1">Subject Name</Text>
                     <TextInput
                       value={formData.subject_name}
                       onChangeText={(val) => handleFormChange("subject_name", val)}
                       placeholder="e.g. Math"
-                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
+                      className="border border-zinc-200 dark:border-neutral-800 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
                     />
                   </View>
+                </View>
+
+                <View className={"gap-2 flex-row mt-1"}>
+                  <Selector
+                    value={formData?.course_id}
+                    onChange={(item) => handleFormChange("course_id", item.value)}
+                    options={[{ label: "Select course" }, ...metadata?.courses?.map(c => ({ label: `${c.course_id} - ${c.course_name}`, value: c.course_id }))]}
+                    styleSelector={"flex-1 bg-zinc-50/50 dark:bg-neutral-950/40 rounded-lg px-3 py-1 border border-zinc-200 dark:border-neutral-800"}
+                    styleButton={"bg-transparent"} />
+
+                  <Selector
+                    value={formData?.branch_id}
+                    onChange={(item) => handleFormChange("branch_id", item.value)}
+                    options={[{ label: "Select branch" }, ...metadata?.branches?.map(b => ({ label: `${b.branch_id} - ${b.branch_name}`, value: b.branch_id }))]}
+                    styleSelector={"flex-1 bg-zinc-50/50 dark:bg-neutral-950/40 rounded-lg px-3 py-1 border border-zinc-200 dark:border-neutral-800"}
+                    styleButton={"bg-transparent"} />
                 </View>
 
                 <View className="flex-row gap-2">
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-slate-500 mb-1">Year</Text>
-                    <TextInput
-                      value={formData.year}
-                      onChangeText={(val) => handleFormChange("year", val)}
-                      placeholder="Year"
-                      keyboardType="numeric"
-                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-slate-500 mb-1">Semester</Text>
-                    <TextInput
-                      value={formData.semester}
-                      onChangeText={(val) => handleFormChange("semester", val)}
-                      placeholder="Sem"
-                      keyboardType="numeric"
-                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-slate-500 mb-1">Section</Text>
-                    <TextInput
-                      value={formData.section}
-                      onChangeText={(val) => handleFormChange("section", val)}
-                      placeholder="Sec"
-                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
-                    />
-                  </View>
+                  <Selector
+                    value={formData?.year}
+                    onChange={(item) => handleFormChange("year", item.value)}
+                    options={[{ label: "Year" }, ...metadata?.years?.map(y => ({ label: y.year, value: y.year }))]}
+                    styleSelector={"flex-1 bg-zinc-50/50 dark:bg-neutral-950/40 rounded-lg px-3 py-1 border border-zinc-200 dark:border-neutral-800"}
+                    styleButton={"bg-transparent"} />
+
+                  <Selector
+                    value={formData?.semester}
+                    onChange={(item) => handleFormChange("semester", item.value)}
+                    options={formData?.year ? [
+                      { label: "Semester" },
+                      { label: formData?.year * 2 - 1, value: formData?.year * 2 - 1 },
+                      { label: formData?.year * 2, value: formData?.year * 2 }
+                    ] : [{ label: "Semester" },]}
+                    styleSelector={"flex-1 bg-zinc-50/50 dark:bg-neutral-950/40 rounded-lg px-3 py-1 border border-zinc-200 dark:border-neutral-800"}
+                    styleButton={"bg-transparent"} />
+
+                  <Selector
+                    value={formData?.section}
+                    onChange={(item) => handleFormChange("section", item.value)}
+                    options={[{ label: "Section" }, ...metadata?.sections?.map(s => ({ label: s.section, value: s.section }))]}
+                    styleSelector={"flex-1 bg-zinc-50/50 dark:bg-neutral-950/40 rounded-lg px-3 py-1 border border-zinc-200 dark:border-neutral-800"}
+                    styleButton={"bg-transparent"} />
                 </View>
 
-                <View className="flex-row gap-2">
-                  <View className="w-[100px]">
-                    <Text className="text-base font-semibold text-slate-500 mb-1">Room No</Text>
-                    <TextInput
-                      value={formData.room_number}
-                      onChangeText={(val) => handleFormChange("room_number", val)}
-                      placeholder="Room"
-                      keyboardType="numeric"
-                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-slate-500 mb-1">Branch ID</Text>
-                    <TextInput
-                      value={formData.branch_id}
-                      onChangeText={(val) => handleFormChange("branch_id", val)}
-                      placeholder="e.g. CSE"
-                      className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
-                    />
-                  </View>
-                </View>
-
-                <View className="">
-                  <Text className="text-base font-semibold text-slate-500 mb-1">Branch Name</Text>
-                  <TextInput
-                    value={formData.branch_name}
-                    onChangeText={(val) => handleFormChange("branch_name", val)}
-                    placeholder="e.g. Computer Science"
-                    className="border border-slate-200 dark:border-slate-200/40 rounded-lg p-2 text-base bg-slate-50 dark:bg-neutral-800/40 dark:text-neutral-300"
-                  />
-                </View>
               </ScrollView>
             )}
 

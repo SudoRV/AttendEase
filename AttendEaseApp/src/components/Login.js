@@ -48,6 +48,7 @@ export default function LoginPage({ onSwitch }) {
       const data = await response.json();
 
       if (data?.user_creds) {
+        console.log(data?.user_creds)
         await AsyncStorage.setItem("user_creds", JSON.stringify(data.user_creds));
         await AsyncStorage.setItem("session_token", data.token);
 

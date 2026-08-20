@@ -35,12 +35,12 @@ const AlertsScreen = () => {
 
   const loadAnnouncements = async (user) => {
     try {
-      const endpoint = `/api/announcements?role=${user?.role || "Student"}&teacher_id=${user?.teacher_id || null}&year=${user.year || ""}&branch=${user.branch_id || ""}&section=${user.section || ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+      const endpoint = `/api/announcements?role=${user?.role || "Student"}&teacher_id=${user?.teacher_id || null}&college_id=${userData?.college_id}&course_id=${userData?.course_id}&year=${user.year || ""}&branch=${user.branch_id || ""}&section=${user.section || ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
       
-      const response = await Fetch(endpoint);
-      const json = await response.json();
+      const res = await Fetch(endpoint);
+      const response = await res.json();
 
-      if (json?.data) setAnnouncements(json.data);
+      if (response?.ok) setAnnouncements(response.data);
     } catch (err) {
       console.log("Announcements network fetch error:", err);
     }

@@ -11,7 +11,8 @@ import {
 
 import GradientWrapper from "./ui/LinearGradient";
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { AppStates, database } from "../context/AppStates";
+import { AppStates } from "../context/AppStates";
+import clean from "../utils/cleanCollegeMetadata";
 
 const Announcements = ({ type, announcements, loadAnnouncements }) => {
   const { userData, database } = AppStates();
@@ -39,19 +40,19 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
       let rows = [];
 
       if (results?.rows?._array) {
-        // 1. Fastest extraction method if _array contains your objects
         rows = results.rows._array;
         rows = rows.filter(r => {
-          if(r.type === "announcement") {
+          if (r.type === "announcement") {
             const scope = JSON.parse(r.scope);
-            if (scope.branches.some(b => b === userData.branch_id || b === "all") && scope.years.some(y => y === `${userData.year}` || y === "all") && scope.sections.some(s => s === userData.section || s === "all")) return r;
+            if (scope.branches.some(b => b === clean(userData.branch_id) || b === "all") && scope.years.some(y => y === `${userData.year}` || y === "all") && scope.sections.some(s => s === userData.section || s === "all")) return r;
           } else {
-            const scope = r.scope.split("_");
-            if((scope[0] === userData?.branch_id || scope[0] === "all") && (scope[1] === `${userData?.year}` || scope[1] === "all") && (scope[2] === userData?.section || scope[2] === "all")) return r;
+            let scope = r.scope.replace(`COLLEGE_${userData?.college_id}_`, "").split("_");
+            if(r.source === "FCM") scope = scope.slice(1);
+            if (scope.includes("Individual")) return r;
+            if ((scope[0] === userData?.branch_id || scope[0] === "all") && (scope[1] === `${userData?.year}` || scope[1] === "all") && (scope[2] === userData?.section || scope[2] === "all")) return r;
           }
         })
       } else if (results?.rows?.length > 0) {
-        // 2. Safe fallback loop utilizing the .item() function mapped in your log
         for (let i = 0; i < results.rows.length; i++) {
           rows.push(results.rows.item(i));
         }
@@ -253,7 +254,7 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
 
               <View className="flex-row items-center gap-2.5">
                 <TouchableOpacity onPress={() => setNotificationModalVisible(false)} className="p-1 active:opacity-80">
-                  <Ionicons name="close-circle" size={32}  color={"#ccc"} className="dark:!text-neutral-300" />
+                  <Ionicons name="close-circle" size={32} color={"#ccc"} className="dark:!text-neutral-300" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -309,8 +310,8 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
                     return (
                       <View
                         className={`p-4 rounded-2xl mb-3 border flex-row items-start gap-3 ${item.is_read === 0
-                            ? "bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100/80 dark:border-indigo-900/40"
-                            : "bg-slate-50/60 dark:bg-neutral-950/40 border-slate-100/80 dark:border-neutral-800/60"
+                          ? "bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100/80 dark:border-indigo-900/40"
+                          : "bg-slate-50/60 dark:bg-neutral-950/40 border-slate-100/80 dark:border-neutral-800/60"
                           }`}
                       >
                         {/* Status Source Badge Circle */}

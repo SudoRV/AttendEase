@@ -48,7 +48,7 @@ export default function LandingHeader({ toggleSidebar }) {
             {/* Desktop CTA Buttons */}
             <div className="hidden md:flex gap-3">
               {
-                !!!userData?.user_id?.trim() && (
+                !!!userData?.id?.trim() && (
                   <Link
                     to="/login"
                     className="px-4 py-2 text-center text-indigo-500 border border-indigo-500 rounded-lg !bg-red-400"
@@ -87,7 +87,7 @@ export default function LandingHeader({ toggleSidebar }) {
               <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-neutral-600">
 
                 {
-                  !userData?.user_id?.trim() && (
+                  !userData?.id?.trim() && (
                     <Link
                       to="/login"
                       className="px-4 py-2 text-center text-indigo-500 border border-indigo-500 rounded-lg"

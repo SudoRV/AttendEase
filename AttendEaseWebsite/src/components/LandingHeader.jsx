@@ -57,7 +57,7 @@ export default function LandingHeader({ toggleSidebar }) {
                     {/* Desktop CTA Buttons */}
                     <div className="hidden md:flex gap-3">
                         {
-                            !userData?.user_id?.trim() && window.location.pathname !== "/login" && (
+                            !userData?.id && window.location.pathname !== "/login" && (
                                 <Link
                                     to="/login"
                                     className="px-4 py-2 text-center text-indigo-500 border border-indigo-500 rounded-lg"
@@ -71,9 +71,9 @@ export default function LandingHeader({ toggleSidebar }) {
 
                             <button
                                 onClick={() => navigate('/dashboard')}
-                                className={`px-4 py-2 text-white rounded-lg hover:shadow-lg transition text-[15px] font-medium border-none ${!userData.user_id ? "bg-neutral-700" : "bg-gradient-to-r from-indigo-600 to-indigo-500 !cursor-pointer"}`}
+                                className={`px-4 py-2 text-white rounded-lg hover:shadow-lg transition text-[15px] font-medium border-none ${!userData?.id ? "bg-neutral-700" : "bg-gradient-to-r from-indigo-600 to-indigo-500 !cursor-pointer"}`}
 
-                                disabled={!userData.user_id}
+                                disabled={!userData?.id}
                             >
                                 Dashboard
                             </button>
@@ -88,7 +88,7 @@ export default function LandingHeader({ toggleSidebar }) {
             <div className="max-w-[1440px] mr-4 px-4 md:mx-auto sm:px-6 lg:px-8 -mb-0.5 overflow-x-auto overflow-y-hidden">
                 <div className="items-left justify-left flex gap-2 md:gap-5">
                     {NAV_TABS.map((tab) => (
-                        (tab.id !== "dashboard" || userData.user_id) && (
+                        (tab.id !== "dashboard" || userData?.id) && (
                             <button
                                 key={tab.id}
                                 onClick={() => {

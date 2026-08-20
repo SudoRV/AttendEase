@@ -21,7 +21,7 @@ import { Fetch } from "../services/api";
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { setUserData, buildUrl } = AppStates();
+  const { setUserData } = AppStates();
   const [loading, setLoading] = useState(false);
 
   const [emailValue, setEmailValue] = useState("");
@@ -154,6 +154,7 @@ function LoginPage() {
   /* =====================
        EMAIL VALIDATION
   ===================== */
+  let verifyCredentialsTimeout;
   const validate = async (event) => {
     const value = event.target.value;
     setEmailValue(value);
@@ -164,16 +165,21 @@ function LoginPage() {
     }
 
     try {
-      const response = await Fetch("/api/auth/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ "email": value })
-      });
+      if (verifyCredentialsTimeout) clearTimeout(verifyCredentialsTimeout);
+      verifyCredentialsTimeout = setTimeout(async () => {
+        const response = await Fetch("/api/auth/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ "email": value })
+        });
 
-      const isValid = await response.json();
-      setEmailValid(isValid.success ? true : false);
+        const isValid = await response.json();
+        setEmailValid(isValid.success ? true : false);
+        clearTimeout(verifyCredentialsTimeout);
+        verifyCredentialsTimeout = undefined;
+      }, 800);
     } catch (err) {
       console.error(err);
       setEmailValid(null);
@@ -301,13 +307,13 @@ function LoginPage() {
       {resetPassModalVisible && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-colors">
           <div className="bg-white dark:bg-neutral-900 border border-transparent dark:border-neutral-800 rounded-3xl w-full max-w-md p-6 shadow-2xl space-y-4">
-            
+
             <div className="flex justify-between items-center pb-2 border-b border-neutral-100 dark:border-neutral-800">
               <h3 className="text-lg font-bold text-neutral-900 dark:text-neutral-100">
                 Reset Password
               </h3>
-              <button 
-                onClick={closeResetModal} 
+              <button
+                onClick={closeResetModal}
                 className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 bg-transparent border-none p-0.5 cursor-pointer"
               >
                 <FiXCircle size={22} />
@@ -333,7 +339,7 @@ function LoginPage() {
                       />
                     </div>
                   </div>
-                  
+
                   <p className="text-neutral-500 dark:text-neutral-400 text-xs text-center leading-relaxed">
                     We will send a one-time password to your registered email to verify your identity.
                   </p>
@@ -430,14 +436,14 @@ function LoginPage() {
         </div>
       )}
       {loading && (
-        <div className="fixed inset-0 z-[999] bg-gradient-to-b from-neutral-900/60 to-neutral-900/60 via-neutral-900/30 backdrop-blur-md flex items-center justify-center">
+        <div className="fixed inset-0 z-[999] bg-gradient-to-b from-neutral-900/60 to-neutral-900/60 via-neutral-900/30 backdrop-blur-lg flex items-center justify-center">
           <div className="bg-transparent px-6 py-4 rounded-2xl  items-center text-center">
-            <p className="text-4xl font-bold text-neutral-800 dark:text-neutral-200">Logging in...</p>
-            <AiOutlineLoading3Quarters className="text-indigo-500 text-6xl animate-spin mt-5 font-semibold"/>
+            <AiOutlineLoading3Quarters className="text-indigo-500 text-4xl animate-spin mt-5 font-semibold" />
+            <p className="text-3xl font-bold text-neutral-800 dark:text-neutral-200">Logging in...</p>
           </div>
         </div>
       )}
-      
+
     </div>
   );
 }

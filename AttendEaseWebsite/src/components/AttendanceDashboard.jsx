@@ -45,7 +45,7 @@ const injectionCode = `javascript:(()=>{
 })();`;
 
 export default function AttendanceDashboard() {
-  const { userData, buildUrl, classes, loadTimetable, setUserData } = AppStates();
+  const { userData, classes, loadTimetable, setUserData } = AppStates();
   const [hasConfig, setHasConfig] = useState(false);
   const [showSemesterPicker, setShowSemesterPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);

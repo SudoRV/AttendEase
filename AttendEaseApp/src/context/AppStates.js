@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useRoute } from '@react-navigation/native'
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import requestFcmToken from "../utils/requestFcmToken";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import { useColorScheme } from 'nativewind';
 import { enableBluetooth } from "../components/BleToggle";
 import changeNavigationBarColor from 'react-native-navigation-bar-color';
+import { getCurrentTab } from "../navigation/AppNavigator";
 
 import BleDataPropagation from "../utils/BleDataPropagation";
 import { startMeshScannerLoop } from "../utils/BleDataScanning";
@@ -25,10 +27,8 @@ const formatDate = (date) => {
 
 function sHash(str) {
   let hash = 0x811c9dc5;
-
   for (let i = 0; i < str.length; i++) {
     hash ^= str.charCodeAt(i);
-
     hash = Math.imul(hash, 0x01000193);
   }
   return hash >>> 0;
@@ -49,56 +49,11 @@ export const GlobalProvider = ({ children }) => {
   const [themePreference, setThemePreference] = useState('system');
   const [loadingTheme, setLoadingTheme] = useState(true);
   const [isDark, setIsDark] = useState(null);
+  const database = getDBConnection();
 
   // ble dev states
   const [bleDevices, setBleDevices] = useState([]);
   const [bleError, setBleError] = useState("");
-
-  useEffect(() => {
-    // Bind context state modifiers directly to the scanning engine reference pointers
-    initializeScannerCallbacks(setBleDevices, setBleError);
-  }, []);
-
-  const database = getDBConnection();
-
-  // Load saved theme from storage on app bootup
-  useEffect(() => {
-    async function loadSavedTheme() {
-      try {
-        const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (!!savedTheme) {
-          setThemePreference(savedTheme);
-          setColorScheme(savedTheme);
-        } else {
-          setThemePreference('system');
-          setColorScheme('system');
-        }
-      } catch (e) {
-        console.error("Failed to load theme preference", e);
-      } finally {
-        setLoadingTheme(false);
-      }
-    }
-    loadSavedTheme();
-  }, []);
-
-  useEffect(() => {
-    const is_dark = colorScheme === "dark";
-    setIsDark(is_dark);
-
-    async function setNavColor() {
-      try {
-        await changeNavigationBarColor(
-          is_dark ? '#171717' : '#ffffff',
-          !is_dark,
-          false
-        );
-      } catch (e) {
-        console.log(e);
-      }
-    }
-    setNavColor();
-  }, [colorScheme])
 
   const updateTheme = async (newMode) => {
     setThemePreference(newMode);
@@ -120,6 +75,59 @@ export const GlobalProvider = ({ children }) => {
 
       setInterval(fn, 60 * 60 * 1000); // every whole hour
     }, msToNextHour);
+  }
+
+  const saveFcmToken = async (userCreds) => {
+    if (!userCreds || !userCreds.email) return false;
+
+    try {
+      // 1. Get the token (This triggers the permission prompt if needed)
+      const token = await requestFcmToken();
+      await AsyncStorage.setItem("fcm_token", token);
+
+      // If user denied permission or token failed, exit cleanly
+      if (!token) return false;
+
+      // 3. Save to your database
+      const response = await Fetch("/save-fcm-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: token,
+        })
+      });
+
+      if (!response.ok) {
+        console.error("Backend refused token save:", response.status);
+        return false;
+      }
+
+      console.log("✅ FCM Token & Topics saved successfully!");
+      return true;
+
+    } catch (error) {
+      console.error("Crash inside saveFcmToken:", error);
+      return false;
+    }
+  };
+
+  // load whole week timetable and save it in database
+  async function saveTimetable() {
+    const timetable = await loadTimetable(userData, "null");
+    if (!timetable) return;
+
+    if (Object.keys(timetable).length > 1) {
+      Object.keys(timetable).forEach(day => {
+        const items = timetable[day];
+        items.forEach(item => {
+          database.execute(`insert or replace into timetable (id,branch_id,branch_name,year,semester,section,day,period_id,subject_id,subject_name,room_number,teacher_id,teacher_name,cancelled,cancelled_from,cancelled_to,substitute_teacher_id,substitute_teacher_name,substituted_till
+          )
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+            item.id, item.branch_id, item.branch_name, item.year, item.semester, item.section, item.day, item.period_id, item.subject_id, item.subject_name, item.room_number, item.teacher_id, item.teacher_name, item.cancelled ? 1 : 0, item.cancelled_from, item.cancelled_to, item.substitute_teacher_id, item.substitute_teacher_name, item.substituted_till
+          ])
+        })
+      })
+    }
   }
 
   runAtWholeHour(() => {
@@ -247,13 +255,20 @@ export const GlobalProvider = ({ children }) => {
      INIT USER (AsyncStorage)
   ===================== */
   useEffect(() => {
-    const loadStoredUser = async () => {
-      const stored = await AsyncStorage.getItem("user_creds");
-      if (stored) {
-        setUserData(JSON.parse(stored));
-      }
-    };
-    loadStoredUser();
+    // fetch user data
+    const fetchUser = async () => {
+      const tab = getCurrentTab();
+      if (tab === "Login") return;
+
+      const res = await Fetch("/api/auth/me");
+      const response = await res.json();
+      const user = response.user;
+
+      if (user) {
+        setUserData(user);
+      } else setUserData(null);
+    }
+    fetchUser();
 
     // load ble state
     async function checkBleState() {
@@ -278,52 +293,50 @@ export const GlobalProvider = ({ children }) => {
     checkBleState();
   }, []);
 
-  /* =====================
-     AUTO LOAD DATA
-  ===================== */
 
-  const saveFcmToken = async (userCreds) => {
-    if (!userCreds || !userCreds.email) return false;
+  useEffect(() => {
+    // Bind context state modifiers directly to the scanning engine reference pointers
+    initializeScannerCallbacks(setBleDevices, setBleError);
+  }, []);
 
-    try {
-      // 1. Get the token (This triggers the permission prompt if needed)
-      const token = await requestFcmToken();
+  useEffect(() => {
+    const is_dark = colorScheme === "dark";
+    setIsDark(is_dark);
 
-      // If user denied permission or token failed, exit cleanly
-      if (!token) return false;
-
-      // 2. Determine topics
-      const topics = userCreds.role?.toLowerCase() === "student"
-        ? [
-          `year_${userCreds.year}`,
-          `branch_${userCreds.branch_id}`,
-          `${userCreds.branch_id}_${userCreds.year}_${userCreds.section}`
-        ]
-        : ["teachers"];
-
-      // 3. Save to your database
-      const response = await Fetch("/save-fcm-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: token,
-          topics: topics
-        })
-      });
-
-      if (!response.ok) {
-        console.error("Backend refused token save:", response.status);
-        return false;
+    async function setNavColor() {
+      try {
+        await changeNavigationBarColor(
+          is_dark ? '#171717' : '#ffffff',
+          !is_dark,
+          false
+        );
+      } catch (e) {
+        console.log(e);
       }
-
-      console.log("✅ FCM Token & Topics saved successfully!");
-      return true;
-
-    } catch (error) {
-      console.error("Crash inside saveFcmToken:", error);
-      return false;
     }
-  };
+    setNavColor();
+  }, [colorScheme])
+
+  // Load saved theme from storage on app bootup
+  useEffect(() => {
+    async function loadSavedTheme() {
+      try {
+        const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+        if (!!savedTheme) {
+          setThemePreference(savedTheme);
+          setColorScheme(savedTheme);
+        } else {
+          setThemePreference('system');
+          setColorScheme('system');
+        }
+      } catch (e) {
+        console.error("Failed to load theme preference", e);
+      } finally {
+        setLoadingTheme(false);
+      }
+    }
+    loadSavedTheme();
+  }, []);
 
   useEffect(() => {
     if (!userData?.email) return;
@@ -359,8 +372,8 @@ export const GlobalProvider = ({ children }) => {
     // 2. Set up the foreground listener
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
       console.log('A new FCM message arrived!', JSON.stringify(remoteMessage));
-      // save to local database
 
+      // save to local database
       const notification_id = (sHash(remoteMessage.messageId) >>> 0)
         .toString(16).toUpperCase()
         .padStart(8, "0");
@@ -383,24 +396,9 @@ export const GlobalProvider = ({ children }) => {
     };
   }, [userData]);
 
-  // load whole week timetable and save it in database
-  async function saveTimetable() {
-    const timetable = await loadTimetable(userData, "null");
-    if (!timetable) return;
-
-    if (Object.keys(timetable).length > 1) {
-      Object.keys(timetable).forEach(day => {
-        const items = timetable[day];
-        items.forEach(item => {
-          database.execute(`insert or replace into timetable (id,branch_id,branch_name,year,semester,section,day,period_id,subject_id,subject_name,room_number,teacher_id,teacher_name,cancelled,cancelled_from,cancelled_to,substitute_teacher_id,substitute_teacher_name,substituted_till
-          )
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-            item.id, item.branch_id, item.branch_name, item.year, item.semester, item.section, item.day, item.period_id, item.subject_id, item.subject_name, item.room_number, item.teacher_id, item.teacher_name, item.cancelled ? 1 : 0, item.cancelled_from, item.cancelled_to, item.substitute_teacher_id, item.substitute_teacher_name, item.substituted_till
-          ])
-        })
-      })
-    }
-  }
+  /* =====================
+     AUTO LOAD DATA
+  ===================== */
 
   return (
     <GlobalContext.Provider

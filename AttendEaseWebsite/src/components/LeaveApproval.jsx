@@ -17,7 +17,6 @@ import { Fetch } from "../services/api";
 const StudentLeaveManagement = () => {
   const {
     userData,
-    buildUrl,
     loadLeaves,
     leaveHistory,
     setLeaveHistory,
@@ -258,7 +257,7 @@ const StudentLeaveManagement = () => {
           ))
         ) : (
           /* High-Fidelity Modern Empty State Fallback Screen Layout Container */
-          <div className="col-span-full flex flex-col items-center justify-center py-16 px-4 text-center bg-neutral-50/40 dark:bg-neutral-900/10 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl select-none animate-in fade-in duration-300">
+          <div className="col-span-full h-full flex flex-col items-center justify-center py-16 px-4 text-center bg-neutral-50/40 dark:bg-neutral-900/10 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl select-none animate-in fade-in duration-300">
 
             <div className="w-16 h-16 rounded-2xl bg-neutral-100 dark:bg-neutral-900 flex items-center justify-center text-neutral-400 dark:text-neutral-500 mb-3 border border-neutral-200/50 dark:border-neutral-800">
               <FiInbox size={30} />

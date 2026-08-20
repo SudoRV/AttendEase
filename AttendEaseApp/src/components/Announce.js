@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,17 +13,14 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { AppStates } from "../context/AppStates";
 import { Fetch } from "../services/api";
 
-const YEARS = ["1", "2", "3", "4", "5"];
-const BRANCHES = ["CSE", "AI", "RA", "ME", "CE", "BCA"];
-const SECTIONS = ["A", "B", "C"];
-
 export default function Announce() {
-  const { formatDate, isDark } = AppStates();
+  const { formatDate, isDark, userData } = AppStates();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [targetCourses, setTargetCourses] = useState([]);
   const [targetYears, setTargetYears] = useState([]);
   const [targetBranches, setTargetBranches] = useState([]);
   const [targetSections, setTargetSections] = useState([]);
@@ -40,14 +37,6 @@ export default function Announce() {
     setTargetSections([]);
   }, [scope]);
 
-  const toggleSelection = (value, list, setter) => {
-    setter(
-      list.includes(value)
-        ? list.filter(v => v !== value)
-        : [...list, value]
-    );
-  };
-
   async function handleAnnounce() {
     if (!title.trim() || !body.trim()) {
       Alert.alert("Error", "Title and Body are required.");
@@ -58,9 +47,15 @@ export default function Announce() {
       title,
       body,
       scope,
-      target_year: targetYears,
-      target_branch: targetBranches,
-      target_section: targetSections,
+      created_by: {
+        name: userData?.name,
+        id: userData?.teacher_id,
+      },
+      target_college: userData?.college_id,
+      target_course: targetCourses.map(u => u.value),
+      target_year: targetYears.map(u => u.value),
+      target_branch: targetBranches.map(u => u.value),
+      target_section: targetSections.map(u => u.value),
       status: "Active",
       expires_at: formatDate(expiryDate || new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1))
     };
@@ -94,7 +89,90 @@ export default function Announce() {
     }
   }
 
-  const renderMultiSelect = (label, data, selected, setter) => (
+  // load colleges, courses, branches, year, semester
+  const [metadata, setMetadata] = useState({
+    courses: [
+      // { value: "all", label: "All Courses" }
+    ],
+    branches: [
+      // { value: "all", label: "All Branches" }
+    ],
+    years: [
+      // { value: "all", label: "All Years" }
+    ],
+    sections: [
+      // { value: "all", label: "All Sections" }
+    ]
+  });
+
+  const queryRef = useRef({
+    query: "courses",
+    added: true
+  });
+
+  let queryTimeout;
+
+  useEffect(() => {
+    if (!userData?.email || scope === "teachers") return;
+
+    const query = queryRef.current?.query;
+    // console.log(query, queryRef.current)
+
+    if (!queryRef.current.added) return;
+    if (query === "courses" && !userData?.college_id) return;
+    if (query === "branches" && targetCourses.length == 0) return;
+    if (query === "years" && targetBranches.length == 0) return;
+    if (query === "sections" && targetYears.length == 0) return;
+
+    const payload = {
+      college_id: userData?.college_id,
+      course_id: targetCourses.map(c => c.value),
+      branch_id: targetBranches.map(b => b.value),
+      year: targetYears.map(y => y.value)
+    }
+
+    // console.log(query, payload)
+
+    async function fetchMetadata() {
+      const response = await Fetch(`/college/metadata?query=${query}`, {
+        method: "QUERY",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+
+      if (data.courses) setMetadata(prev => ({ ...prev, courses: data.courses.map(c => ({ value: c.course_id, label: c.course_name })) }));
+
+      if (data.branches) setMetadata(prev => ({ ...prev, branches: data.branches.map(b => ({ value: b.branch_id, label: b.branch_name })) }));
+
+      if (data.years) setMetadata(prev => ({ ...prev, years: data.years.map(y => ({ value: y.year, label: y.year })) }));
+
+      if (data.sections) setMetadata(prev => ({ ...prev, sections: data.sections.map(s => ({ value: s.section, label: s.section })) }));
+    }
+
+    if (queryTimeout) clearTimeout(queryTimeout);
+    queryTimeout = setTimeout(() => {
+      fetchMetadata();
+    }, 600);
+
+  }, [userData, targetCourses, targetBranches, targetYears])
+
+  const toggleSelection = (label, value, list, setter) => {
+    queryRef.current = {
+      query: label,
+      added: !list.includes(value)
+    };
+
+    setter(
+      list.includes(value)
+        ? list.filter(v => v !== value)
+        : [...list, value]
+    );
+  };
+
+  const renderMultiSelect = (label, qLabel, data, selected, setter) => (
     <View className="mb-6">
       <Text className="text-base font-bold text-zinc-800 dark:text-neutral-200 mb-3 tracking-tight">
         {label}
@@ -105,10 +183,10 @@ export default function Announce() {
           const active = selected.includes(item);
           return (
             <TouchableOpacity
-              key={item}
+              key={item?.value}
               activeOpacity={0.7}
               onPress={() =>
-                toggleSelection(item, selected, setter)
+                toggleSelection(qLabel, item, selected, setter)
               }
               className={`px-4 py-2 rounded-xl border font-medium ${active
                 ? "bg-indigo-600 border-indigo-600 dark:bg-indigo-600 dark:border-indigo-500"
@@ -116,12 +194,12 @@ export default function Announce() {
                 }`}
             >
               <Text
-                className={`font-semibold text-base ${active 
-                  ? "text-white" 
+                className={`font-semibold text-base ${active
+                  ? "text-white"
                   : "text-zinc-700 dark:text-neutral-300"
-                }`}
+                  }`}
               >
-                {item}
+                {item?.value}
               </Text>
             </TouchableOpacity>
           );
@@ -131,8 +209,8 @@ export default function Announce() {
   );
 
   return (
-    <ScrollView 
-      contentContainerStyle={{ paddingBottom: 30 }} 
+    <ScrollView
+      contentContainerStyle={{ paddingBottom: 30 }}
       className="flex-1 px-4 bg-zinc-50 dark:bg-neutral-900 mt-4"
       showsVerticalScrollIndicator={false}
     >
@@ -213,9 +291,10 @@ export default function Announce() {
         {/* CONDITIONALLY RENDERED MULTISELECTS FOR STUDENTS */}
         {scope === "students" && (
           <View className="bg-zinc-50/50 dark:bg-neutral-900/30 border border-zinc-100 dark:border-neutral-800/40 p-4 rounded-2xl mb-6">
-            {renderMultiSelect("Years", YEARS, targetYears, setTargetYears)}
-            {renderMultiSelect("Branches", BRANCHES, targetBranches, setTargetBranches)}
-            {renderMultiSelect("Sections", SECTIONS, targetSections, setTargetSections)}
+            {renderMultiSelect("courses", "branches", metadata?.courses, targetCourses, setTargetCourses)}
+            {renderMultiSelect("Branches", "years", metadata?.branches, targetBranches, setTargetBranches)}
+            {renderMultiSelect("Years", "sections", metadata?.years, targetYears, setTargetYears)}
+            {renderMultiSelect("Sections", undefined, metadata?.sections, targetSections, setTargetSections)}
           </View>
         )}
 
@@ -286,10 +365,10 @@ export default function Announce() {
           onPress={handleAnnounce}
           disabled={loading}
           activeOpacity={0.8}
-          className={`py-4 rounded-2xl shadow-sm items-center ${loading 
-            ? "bg-indigo-300 dark:bg-indigo-800/50" 
+          className={`py-4 rounded-2xl shadow-sm items-center ${loading
+            ? "bg-indigo-300 dark:bg-indigo-800/50"
             : "bg-indigo-600 dark:bg-indigo-600"
-          }`}
+            }`}
         >
           <Text className={`text-sm font-bold tracking-wide ${loading ? 'text-indigo-100' : 'text-white'}`}>
             {loading ? "Publishing…" : "Publish Announcement"}

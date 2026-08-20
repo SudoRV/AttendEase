@@ -13,6 +13,8 @@ exports.submitStudentLeave = async (req, res) => {
     if (applicant.role === "Student") {
         query = `insert into leaves (
         name, 
+        college_id,
+        course_id,
         year, 
         branch,
         student_id, 
@@ -22,7 +24,7 @@ exports.submitStudentLeave = async (req, res) => {
         applicable_to, 
         status,
         affected_days
-      ) select ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?
+      ) select ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?
        where not exists (
         select 1 
         from leaves
@@ -31,12 +33,11 @@ exports.submitStudentLeave = async (req, res) => {
           and applicable_from = ?
           and applicable_to = ?
        )`;
-        values = [applicant?.name, applicant?.year, applicant?.branch_id, applicant?.student_id, subject, application, new Date(applicable_from), new Date(applicable_to), affected_days, applicant?.student_id, new Date(applicable_from), new Date(applicable_to)];
+        values = [applicant?.name, applicant?.college_id, applicant?.course_id, applicant?.year, applicant?.branch_id, applicant?.student_id, subject, application, new Date(applicable_from), new Date(applicable_to), affected_days, applicant?.student_id, new Date(applicable_from), new Date(applicable_to)];
     }
 
     try {
         const [response] = await pool.query(query, values);
-        console.log(response)
         if (response.affectedRows === 0) {
             res.json({
                 success: false,
@@ -55,6 +56,58 @@ exports.submitStudentLeave = async (req, res) => {
         }
         console.log(err);
         res.json({ success: false, message: "error while submitting" })
+    }
+}
+
+exports.studentsLeaves = async (req, res) => {
+    const { filter: leaveFilter, time } = req.query;
+    const userData = req.user;
+
+    let filter = {};
+    if (leaveFilter) {
+        filter = JSON.parse(leaveFilter);
+    } else {
+        filter = { month: new Date().getMonth() };
+    }
+
+    // student leaves
+    let studentLeavesQuery;
+    let studentValues;
+
+    if (userData?.role === "Student") {
+        studentLeavesQuery = `
+        select id, name, year, branch, student_id, subject, application, applicable_from, applicable_to, status, created_at 
+        from leaves 
+        where college_id = ? and student_id = ? 
+        and month(created_at) = ? 
+        and year(created_at) = year(current_date()) 
+        order by created_at desc`;
+        studentValues = [userData?.college_id, userData?.student_id, filter.month + 1];
+    } else {
+        studentLeavesQuery = `
+        SELECT l.id, l.name,l.year, l.branch, l.student_id, l.subject, l.application, l.applicable_from, l.applicable_to, l.status, l.created_at,
+        COUNT(*) OVER (PARTITION BY l.student_id) AS total_leaves
+        FROM leaves l
+        WHERE l.college_id = ? AND l.applicable_to > ? 
+          AND EXISTS (
+            SELECT 1
+            FROM schedule s
+            WHERE s.teacher_id = ?
+              AND s.year = l.year
+              AND s.branch_id = l.branch
+              AND s.section = l.section
+              AND FIND_IN_SET(s.day, l.affected_days)
+          )
+        ORDER BY l.created_at DESC`;
+        studentValues = [userData?.college_id, new Date(time), userData?.teacher_id]
+    }
+
+    try {
+        const [studentLeaves] = await pool.query(studentLeavesQuery, studentValues);
+        res.json({ success: true, message: "leaves fetched successfully.", leaves: studentLeaves });
+    } catch (err) {
+        console.log(err);
+        res.json({ success: false, message: err });
     }
 }
 
@@ -81,11 +134,11 @@ exports.verifyStudentLeave = async (req, res) => {
             // notify user
             // fetch user fcm token
 
-            const [tokens] = await pool.query(`select f.fcm_token, f.active from fcm_tokens f join users u on f.user_id = u.user_id where u.student_id = ?`, [applicant.student_id]);
+            const [tokens] = await pool.query(`select f.fcm_token from fcm_tokens f join users u on f.user_id = u.id where u.student_id = ?`, [applicant.student_id]);
 
             tokens.forEach(async (token) => {
-                if (token.active) {
-                    await notify(token.fcm_token, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier.teacher_name}`, "LEAVE_STATUS", null);
+                if (token) {
+                    await notify(token.fcm_token, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier?.name}`, "LEAVE_STATUS", {scope: "Individual"});
                 }
             })
         }
@@ -93,58 +146,6 @@ exports.verifyStudentLeave = async (req, res) => {
     } catch (error) {
         console.log(error)
         res.json({ success: false, message: "error occuered" });
-    }
-}
-
-exports.studentsLeaves = async (req, res) => {
-    const { filter: leaveFilter, time } = req.query;
-    const userData = req.user;
-
-    let filter = {};
-    if (leaveFilter) {
-        filter = JSON.parse(leaveFilter);
-    } else {
-        filter = { month: new Date().getMonth() };
-    }
-
-    // student leaves
-    let studentLeavesQuery;
-    let studentValues;
-
-    if (userData?.role === "Student") {
-        studentLeavesQuery = `
-        select id, name, year, branch, student_id, subject, application, applicable_from, applicable_to, status, created_at 
-        from leaves 
-        where student_id = ? 
-        and month(created_at) = ? 
-        and year(created_at) = year(current_date()) 
-        order by created_at desc`;
-        studentValues = [userData?.student_id, filter.month + 1];
-    } else {
-        studentLeavesQuery = `
-        SELECT l.id, l.name,l.year, l.branch, l.student_id, l.subject, l.application, l.applicable_from, l.applicable_to, l.status, l.created_at,
-        COUNT(*) OVER (PARTITION BY l.student_id) AS total_leaves
-        FROM leaves l
-        WHERE l.applicable_to > ? 
-          AND EXISTS (
-            SELECT 1
-            FROM schedule s
-            WHERE s.teacher_id = ?
-              AND s.year = l.year
-              AND s.branch_id = l.branch
-              AND s.section = l.section
-              AND FIND_IN_SET(s.day, l.affected_days)
-          )
-        ORDER BY l.created_at DESC;`;
-        studentValues = [new Date(time), userData?.teacher_id]
-    }
-
-    try {
-        const [studentLeaves] = await pool.query(studentLeavesQuery, studentValues);
-        res.json({ success: true, message: "leaves fetched successfully.", leaves: studentLeaves });
-    } catch (err) {
-        console.log(err);
-        res.json({ success: false, message: err });
     }
 }
 
@@ -163,6 +164,7 @@ exports.submitTeacherLeaves = async (req, res) => {
     // save leave to leaves table
     const query1 = `insert into leaves (
       name,  
+      college_id,
       teacher_id, 
       subject, 
       application, 
@@ -170,9 +172,9 @@ exports.submitTeacherLeaves = async (req, res) => {
       applicable_to, 
       status,
       affected_days
-    ) values (?, ?, ?, ?, ?, ?, ?, ?)`;
+    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    const values1 = [applicant.name, applicant?.teacher_id, "Priviliged", "Priviliged", from, to, "Approved", affected_days];
+    const values1 = [applicant.name, applicant?.college_id, applicant?.teacher_id, "Priviliged", "Priviliged", from, to, "Approved", affected_days];
 
     let query2 = "";
     let values2 = [];
@@ -326,26 +328,27 @@ exports.teachersLeaves = async (req, res) => {
 
     // teacher leaves
     let teacherLeavesQuery;
-    let teacherValue;
+    let teacherValues;
 
-    if (userData?.role === "teacher") {
-        teacherLeavesQuery = `select teacher_id, id, name, applicable_from, applicable_to, status from leaves where teacher_id != 'not a teacher' and applicable_to > ?`;
-        teacherValue = [new Date(time)];
+    if (userData?.role === "Teacher") {
+        teacherLeavesQuery = `select teacher_id, id, name, applicable_from, applicable_to, status from leaves where college_id = ? and teacher_id != 'not a teacher' and applicable_to > ?`;
+        teacherValues = [userData?.college_id, new Date(time)];
     } else {
         teacherLeavesQuery = `
         SELECT DISTINCT l.id, l.teacher_id, l.name, l.applicable_from, l.applicable_to, l.status
         FROM leaves l
         JOIN schedule s ON l.teacher_id = s.teacher_id
-        WHERE s.year = ? 
+        WHERE l.college_id = ?
+          AND s.year = ? 
           AND s.branch_id = ? 
           AND s.section = ?
           AND applicable_to > ?`;
-        teacherValues = [userData.year, userData.branch_id, userData.section || "A", new Date(time)];
+        teacherValues = [userData?.college_id, userData.year, userData.branch_id, userData.section || "A", new Date(time)];
     }
 
     try {
         const [teacherLeaves] = await pool.query(teacherLeavesQuery, teacherValues);
-        res.json({ success: true, teacher: teacherLeaves, message: "leaves fetched" });
+        res.json({ success: true, leaves: teacherLeaves, message: "leaves fetched" });
     } catch (err) {
         console.log(err);
         res.json({ success: false, message: err });
@@ -380,7 +383,7 @@ async function notify(token, title, body, dataType, data) {
       type: dataType,
       title,
       body,
-      data: JSON.stringify(data)
+      ...data
     },
 
     android: {

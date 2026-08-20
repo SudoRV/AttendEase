@@ -3,6 +3,7 @@ import { AppStates } from "../services/states";
 import { FiCalendar, FiRotateCw } from "react-icons/fi";
 import { IoRestaurantOutline } from 'react-icons/io5';
 import DaySelector from "./ui/DaySelector";
+import Select from "react-select";
 import { Fetch } from "../services/api";
 
 /**
@@ -16,7 +17,7 @@ const TimeTable = () => {
     "04:00 PM", "05:00 PM",
   ];
 
-  const { classes, userData, loadTimetable, teacherLeaveHistory, buildUrl } = AppStates();
+  const { classes, userData, loadTimetable, teacherLeaveHistory } = AppStates();
   const slots = defaultTimeSlots;
   const editMenuRef = useRef(null);
   const longPressTimer = useRef(null);
@@ -26,6 +27,7 @@ const TimeTable = () => {
   const [formData, setFormData] = useState({});
   const [leaveModalVisible, setLeaveModalVisible] = useState(false);
   const [teacherLeaves, setTeacherLeaves] = useState([]);
+  const loadingSubjectRef = useRef(false);
 
   // Handles Context Menu Positioning (Unified for Right-Click or Long-Press trigger)
   const openContextActions = (clientX, clientY, period_no, item) => {
@@ -151,25 +153,30 @@ const TimeTable = () => {
   useEffect(() => {
     if (currentEditCell.option === "edit") {
       const data = classes?.classes?.[currentEditCell.period_no];
+      // console.log(data)
       if (data) {
         setFormData({
-          day: data.day || "",
-          year: data.year || "",
-          branch_id: data.branch_id || "",
-          branch_name: data.branch_name || "",
-          section: data.section || "",
-          room_number: data.room_number || "",
-          period_id: data.period_id !== undefined ? data.period_id : currentEditCell.period_no,
-          subject_id: data.subject_id || "",
-          subject_name: data.subject_name || "",
-          semester: data.semester || ""
+          day: data?.day,
+          course_id: data?.course_id,
+          year: data?.year,
+          branch_id: data?.branch_id,
+          branch_name: data?.branch_name,
+          section: data?.section,
+          room_number: data?.room_number,
+          period_id: data?.period_id !== undefined ? data?.period_id : currentEditCell?.period_no,
+          subject_id: data?.subject_id,
+          subject_name: data?.subject_name,
+          semester: data?.semester
         });
+
+        loadingSubjectRef.current = true;
       }
     }
 
     if (currentEditCell.option === "insert") {
       setFormData({
         day: classes.day || "",
+        course_id: "",
         year: "",
         branch_id: "",
         branch_name: "",
@@ -184,6 +191,7 @@ const TimeTable = () => {
   }, [currentEditCell.option, currentEditCell.period_no, classes?.classes, classes?.day]);
 
   const handleChange = (e) => {
+    queryRef.current = e.target.name;
     setFormData(prev => ({
       ...prev,
       [e.target.name]: e.target.type === "number"
@@ -236,6 +244,69 @@ const TimeTable = () => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedTimetable, setSelectedTimetable] = useState({});
   const [loadingTimetable, setLoadingTimetable] = useState(false);
+
+
+  // load colleges, courses, branches, year, semester
+  const [metadata, setMetadata] = useState({
+    courses: [],
+    branches: [],
+    years: [],
+    sections: []
+  });
+
+  const queryRef = useRef("null");
+
+  useEffect(() => {
+    async function fetchMetadata(rKey) {
+      if (!currentEditCell?.option) return;
+
+      const queries = {
+        null: "courses", course_id: "branches", branch_id: "years", year: "sections", section: ""
+      };
+      const query = queries[rKey || queryRef.current];
+      if (query === null) return;
+
+      Object.keys(queries).slice(Object.keys(queries).indexOf(query)).forEach(q => {
+        if (!loadingSubjectRef.current) setFormData(prev => ({ ...prev, [q]: "" }));
+      });
+
+      const payload = {
+        college_id: [userData?.college_id],
+        course_id: [formData?.course_id],
+        branch_id: [formData?.branch_id],
+        year: [formData?.year]
+      };
+
+      const q = `http://localhost:8000/college/metadata?query=${query}`;
+
+      const response = await fetch(q, {
+        method: "QUERY",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) throw new Error("Metadata query failed");
+      const data = await response.json();
+      setMetadata(prev => ({ ...prev, ...data }));
+
+      if (loadingSubjectRef.current) {
+        const key = Object.keys(queries)[Object.keys(queries).indexOf(rKey) + 1];
+        // console.log(rKey, query, key, formData[key])
+
+        if (key === "section") {
+          loadingSubjectRef.current = false;
+        }
+        else {
+          if (formData?.course_id) fetchMetadata(key);
+        };
+      }
+
+    }
+
+    fetchMetadata();
+  }, [currentEditCell?.option, userData?.college_id, formData?.course_id, formData?.branch_id, formData?.year])
 
   async function loadSpecificTimetable() {
     setLoadingTimetable(true);
@@ -317,7 +388,7 @@ const TimeTable = () => {
                   onClick={() => handleMenuOptionClick("delete")}>Delete</button>
               </>
             ) : (
-              <button className="rounded-md border-none bg-transparent hover:bg-slate-100 text-black p-2 text-sm text-left font-medium cursor-pointer"
+              <button className="rounded-md border-none bg-transparent text-black dark:text-neutral-100 hover:bg-neutral-700 p-2 text-sm text-left font-medium cursor-pointer"
                 onClick={() => handleMenuOptionClick("insert")}>Insert Subject</button>
             )}
 
@@ -327,7 +398,7 @@ const TimeTable = () => {
                 onClick={() => handleMenuOptionClick("leaves")}>View Teacher Leaves</button>
             )}
 
-            <button className="w-full text-center bg-slate-100 dark:bg-neutral-800 text-sm py-1.5 mt-2 rounded-lg hover:bg-slate-200 dark:hover:bg-neutral-900 border-none cursor-pointer" onClick={() => setCurrentEditCell({})}>Close</button>
+            <button className="w-full text-center bg-slate-100 dark:bg-neutral-950/30 text-sm py-1.5 mt-4 rounded-lg hover:bg-slate-200 dark:hover:bg-blue-500 border-none cursor-pointer" onClick={() => setCurrentEditCell({})}>Close</button>
           </div>
         )}
 
@@ -347,24 +418,33 @@ const TimeTable = () => {
                 </p>
               ) : (
                 <div className="flex flex-col gap-3">
-
                   {/* Day & Period No */}
                   <div className="flex gap-3">
                     <div className="flex-1 flex flex-col">
                       <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Day</label>
-                      <input
+                      <select
                         name="day"
-                        value={formData.day}
+                        value={formData?.day}
                         onChange={handleChange}
-                        className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
-                      />
+                        className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500">
+                        <option>Select day of week</option>
+                        {
+                          ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(day => (
+                            <option key={day} value={day}>{day}</option>
+                          ))
+                        }
+                      </select>
                     </div>
+
                     <div className="w-[100px] flex flex-col">
                       <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Period No</label>
                       <input
                         type="number"
                         name="period_id"
-                        value={formData.period_id}
+                        value={formData?.period_id}
+                        min={0}
+                        max={10}
+                        step={1}
                         onChange={handleChange}
                         className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-center text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
                       />
@@ -377,17 +457,18 @@ const TimeTable = () => {
                       <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Subject Code</label>
                       <input
                         name="subject_id"
-                        value={formData.subject_id}
+                        value={formData?.subject_id}
                         onChange={handleChange}
                         placeholder="e.g. CS-401"
                         className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm uppercase text-slate-800 dark:text-neutral-200 placeholder-slate-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
                       />
                     </div>
+
                     <div className="flex-1 flex flex-col">
                       <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Subject Name</label>
                       <input
                         name="subject_name"
-                        value={formData.subject_name}
+                        value={formData?.subject_name}
                         onChange={handleChange}
                         placeholder="e.g. Mathematics"
                         className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-slate-800 dark:text-neutral-200 placeholder-slate-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
@@ -395,76 +476,109 @@ const TimeTable = () => {
                     </div>
                   </div>
 
-                  {/* Year, Semester, & Section */}
-                  <div className="grid grid-cols-3 gap-3">
+                  {/* Course, Branch & year */}
+                  <div className="flex gap-3">
+                    <div className="flex-1 flex flex-col">
+                      <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Course</label>
+                      <select
+                        name="course_id"
+                        value={formData?.course_id}
+                        onChange={handleChange}
+                        className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500">
+                        <option>Select course</option>
+                        {
+                          metadata?.courses?.map(c => (
+                            <option key={c.id} value={c.course_id}>{c.course_name}</option>
+                          ))
+                        }
+                      </select>
+                    </div>
+
+                    <div className="flex-1 flex flex-col">
+                      <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Branch</label>
+                      <select
+                        name="branch_id"
+                        value={formData?.branch_id}
+                        onChange={(e) => {
+                          setFormData(prev => ({ ...prev, branch_name: e.target.value }));
+                          handleChange(e);
+                        }}
+                        className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500">
+                        <option>Select branch</option>
+                        {
+                          metadata?.branches?.map(b => (
+                            <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>
+                          ))
+                        }
+                      </select>
+                    </div>
+
                     <div className="flex flex-col">
                       <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Year</label>
-                      <input
-                        type="number"
+                      <select
                         name="year"
-                        value={formData.year}
-                        min={1}
-                        max={5}
+                        value={formData?.year}
                         onChange={handleChange}
-                        className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-center text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
-                      />
-                    </div>
-                    <div className="flex flex-col">
-                      <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Semester</label>
-                      <input
-                        type="number"
-                        name="semester"
-                        value={formData.semester}
-                        min={1}
-                        max={10}
-                        onChange={handleChange}
-                        className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-center text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
-                      />
-                    </div>
-                    <div className="flex flex-col">
-                      <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Section</label>
-                      <input
-                        name="section"
-                        value={formData.section}
-                        onChange={handleChange}
-                        className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-center text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
-                      />
+                        className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-center text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500">
+                        <option>Select year</option>
+                        {
+                          metadata?.years?.map(y => (
+                            <option key={y.year} value={y.year}>{y.year}</option>
+                          ))
+                        }
+                      </select>
                     </div>
                   </div>
 
-                  {/* Room No & Branch ID */}
-                  <div className="flex gap-3">
+                  {/* Semester, Section, Room no */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="flex flex-col">
+                      <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Semester</label>
+                      <select
+                        name="semester"
+                        value={formData?.semester}
+                        onChange={handleChange}
+                        className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-center text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500">
+                        <option>Select semester</option>
+                        {
+                          formData?.year && (
+                            <>
+                              <option value={formData?.year * 2 - 1}>{formData?.year * 2 - 1}</option>
+                              <option value={formData?.year * 2 - 1}>{formData?.year * 2}</option>
+                            </>
+                          )
+                        }
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col">
+                      <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Section</label>
+                      <select
+                        name="section"
+                        value={formData?.section}
+                        onChange={handleChange}
+                        className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-center text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500">
+                        <option>Select section</option>
+                        {
+                          metadata?.sections?.map(s => (
+                            <option key={s.section} value={s.section}>{s.section}</option>
+                          ))
+                        }
+                      </select>
+                    </div>
+
                     <div className="w-[120px] flex flex-col">
                       <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Room No</label>
                       <input
                         type="number"
                         name="room_number"
-                        value={formData.room_number}
+                        value={formData?.room_number}
                         onChange={handleChange}
                         className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-center text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
                       />
                     </div>
-                    <div className="flex-1 flex flex-col">
-                      <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Branch ID</label>
-                      <input
-                        name="branch_id"
-                        value={formData.branch_id}
-                        onChange={handleChange}
-                        className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
-                      />
-                    </div>
                   </div>
 
-                  {/* Branch Name */}
-                  <div className="flex flex-col">
-                    <label className="text-xs font-semibold text-slate-500 dark:text-neutral-400 mb-1">Branch Name</label>
-                    <input
-                      name="branch_name"
-                      value={formData.branch_name}
-                      onChange={handleChange}
-                      className="input input-box border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 p-2 rounded-lg text-sm text-slate-800 dark:text-neutral-200 focus:outline-none focus:border-blue-500 dark:focus:border-blue-500"
-                    />
-                  </div>
                 </div>
               )}
 

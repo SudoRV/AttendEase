@@ -1,18 +1,18 @@
 const pool = require("../config/mysql");
+const admin = require("../config/fcm");
 const transporter = require("../config/mail");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const { buildFcmTopicsByTarget } = require("../utils/buildFcmTopics");
 
 // register
 exports.register = async (req, res) => {
-    const { role, name, email, password, student_id, teacher_id, branch_id, year, semester, section } = req.body;
+    const { role, name, email, password, student_id, teacher_id, college_id, course_id, branch_id, year, semester, section } = req.body;
 
     if (!email || !password) {
         res.json({ success: false, message: "Credentials required" })
     }
-
-    const userId = generateUserId({ role, name, email, student_id, teacher_id });
 
     const response = await validateCreds({
         email,
@@ -26,9 +26,9 @@ exports.register = async (req, res) => {
 
         try {
             const [result] = await pool.query(
-                `INSERT INTO users (role, name, email, user_id, password_hash, student_id, teacher_id, branch_id, year, semester, section)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [role, name, email, userId, password_hash, student_id, teacher_id, branch_id, year, semester, section]
+                `INSERT INTO users (role, name, email, password_hash, student_id, teacher_id, college_id, course_id, branch_id, year, semester, section)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [role, name, email, password_hash, student_id, teacher_id, college_id, course_id, branch_id, year, semester, section]
             );
 
             if (result.insertId) {
@@ -66,7 +66,7 @@ exports.login = async (req, res) => {
     }
 
     // authentication from database / get password hash from databse
-    const [rows] = await pool.query(`select user_id, student_id, teacher_id, name, email, password_hash, role, semester, year, start_month, section, collegeId, admissionId, courseId, branchId, branch_id, branch_name from users where email = ?`, email);
+    const [rows] = await pool.query("SELECT u.id, u.role, u.name, u.student_id, u.teacher_id, col.university, col.college_id, col.college_name, u.course_id, c.course_name, u.branch_id, b.branch_name, u.year, u.semester, u.section, email, u.password_hash, start_month, collegeId, admissionId, courseId, branchId FROM users u LEFT JOIN courses c ON u.course_id = c.course_id LEFT JOIN colleges col ON u.college_id = col.college_id LEFT JOIN branches b ON u.branch_id = b.branch_id WHERE u.email = ?", [email]);
     const user = rows[0];
 
     if (!user.email) {
@@ -82,7 +82,7 @@ exports.login = async (req, res) => {
 
     // generate jwt
     const token = jwt.sign({
-        user_id: user.user_id,
+        user_id: user.id,
         email: user.email,
         role: user.role,
         token_version: user.token_version || 1
@@ -108,6 +108,7 @@ exports.login = async (req, res) => {
 // logout
 exports.logout = async (req, res) => {
     const user = req.user;
+    const { token: fcmToken } = req.body;
 
     res.cookie('token', '', {
         httpOnly: true,
@@ -115,6 +116,16 @@ exports.logout = async (req, res) => {
         sameSite: 'lax',
         expires: new Date(0)
     });
+
+    // unsubscribe topics
+    const topics = await buildFcmTopicsByTarget(user.college_id, [user.course_id], [user.branch_id], [user.year], [user.section], user.role === "Student" ? "students" : "teachers");
+
+    for (const topic of topics) {
+        await admin.messaging().unsubscribeFromTopic([fcmToken], topic);
+    }
+
+    // delete the token
+    const loggedOut = await pool.query("delete from fcm_tokens where user_id = ? and fcm_token = ?", [user.id, fcmToken]);
 
     return res.status(200).json({ success: true, message: 'Logged out successfully' });
 }

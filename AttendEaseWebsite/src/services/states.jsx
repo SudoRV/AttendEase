@@ -13,16 +13,6 @@ export const GlobalProvider = ({ children }) => {
     const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
     const [announcements, setAnnouncements] = useState([]);
 
-    const isProduction = true;
-
-    // ⚠️ IMPORTANT:
-    // Replace this with your computer’s local IP
-    // Example: http://192.168.1.5:8000
-    const BASE_URL = isProduction
-        ? "https://attendease-nivr.onrender.com"
-        : `http://${window.location.hostname}:8000`;
-    const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
-
     const formatDate = (date) => {
         if (!date) return "Select Date";
         return new Date(date)
@@ -107,8 +97,6 @@ export const GlobalProvider = ({ children }) => {
                 );
             }
 
-            // console.log(timetable)
-
             if (!!selectedDay) {
                 return { day, classes: timetable }
             }
@@ -127,6 +115,7 @@ export const GlobalProvider = ({ children }) => {
         try {
             const token = await requestFCMToken();
             if (!token) return false;
+            await window.localStorage.setItem("fcm_token", token);
 
             const res = await Fetch("/save-fcm-token", {
                 method: "POST",
@@ -134,15 +123,7 @@ export const GlobalProvider = ({ children }) => {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    email: userCreds?.email,
-                    token,
-                    topics: userCreds?.role === "Student"
-                        ? [
-                            `year_${userCreds?.year}`,
-                            `branch_${userCreds?.branch_id}`,
-                            `${userCreds?.branch_id}_${userCreds?.year}_${userCreds?.section}`
-                        ]
-                        : ["teachers"]
+                    token
                 })
             });
 
@@ -194,8 +175,8 @@ export const GlobalProvider = ({ children }) => {
         }
     }
 
-    async function loadAnnouncements() {
-        const endpoint = `/api/announcements?role=${userData?.role || "Student"}&teacher_id=${userData?.teacher_id || null}&year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}&time=${encodeURIComponent(formatDate(new Date()))}`;
+    async function loadAnnouncements() {  
+        const endpoint = `/api/announcements?role=${userData?.role || "Student"}&teacher_id=${userData?.teacher_id || null}&college_id=${userData?.college_id}&course_id=${userData?.course_id}&branch=${userData.branch_id}&section=${userData.section}&year=${userData.year}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
         const response = await Fetch(endpoint);
 
@@ -248,8 +229,6 @@ export const GlobalProvider = ({ children }) => {
     });
 
     const exports = {
-        BASE_URL,
-        buildUrl,
         userData, setUserData,
         classes, setClasses,
         loadTimetable,

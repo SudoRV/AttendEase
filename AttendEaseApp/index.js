@@ -12,7 +12,6 @@ import BleDataPropagation from './src/utils/BleDataPropagation';
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
 import { getDBConnection, saveNotification } from './src/database/database';
-import { } from './src/database/database';
 
 // 1. Helper function for the channel
 const morningScheduleChannel = async () => {
@@ -78,10 +77,10 @@ const onMessageReceived = async (remoteMessage) => {
   saveNotification(null, { notification_id: remoteMessage.messageId, scope: remoteMessage.data.scope, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body });
   // propagate message via ble advertise
   try {
-    const database = getDBConnection();
-    console.log("Starting background BLE data burst...");
-    await BleDataPropagation(database, remoteMessage);
-    console.log("Background BLE data burst complete.");
+    // const database = getDBConnection();
+    // console.log("Starting background BLE data burst...");
+    // await BleDataPropagation(database, remoteMessage);
+    // console.log("Background BLE data burst complete.");
   } catch (bleErr) {
     console.error("BLE Propagation crashed in headless state:", bleErr);
   }

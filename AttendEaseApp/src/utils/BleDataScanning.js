@@ -1,6 +1,6 @@
 import { NativeModules, DeviceEventEmitter, Alert } from 'react-native';
 import { BleManager } from 'react-native-ble-plx';
-import { reverseScopes } from '../constant/scopes';
+import { scope as collegeMetadataScope, reverseScopes } from '../constant/scopes';
 import { getDBConnection, saveNotification } from '../database/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queueNotification, processQueue } from './BleDataPropagation';
@@ -61,41 +61,27 @@ function hexToAscii(hexStr) {
   return str;
 }
 
-// Helper to convert the 16-byte raw array into a standard hyphenated UUID string
-function bytesToUUID(bytes) {
-  return Array.from(bytes, (byte) => {
-    return ('0' + (byte & 0xFF).toString(16)).slice(-2).toUpperCase();
-  }).reduce((acc, current, index) => {
-    // Inserts standard UUID formatting hyphens at the correct structural layout points
-    if ([4, 6, 8, 10].includes(index)) {
-      return acc + '-' + current;
-    }
-    return acc + current;
-  }, "");
-}
-
-// Helper to reconstruct two independent 8-bit bytes into a single 16-bit unsigned short integer
-function bytesToUnsignedShort(byte1, byte2) {
-  return ((byte1 & 0xFF) << 8) | (byte2 & 0xFF);
-}
-
 /**
  * UTILITY: Unpacks metadata bitmask strings matching your reverse profile map
  */
 function unpackMetadata(hex) {
   const value = parseInt(hex, 16);
   const type = (value >> 29) & 0x03;
+  const scope = value & 0x01;
+
   const branchMask = (value >> 22) & 0x7F;
   const yearMask = (value >> 16) & 0x3F;
   const sectionMask = (value >> 1) & 0x7FFF;
-  const scope = value & 0x01;
+
+  console.log(branchMask, yearMask, sectionMask, collegeMetadataScope)
 
   return {
     type: reverseScopes("notification_type", type),
     scope: scope,
-    branches: Array.from({ length: 7 }, (_, b) => b).filter(b => branchMask & (1 << b)).map(b => reverseScopes("branch", b)),
-    years: Array.from({ length: 6 }, (_, y) => y).filter(y => yearMask & (1 << y)).map(y => reverseScopes("year", y)),
-    sections: Array.from({ length: 15 }, (_, s) => s).filter(s => sectionMask & (1 << s)).map(s => reverseScopes("section", s))
+
+    branches: Array.from({ length: Object.keys(collegeMetadataScope?.branch)?.length }, (_, b) => b).filter(b => branchMask & (1 << b)).map(b => reverseScopes("branch", b)),
+    years: Array.from({ length: Object.keys(collegeMetadataScope?.year)?.length }, (_, y) => y).filter(y => yearMask & (1 << y)).map(y => reverseScopes("year", y)),
+    sections: Array.from({ length: Object.keys(collegeMetadataScope?.section)?.length }, (_, s) => s).filter(s => sectionMask & (1 << s)).map(s => reverseScopes("section", s))
   };
 }
 
@@ -124,7 +110,7 @@ function reBroadcast(notifications) {
   const maxHops = targetNotification.major >> 8;
   const currentHops = targetNotification.major & 0xFF;
 
-  console.log(`Received - Max Hops: ${maxHops}, Current Hops: ${currentHops}`);
+  // console.log(`Received - Max Hops: ${maxHops}, Current Hops: ${currentHops}`);
 
   // 3. Check if it has room to hop further
   if (currentHops < maxHops) {
@@ -134,7 +120,7 @@ function reBroadcast(notifications) {
     // 5. Repack maxHops and the NEW currentHops back into the target's major field
     targetNotification.major = (maxHops << 8) | nextHops;
 
-    console.log(`Re-broadcasting payload with updated hop count: ${nextHops}/${maxHops}`);
+    // console.log(`Re-broadcasting payload with updated hop count: ${nextHops}/${maxHops}`);
 
     // 6. Send it to the queue for transmission
     queueNotification(notifications);
@@ -195,7 +181,7 @@ async function notify(notification) {
  * ENGINE: Processes incoming frames directly mirrored from your Python parser
  */
 async function processIncomingFrame(uuid_str, major, minor) {
-  
+
   const database = getDBConnection();
   const user_creds = await AsyncStorage.getItem("user_creds");
   const userData = JSON.parse(user_creds || "{}");
@@ -211,7 +197,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
     return null;
   }
 
-  console.log(`RAW BLE DATA -> UUID: ${uuid_str} | Major: ${major} | Minor: ${minor}`);
+  // console.log(`RAW BLE DATA -> UUID: ${uuid_str} | Major: ${major} | Minor: ${minor}`);
 
   // 3. Extract Common Core Variables using literal Python slices
   const scope_block = clean_uuid.substring(8, 12);
@@ -227,7 +213,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
   const notificationExists = database.execute("select * from notifications where notification_id = ? limit 1", [notification_id]).rows._array[0];
 
   if (notificationExists) {
-    console.log("notification exists with id: ", notification_id);
+    // console.log("notification exists with id: ", notification_id);
     return;
   }
 
@@ -356,7 +342,10 @@ async function processIncomingFrame(uuid_str, major, minor) {
       // A. Handle Metadata Envelope
       if (chunk_type === "0") {
         const metadata_hex = clean_uuid.substring(12, 20);
-        current_active["scope"] = unpackMetadata(metadata_hex);
+        const scope = unpackMetadata(metadata_hex);
+        current_active["scope"] = scope
+
+        console.log(scope)
 
         if (!current_active["chunks_received"].includes(tracking_key)) {
           current_active["chunks_received"].push(tracking_key);
@@ -469,9 +458,11 @@ async function processAnnouncement(database, userData, notification_id, tail_fla
     saveNotification(database, notification);
 
     // re broadcast it
-    reBroadcast(current_active.rawNotifications);
+    // reBroadcast(current_active.rawNotifications);
 
     // check if scope matches and popup notification
+    console.log(current_active?.scope, notification)
+
     if (current_active["scope"].branches.some(b => b === userData.branch_id || b === "all") && current_active["scope"].years.some(y => y === `${userData.year}` || y === "all") && current_active["scope"].sections.some(s => s === userData.section || s === "all")) {
       // Alert.alert(notification.title, notification.body);
       notify(notification);
@@ -499,18 +490,18 @@ const handleDiscoverPeripheral = (device) => {
 
   // console.log("payload: ", device.name, uuid, major, minor)
 
-  if (updateDevicesCallback) {
-    const devicePayload = {
-      device,
-      type: uuid?.substring(0, 8) === TARGET_APP_ID ? "attendease_native" : "general",
-      uuid,
-      major,
-      minor
-    };
+  // if (updateDevicesCallback) {
+  //   const devicePayload = {
+  //     device,
+  //     type: uuid?.substring(0, 8) === TARGET_APP_ID ? "attendease_native" : "general",
+  //     uuid,
+  //     major,
+  //     minor
+  //   };
 
-    discoveredDevicesMap.set(device.id, devicePayload);
-    updateDevicesCallback(Array.from(discoveredDevicesMap.values()));
-  }
+  // discoveredDevicesMap.set(device.id, devicePayload);
+  // updateDevicesCallback(Array.from(discoveredDevicesMap.values()));
+  // }
 
   if (manufacturerData) {
     processIncomingFrame(uuid, major, minor);

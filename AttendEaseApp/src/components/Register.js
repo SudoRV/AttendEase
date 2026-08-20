@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,19 @@ import {
   ScrollView,
   Alert
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { Picker } from "@react-native-picker/picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColorScheme } from 'nativewind';
 import { AppStates } from "../context/AppStates";
 import { Fetch } from "../services/api";
+import Selector from "../components/ui/Selector";
 
 function RegisterPage({ onSwitch }) {
   const { setUserData } = AppStates();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const navigator = useNavigation();
 
   const [selectedRole, setSelectedRole] = useState("");
   const [isEmailValid, setEmailValid] = useState(null);
@@ -34,6 +37,59 @@ function RegisterPage({ onSwitch }) {
     semester: "",
     section: "A"
   });
+
+  // load colleges, courses, branches, year, semester
+  const [metadata, setMetadata] = useState({
+    colleges: [],
+    courses: [],
+    branches: [],
+    years: [],
+    sections: []
+  });
+
+  const queryRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedRole === "") return;
+
+    const queries = {
+      role: "colleges", college_id: "courses", course_id: "branches", branch_id: "years", year: "sections", section: ""
+    };
+    const query = queries[queryRef.current];
+
+    console.log(query, queryRef.current)
+
+    if (query === null) return;
+
+    Object.keys(queries).slice(Object.keys(queries).indexOf(query)).forEach(q => {
+      setFormData(prev => ({ ...prev, [q]: "" }))
+    })
+
+    async function fetchMetadata() {
+      const payload = {
+        college_id: [formData?.college_id],
+        course_id: [formData?.course_id],
+        branch_id: [formData?.branch_id],
+        year: [formData?.year]
+      };
+
+      const response = await Fetch(`/college/metadata?query=${query}`, {
+        method: "QUERY",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) throw new Error("Metadata query failed");
+
+      const data = await response.json();
+      console.log(data)
+      setMetadata(prev => ({ ...prev, ...data }));
+    }
+
+    fetchMetadata();
+  }, [selectedRole, formData.college_id, formData.course_id, formData.branch_id, formData.year])
 
   /* =====================
         VALIDATION
@@ -59,6 +115,8 @@ function RegisterPage({ onSwitch }) {
   const handleChange = (name, value) => {
     // Auto-capitalize Section input
     const finalValue = name === "section" ? value.toUpperCase() : value;
+
+    queryRef.current = name;
 
     setFormData(prev => ({ ...prev, [name]: finalValue }));
 
@@ -89,11 +147,7 @@ function RegisterPage({ onSwitch }) {
       Alert.alert("User Registration", res.message);
 
       if (res.success) {
-        await AsyncStorage.setItem(
-          "user_creds",
-          JSON.stringify(formData)
-        );
-        setUserData(formData);
+        navigator.navigate("Profile");
       }
     } catch (error) {
       Alert.alert("Error", "Registration failed. Check your connection.");
@@ -125,21 +179,20 @@ function RegisterPage({ onSwitch }) {
         </Text>
 
         {/* ROLE PICKER */}
-        <View className="border border-zinc-200 dark:border-neutral-800 rounded-2xl mb-4 overflow-hidden bg-zinc-50/50 dark:bg-neutral-950">
-          <Picker
-            selectedValue={selectedRole}
-            dropdownIconColor={isDark ? "#a3a3a3" : "#71717a"}
-            style={{ color: isDark ? "#f5f5f5" : "#18181b" }}
-            onValueChange={(value) => {
-              setSelectedRole(value);
-              handleChange("role", value);
-            }}
-          >
-            <Picker.Item label="Select Role" value="" style={{ color: isDark ? "#a3a3a3" : "#71717a", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-            <Picker.Item label="Teacher" value="Teacher" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-            <Picker.Item label="Student" value="Student" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-          </Picker>
-        </View>
+        <Selector
+          value={selectedRole}
+          options={[
+            { label: "Role", value: "" },
+            { label: "Student", value: "Student" },
+            { label: "Teacher", value: "Teacher" }
+          ]}
+          onChange={(item) => {
+            setSelectedRole(item.value);
+            handleChange("role", item.value);
+          }}
+          styleSelector={"w-full mb-4 bg-zinc-50/50 dark:bg-neutral-950/40 rounded-2xl px-3 py-3 border border-zinc-200 dark:border-neutral-800"}
+          styleButton={"bg-transparent"}
+        />
 
         {/* NAME */}
         <TextInput
@@ -168,80 +221,121 @@ function RegisterPage({ onSwitch }) {
 
         {/* TEACHER SPECIFIC */}
         {selectedRole === "Teacher" && (
-          <TextInput
-            placeholder="Teacher ID"
-            placeholderTextColor="#a1a1aa"
-            className="border border-zinc-200 dark:border-neutral-800 rounded-2xl px-4 py-3.5 mb-4 text-zinc-900 dark:text-neutral-100 bg-zinc-50/50 dark:bg-neutral-950 font-medium text-base"
-            value={formData.teacher_id}
-            onChangeText={(v) => handleChange("teacher_id", v)}
-          />
+          <>
+            <Selector
+              value={formData.college_id}
+              options={[{ label: "Select College", value: "" }, ...metadata?.colleges?.map((college) => ({
+                label: college.college_name,
+                value: college.college_id,
+              }))]}
+              onChange={(item) => handleChange("college_id", item.value)}
+              styleSelector={"w-full mb-4 bg-zinc-50/50 dark:bg-neutral-950/40 rounded-2xl px-3 py-3 border border-zinc-200 dark:border-neutral-800"}
+              styleButton={"bg-transparent"}
+            />
+
+            <TextInput
+              placeholder="Teacher ID"
+              placeholderTextColor="#a1a1aa"
+              className="border border-zinc-200 dark:border-neutral-800 rounded-2xl px-4 py-3.5 mb-4 text-zinc-900 dark:text-neutral-100 bg-zinc-50/50 dark:bg-neutral-950 font-medium text-base"
+              value={formData.teacher_id}
+              onChangeText={(v) => handleChange("teacher_id", v)}
+            /></>
         )}
 
         {/* STUDENT SPECIFIC */}
         {selectedRole === "Student" && (
           <>
-            <View className="border border-zinc-200 dark:border-neutral-800 rounded-2xl mb-4 overflow-hidden bg-zinc-50/50 dark:bg-neutral-950">
-              <Picker
-                selectedValue={formData.branch_id}
-                dropdownIconColor={isDark ? "#a3a3a3" : "#71717a"}
-                style={{ color: isDark ? "#f5f5f5" : "#18181b" }}
-                onValueChange={(v) => handleChange("branch_id", v)}
-              >
-                <Picker.Item label="Select Branch" value="" style={{ color: isDark ? "#a3a3a3" : "#71717a", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                <Picker.Item label="Computer Science & Engineering" value="CSE" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                <Picker.Item label="AI/ML" value="AI" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                <Picker.Item label="Robotics & Automation" value="RA" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                <Picker.Item label="Mechanical Engineering" value="ME" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                <Picker.Item label="Civil Engineering" value="CE" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                <Picker.Item label="BCA" value="BCA" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-              </Picker>
-            </View>
-
-            <View className="border border-zinc-200 dark:border-neutral-800 rounded-2xl mb-4 overflow-hidden bg-zinc-50/50 dark:bg-neutral-950">
-              <Picker
-                selectedValue={formData.year}
-                dropdownIconColor={isDark ? "#a3a3a3" : "#71717a"}
-                style={{ color: isDark ? "#f5f5f5" : "#18181b" }}
-                onValueChange={(v) => handleChange("year", v)}
-              >
-                <Picker.Item label="Select Year" value="" style={{ color: isDark ? "#a3a3a3" : "#71717a", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                <Picker.Item label="1st Year" value="1" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                <Picker.Item label="2nd Year" value="2" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                <Picker.Item label="3rd Year" value="3" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                <Picker.Item label="4th Year" value="4" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                <Picker.Item label="5th Year" value="5" style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-              </Picker>
-            </View>
-
-            {/* SEMESTER PICKER (1-10) */}
-            <View className="border border-zinc-200 dark:border-neutral-800 rounded-2xl mb-4 overflow-hidden bg-zinc-50/50 dark:bg-neutral-950">
-              <Picker
-                selectedValue={formData.semester}
-                dropdownIconColor={isDark ? "#a3a3a3" : "#71717a"}
-                style={{ color: isDark ? "#f5f5f5" : "#18181b" }}
-                onValueChange={(v) => handleChange("semester", v)}
-              >
-                <Picker.Item label="Select Semester" value="" style={{ color: isDark ? "#a3a3a3" : "#71717a", backgroundColor: isDark ? "#0a0a0a" : "#fff" }} />
-                {Array.from({ length: 10 }, (_, i) => (
-                  <Picker.Item
-                    key={i + 1}
-                    label={`Semester ${i + 1}`}
-                    value={(i + 1).toString()}
-                    style={{ color: isDark ? "#f5f5f5" : "#18181b", backgroundColor: isDark ? "#0a0a0a" : "#fff" }}
-                  />
-                ))}
-              </Picker>
-            </View>
-
-            {/* SECTION INPUT (Auto-Capitalized) */}
-            <TextInput
-              placeholder="Section (e.g. A, B, C)"
-              placeholderTextColor="#a1a1aa"
-              className="border border-zinc-200 dark:border-neutral-800 rounded-2xl px-4 py-3.5 mb-4 text-zinc-900 dark:text-neutral-100 bg-zinc-50/50 dark:bg-neutral-950 font-medium text-base"
-              value={formData.section}
-              autoCapitalize="characters"
-              onChangeText={(v) => handleChange("section", v)}
+            {/* College Picker */}
+            <Selector
+              value={formData.college_id}
+              options={[{ label: "Select College", value: "" }, ...metadata?.colleges?.map((college) => ({
+                label: college.college_name,
+                value: college.college_id,
+              }))]}
+              onChange={(item) => handleChange("college_id", item.value)}
+              styleSelector={"w-full mb-4 bg-zinc-50/50 dark:bg-neutral-950/40 rounded-2xl px-3 py-3 border border-zinc-200 dark:border-neutral-800"}
+              styleButton={"bg-transparent"}
             />
+
+            {/* Course Picker */}
+            <Selector
+              value={formData.course_id}
+              options={[{ label: "Select Course", value: "" }, ...metadata?.courses?.map((course) => ({
+                label: `${course.course_id} - ${course?.course_name}`,
+                value: course.course_id,
+              }))]}
+              onChange={(item) => handleChange("course_id", item.value)}
+              styleSelector={"w-full mb-4 bg-zinc-50/50 dark:bg-neutral-950/40 rounded-2xl px-3 py-3 border border-zinc-200 dark:border-neutral-800"}
+              styleButton={"bg-transparent"}
+            />
+
+            {/* Branch Picker */}
+            <Selector
+              value={formData.branch_id}
+              options={[{ label: "Select Branch", value: "" }, ...metadata?.branches?.map((branch) => ({
+                label: `${branch.branch_id} - ${branch?.branch_name}`,
+                value: branch.branch_id,
+              }))]}
+              onChange={(item) => handleChange("branch_id", item.value)}
+              styleSelector={"w-full mb-4 bg-zinc-50/50 dark:bg-neutral-950/40 rounded-2xl px-3 py-3 border border-zinc-200 dark:border-neutral-800"}
+              styleButton={"bg-transparent"}
+            />
+
+            {/* Grouped: Year + Semester + Section */}
+            <View className="flex-row gap-2 mb-4">
+              {/* Year */}
+              <View className="flex-1">
+                <Selector
+                  value={formData.year}
+                  options={[{ label: "Year", value: "" }, ...metadata?.years?.map((year) => ({
+                    label: String(year.year),
+                    value: year.year,
+                  }))]}
+                  onChange={(item) => handleChange("year", item.value)}
+                  styleSelector={"w-full bg-zinc-50/50 dark:bg-neutral-950/40 rounded-2xl px-3 py-3 border border-zinc-200 dark:border-neutral-800"}
+                  styleButton={"bg-transparent"}
+                />
+              </View>
+
+              {/* Semester */}
+              <View className="flex-1">
+                <Selector
+                  value={formData.semester}
+                  options={
+                    formData?.year
+                      ? [
+                        { label: "Semester", value: "" },
+                        {
+                          label: String(Number(formData.year) * 2 - 1),
+                          value: Number(formData.year) * 2 - 1,
+                        },
+                        {
+                          label: String(Number(formData.year) * 2),
+                          value: Number(formData.year) * 2,
+                        },
+                      ]
+                      : [{ label: "Semester", value: "" }]
+                  }
+                  onChange={(item) => handleChange("semester", item.value)}
+                  styleSelector={"w-full bg-zinc-50/50 dark:bg-neutral-950/40 rounded-2xl px-3 py-3 border border-zinc-200 dark:border-neutral-800"}
+                  styleButton={"bg-transparent"}
+                />
+              </View>
+
+              {/* Section */}
+              <View className="flex-1">
+                <Selector
+                  value={formData.section}
+                  options={[{ label: "Section", value: "" }, ...metadata?.sections?.map((section) => ({
+                    label: section.section,
+                    value: section.section,
+                  }))]}
+                  onChange={(item) => handleChange("section", item.value)}
+                  styleSelector={"w-full bg-zinc-50/50 dark:bg-neutral-950/40 rounded-2xl px-3 py-3 border border-zinc-200 dark:border-neutral-800"}
+                  styleButton={"bg-transparent"}
+                />
+              </View>
+            </View>
 
             <TextInput
               placeholder="Student ID"

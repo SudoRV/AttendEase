@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Text, Pressable, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColorScheme } from 'nativewind';
+import { createNavigationContainerRef } from "@react-navigation/native";
 
 import TimeTableScreen from "../screens/TimeTableScreen";
 import LeaveScreen from "../screens/LeaveScreen";
@@ -14,6 +15,7 @@ import { AppStates } from "../context/AppStates";
 import AnimatedTabIcon from "../components/ui/AnimatedTabIcon";
 
 const Tab = createBottomTabNavigator();
+export const navigationRef = createNavigationContainerRef();
 
 export default function AppNavigator({ onLogout }) {
   const { logout } = AppStates();
@@ -41,7 +43,7 @@ export default function AppNavigator({ onLogout }) {
   return (
     // Dynamic surrounding flexbox prevents viewport clipping glitches
     <View style={{ flex: 1, backgroundColor: isDark ? "#171717" : "#ffffff" }}>
-      <NavigationContainer theme={DynamicAppTheme}>
+      <NavigationContainer ref={navigationRef} theme={DynamicAppTheme}>
         <Tab.Navigator
           screenOptions={({ route }) => ({
             headerShown: false,
@@ -118,4 +120,10 @@ export default function AppNavigator({ onLogout }) {
       </NavigationContainer>
     </View>
   );
+}
+
+export function getCurrentTab() {
+  if (navigationRef.isReady()) {
+    return navigationRef.getCurrentRoute()?.name;
+  }
 }

@@ -3,7 +3,7 @@ import { FiX, FiChevronDown, FiChevronUp, FiCalendar, FiFileText } from "react-i
 import { Fetch } from "../services/api";
 
 const StudentLeave = () => {
-  const { userData, leaveHistory, loadLeaves, buildUrl, formatDate } = AppStates();
+  const { userData, leaveHistory, loadLeaves, formatDate } = AppStates();
 
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");

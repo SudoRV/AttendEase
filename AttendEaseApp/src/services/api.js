@@ -3,15 +3,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const isProduction = false;
 const BASE_URL = isProduction
     ? "https://attendease-nivr.onrender.com"
-    : "http://10.195.195.137:8000";
+    : "http://localhost:8000";
 
 export const Fetch = async (endpoint, options = {}) => {
     options.headers = options.headers || {};
-
     // get the jwt token 
     try {
         const token = await AsyncStorage.getItem("session_token");
-
         if (token) {
             options.headers['Authorization'] = `Bearer ${token}`;
         }
@@ -19,12 +17,10 @@ export const Fetch = async (endpoint, options = {}) => {
         console.error("Error pulling session token", error);
     }
 
-
     const response = await fetch(`${BASE_URL}${endpoint}`, options);
-
     if (response.status === 401) {
         // perform logout
-        await AsyncStorage.removeItem("session_token");
+        await AsyncStorage.clear();
         throw new Error("Unauthorized access token.");
     }
 

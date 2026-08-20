@@ -23,7 +23,6 @@ const TeacherLeave = ({ onClose }) => {
         classes,
         loadTimetable,
         loadLeaves,
-        buildUrl,
         teacherLeaveHistory,
         formatDate
     } = AppStates();
@@ -68,7 +67,6 @@ const TeacherLeave = ({ onClose }) => {
         }
 
         try {
-            console.log(fromDate, toDate, onDate)
             const payload = {
                 leave_type: leaveType,
                 applicant: userData,
@@ -79,9 +77,9 @@ const TeacherLeave = ({ onClose }) => {
             };
 
             const response = await Fetch(
-                buildUrl("/api/timetable/class/substitution"),
+                "/api/leaves/teachers",
                 {
-                    method: "POST",
+                    method: "PUT",
                     headers: {
                         "Content-Type": "application/json",
                     },
@@ -140,9 +138,9 @@ const TeacherLeave = ({ onClose }) => {
                 },
                 substitutor: {
                     teacher_name: userData?.name,
-                    teacher_id: userData?.teacher_id,
-                    substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss')
+                    teacher_id: userData?.teacher_id,                  
                 },
+                substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss'),
                 action: action
             })
         });
@@ -260,7 +258,7 @@ const TeacherLeave = ({ onClose }) => {
             </div>
 
             {/* Leave & Substitution History Log Section */}
-            <div className="h-full flex flex-col mt-8">
+            <div className="h-full flex flex-col mt-8 ml-1">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-200/60 dark:border-neutral-900 pb-3">
                     <h2 className="text-xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
                         Leaves & Substitutions
@@ -281,12 +279,12 @@ const TeacherLeave = ({ onClose }) => {
                     </div>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 h-full">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {filteredLeaves.map((item, idx) => (
                         <div
                             key={idx}
                             onClick={() => setSubstView({ visible: true, teacher_id: item.teacher_id })}
-                            className="group relative bg-white dark:bg-neutral-950/40 p-5 rounded-2xl border border-neutral-200/60 dark:border-neutral-900 shadow-sm hover:shadow-md hover:border-neutral-300 dark:hover:border-neutral-800 transition cursor-pointer flex flex-col justify-between h-[140px]"
+                            className="group relative bg-white dark:bg-neutral-950/40 p-5 rounded-2xl border border-neutral-200/60 dark:border-neutral-900 shadow-sm hover:shadow-md hover:border-neutral-300 dark:hover:border-neutral-800 transition cursor-pointer flex flex-col justify-between w-auto h-auto"
                         >
                             <div className="space-y-1">
                                 <div className="flex justify-between items-start gap-2">
@@ -318,7 +316,7 @@ const TeacherLeave = ({ onClose }) => {
                 </div>
 
                 {filteredLeaves?.length === 0 && (
-                    <div className="col-span-full flex-1 flex flex-col items-center justify-center py-12 px-4 text-center bg-neutral-50/40 dark:bg-neutral-900/10 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl animate-in fade-in duration-300">
+                    <div className="col-span-full !h-full flex-1 flex flex-col items-center justify-center py-12 px-4 text-center bg-neutral-50/40 dark:bg-neutral-900/10 border border-dashed border-neutral-200 dark:border-neutral-800 rounded-3xl animate-in fade-in duration-300">
                         <div className="w-12 h-12 rounded-2xl bg-neutral-100 dark:bg-neutral-900 flex items-center justify-center text-neutral-400 dark:text-neutral-500 mb-3 border border-neutral-200/50 dark:border-neutral-800">
                             <FiInbox size={40} />
                         </div>
@@ -346,7 +344,7 @@ const TeacherLeave = ({ onClose }) => {
                             </button>
                         </div>
                         <div className="overflow-y-auto custom-scrollbar flex-1 pr-1 space-y-2">
-                            {classes?.classes?.filter(c => c.subject_id)?.map((c, i) => {
+                            {classes?.classes?.filter(c => c.subject_id && c.subject_name !== "LUNCH")?.map((c, i) => {
                                 const isSelected = !!periods.find(p => p.id === c.id);
                                 return (
                                     <div

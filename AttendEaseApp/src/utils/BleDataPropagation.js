@@ -31,6 +31,9 @@ async function safeBleScanStart() {
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default async function BleDataPropagation(database, remoteMessage) {
+  const user_creds = await AsyncStorage.getItem("user_creds");
+  const userData = JSON.parse(user_creds || "{}");
+  
   const ble_on = await AsyncStorage.getItem("ble_state");
   if (!ble_on) return;
 
@@ -43,6 +46,9 @@ export default async function BleDataPropagation(database, remoteMessage) {
     console.log("No valid scope found in push payload.");
     return;
   }
+  else if (remoteMessage?.data?.scope === "Individual") {
+    console.log("Individual notification, stopping BLE!");
+  };
 
   if (!hasPermission) {
     console.log("Cannot broadcast: Permissions missing.");
@@ -52,17 +58,26 @@ export default async function BleDataPropagation(database, remoteMessage) {
   BLEAdvertise.setCompanyId(companyId);
 
   const metadata = JSON.parse(remoteMessage.data.metadata || "{}");
-  const notificationScope = remoteMessage.data.scope.split("_");
+
+  if (remoteMessage.data.scope.includes("Individual")) {
+    console.warn("skipping ble broadcast, individual notification");
+    return;
+  };
+  const notificationScope = remoteMessage.data.scope.replace(`COLLEGE_${userData?.college_id}_`, "").split("_").slice(1);
 
   // Extract raw identifiers from your mapping configuration file
   const typeCode = scopes("notification_type", remoteMessage.data.type.replace(" ", "_").toLowerCase());
   const branchCode = scopes("branch", notificationScope[0]);
   const yearCode = scopes("year", notificationScope[1]);
   const sectionCode = scopes("section", notificationScope[2]);
-  // Combine them together into a single text sequence, stripping out any stray marks
   const cleanScopeData = `${typeCode}${branchCode}${yearCode}${sectionCode}`;
-  // SAFETY CHECK: Ensure it fits the 4-character slot by slicing or padding
-  // This step prevents app crashes if your scopes file changes design later
+  
+  // console.log(notificationScope, typeCode, branchCode, yearCode, sectionCode)
+
+  if(!typeCode || !branchCode || !yearCode || !sectionCode) {
+    console.warn("skipping ble broadcast, invalid scope");
+    return;
+  };
   const scopeBlock = cleanScopeData.padStart(4, '0').substring(0, 4).toUpperCase();
 
   const notification_id = (sHash(remoteMessage.messageId) >>> 0)
@@ -213,7 +228,7 @@ export default async function BleDataPropagation(database, remoteMessage) {
     console.log("Can't process this notification")
   }
 
-  if(isBroadCasting) return;
+  if (isBroadCasting) return;
   const randomTime = Math.floor(Math.random() * (9000 - 3000 + 1)) + 3000;
   const processQueueTimeout = setTimeout(async () => {
     clearTimeout(processQueueTimeout);
@@ -233,7 +248,7 @@ export async function processQueue() {
   isProcessingQueue = true;
   BLEAdvertise.setCompanyId(companyId);
 
-  console.log("--- Starting Dynamic BLE Transmission Loop ---");
+  // console.log("--- Starting Dynamic BLE Transmission Loop ---");
 
   while (notification_queue.length > 0) {
     try {
@@ -262,11 +277,11 @@ export async function processQueue() {
       const activeChunks = currentNotificationPackets.filter(packet => packet.broadcasted < burst_size);
 
       if (activeChunks.length === 0) {
-        console.log("Notification completely synchronized. Dropping from queue.");
+        // console.log("Notification completely synchronized. Dropping from queue.");
         continue;
       }
 
-      console.log(`Bursting notification: ${activeChunks.length} active chunk(s) remaining...`);
+      // console.log(`Bursting notification: ${activeChunks.length} active chunk(s) remaining...`);
 
       // 3. RAPID ATOMIC BURST PHASE
       for (let index = 0; index < activeChunks.length; index++) {
@@ -276,10 +291,15 @@ export async function processQueue() {
           await delay(50)
 
           isBroadCasting = true;
-          await BLEAdvertise.broadcast(packet.uuid, packet.major, packet.minor);
+
+          try {
+            await BLEAdvertise.broadcast(packet.uuid, packet.major, packet.minor);
+          } catch (e) {
+            console.error(e)
+          }
 
           packet.broadcasted += 1;
-          console.log(`Broadcasted chunk [${packet.broadcasted}/${burst_size}]: ${packet.uuid}`);
+          // console.log(`Broadcasted chunk [${packet.broadcasted}/${burst_size}]: ${packet.uuid}`);
         } catch (err) {
           console.error("Broadcast harfdware failure caught:", err);
         }
@@ -305,14 +325,14 @@ export async function processQueue() {
 
     // delay in cycles of advertisement burst
     if (notification_queue.length > 0) {
-      console.log(`[RX Window] Listening for 4s... (${notification_queue.length} items in line)`);
+      // console.log(`[RX Window] Listening for 4s... (${notification_queue.length} items in line)`);
       await stop();
       await delay(4000);
     }
   }
 
   // Final cleanup once the carousel naturally grinds to a halt
-  console.log(`All notification packets verified at ${burst_size} broadcasts. Engine Idle.`);
+  // console.log(`All notification packets verified at ${burst_size} broadcasts. Engine Idle.`);
   await delay(1000);
   await stop();
   isProcessingQueue = false;
@@ -327,9 +347,15 @@ export function queueNotification(notification) {
 }
 
 export function broadcast(uuid, major, minor) {
-  BLEAdvertise.broadcast(uuid, major, minor)
-    .then(() => console.log("Broadcasting custom payload safely!"))
-    .catch(err => console.error("Broadcast failed:", err));
+  try {
+    BLEAdvertise.broadcast(uuid, major, minor)
+      .then(() => () => {
+        // console.log("Broadcasting custom payload safely!")
+      })
+      .catch(err => console.error("Broadcast failed:", err));
+  } catch (e) {
+    console.error(e)
+  }
 }
 
 export async function stop() {
