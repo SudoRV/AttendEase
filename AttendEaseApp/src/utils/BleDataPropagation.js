@@ -4,6 +4,9 @@ import { scopeAll, scopes, reverseScopes, decToHex } from '../constant/scopes';
 import { startMeshScannerLoop, stopMeshScannerLoop } from './BleDataScanning';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
+
+
 let notification_queue = [];
 let isBroadCasting = false;
 const companyId = 0xFFFF;
@@ -125,7 +128,11 @@ export default async function BleDataPropagation(database, remoteMessage) {
     }
 
     // Stitch everything together following the strict 8-4-4-4-12 size rules
-    const uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${fromDiff}${toDiff}-${notification_id}${decToHex(3 + (await scopes("day", applicant?.day || -1)) || 7)}${decToHex(!!(applicant?.period_id + 1) ? applicant?.period_id : 14)}${metadata.leave_type === "period" ? "0" : metadata.leave_type === "day" ? "1" : "2"}1`;
+    const dayOffset = 3 + (await scopes("day", applicant?.day ?? -1) || 7);
+    const periodVal = (applicant?.period_id !== undefined && applicant?.period_id !== null) ? applicant.period_id : 14;
+    const leaveFlag = metadata.leave_type === "period" ? "0" : metadata.leave_type === "day" ? "1" : "2";
+
+    const uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${fromDiff}${toDiff}-${notification_id}${decToHex(dayOffset)}${decToHex(periodVal)}${leaveFlag}1`;
 
     const maxHops = 6;
     const currentHops = 0;
@@ -141,11 +148,20 @@ export default async function BleDataPropagation(database, remoteMessage) {
     const encodedPeriod = `${metadata?.status}${decToHex(metadata.period_id)}`.padStart(4, "0").toUpperCase();
 
     // fetch substitutor data from offline cachce
-    const substitutor = database.execute(
-      "SELECT day, period_id FROM timetable WHERE teacher_id = ? LIMIT 1",
-      [metadata.substitutor]
-    ).rows._array[0];
-    const encodedSubstitutor = `${await scopes("day", substitutor?.day || -1) || 7}${decToHex(!!(substitutor?.period_id + 1) ? substitutor?.period_id : 14)}`.padStart(4, "0").toUpperCase();
+    let substitutor = null;
+    try {
+      const result = database?.execute?.(
+        "SELECT day, period_id FROM timetable WHERE teacher_id = ? LIMIT 1",
+        [metadata?.substitutor]
+      );
+      substitutor = result?.rows?._array?.[0] || null;
+    } catch (dbErr) {
+      console.warn("Database execution error on substitutor query:", dbErr);
+    }
+
+    const dayVal = (await scopes("day", substitutor?.day ?? -1)) || 7;
+    const periodVal = (substitutor?.period_id !== undefined && substitutor?.period_id !== null) ? substitutor.period_id : 14;
+    const encodedSubstitutor = `${dayVal}${decToHex(periodVal)}`.padStart(4, "0").toUpperCase();
 
     const uuid = `${appid}-${scopeBlock}-${encodedPeriod}-${encodedSubstitutor}-${notification_id}CCC1`;
 
@@ -160,6 +176,7 @@ export default async function BleDataPropagation(database, remoteMessage) {
   // Case 2: Announcements (Fragmented Packets)
   else if (typeCode === 2) {
     const notification = [];
+
     const announcementScope = await packAnnouncementMetadata(typeCode, metadata.scope, metadata.target_branch, metadata.target_year, metadata.target_section);
     // console.log(announcementScope)
 
@@ -176,8 +193,8 @@ export default async function BleDataPropagation(database, remoteMessage) {
 
     notification.push({ broadcasted: 0, uuid: uuidMetadata, major, minor });
 
-    const title = remoteMessage.data.title.substring(0, 27) || "";
-    const body = remoteMessage.data.body.substring(0, 117) || "";
+    const title = (remoteMessage.data.title || "").substring(0, 27) || "";
+    const body = (remoteMessage.data.body || "").substring(0, 117) || "";
 
     // Slices EVERY chunk into a uniform 9-character maximum layout
     const t_chunks = title.match(/.{1,9}/gs) || [];
@@ -249,6 +266,7 @@ export default async function BleDataPropagation(database, remoteMessage) {
 
 
 
+
 // notification queue broadcaster
 // Global tracking flag instead of a rigid setInterval
 let isProcessingQueue = false;
@@ -312,6 +330,7 @@ export async function processQueue() {
           packet.broadcasted += 1;
           // console.log(`Broadcasted chunk [${packet.broadcasted}/${burst_size}]: ${packet.uuid}`);
         } catch (err) {
+          packet.broadcasted += 1;
           console.error("Broadcast harfdware failure caught:", err);
         }
 
@@ -424,8 +443,6 @@ function sHash(str) {
   }
   return hash >>> 0;
 }
-
-
 
 // 30-29 → type (2 bits)
 // 28-22 → branches (7 bits)

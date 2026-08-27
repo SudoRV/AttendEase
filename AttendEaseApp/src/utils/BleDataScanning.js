@@ -6,6 +6,9 @@ import { queueNotification, processQueue } from './BleDataPropagation';
 import notifee, { AndroidStyle, EventType, AndroidImportance } from '@notifee/react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
 import decodeAdvertisement from './DecodeAdvertisement';
+import { Buffer } from 'buffer';
+
+
 
 
 const TARGET_APP_ID = "41545445";
@@ -16,6 +19,9 @@ let isScanningLoopActive = false;
 let updateDevicesCallback = null;
 let updateTimetableCallback = null;
 const discoveredDevicesMap = new Map();
+
+// Core Data Structures tracking active over-the-air fragments
+const announcements_registry = {};
 
 export function initializeScannerCallbacks(setDevices, loadTimetable) {
   updateDevicesCallback = setDevices;
@@ -45,12 +51,6 @@ async function requestBluetoothPermissions() {
   return true;
 }
 
-// Core Data Structures tracking active over-the-air fragments
-const announcements_registry = {};
-
-/**
- * UTILITY: Converts Hex payload back to pure ASCII characters
- */
 function hexToAscii(hexStr) {
   let str = '';
   for (let i = 0; i < hexStr.length; i += 2) {
@@ -60,9 +60,8 @@ function hexToAscii(hexStr) {
   return str;
 }
 
-/**
- * UTILITY: Unpacks metadata bitmask strings matching your reverse profile map
- */
+// UTILITY: Unpacks metadata bitmask strings matching your reverse profile map
+
 export async function decodeMask(scopeKey, mask) {
   const scopeMap = await scopeAll(scopeKey); // e.g. { "all": 0, "CSE": 1, ... }
   if (!scopeMap) return [];
@@ -104,9 +103,7 @@ export async function unpackMetadata(hex) {
   };
 }
 
-/**
- * UTILITY: Decodes bitmask arrays for academic period assignment blocks
- */
+// UTILITY: Decodes bitmask arrays for academic period assignment blocks
 function decodePeriods(hex) {
   const mask = parseInt(hex, 16);
   const periods = [];
@@ -156,7 +153,14 @@ const channelMap = {
 };
 
 async function notify(notification) {
-  const channelId = channelMap[notification.type.toUpperCase()];
+  const rawType = (notification?.type || "").toString().toUpperCase();
+  const channelId = channelMap[rawType] || "default_alerts";
+
+  await notifee.createChannel({
+    id: channelId,
+    name: channelId.replace(/_/g, ' '),
+    importance: AndroidImportance.HIGH,
+  });
 
   await notifee.displayNotification({
     id: channelId,
@@ -171,8 +175,6 @@ async function notify(notification) {
       ongoing: false,
       autoCancel: true,
       asForegroundService: false,
-
-      pressAction: { id: 'default' },
 
       style: {
         type: AndroidStyle.BIGTEXT,
@@ -196,10 +198,10 @@ async function notify(notification) {
   });
 }
 
-/**
- * ENGINE: Processes incoming frames directly mirrored from your Python parser
- */
+
+//  ENGINE: Processes incoming frames directly mirrored from your Python parser
 async function processIncomingFrame(uuid_str, major, minor) {
+  if (!uuid_str || typeof uuid_str !== 'string') return null;
 
   const database = getDBConnection();
   const user_creds = await AsyncStorage.getItem("user_creds");
@@ -212,7 +214,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
   const appid = clean_uuid?.substring(0, 8);
 
   if (appid !== TARGET_APP_ID) {
-    console.log("not native app advertisement");
+    console.warn("Doesnt belongs to AttendEase!");
     return null;
   }
 
@@ -220,7 +222,6 @@ async function processIncomingFrame(uuid_str, major, minor) {
 
   // 3. Extract Common Core Variables using literal Python slices
   const scope_block = clean_uuid.substring(8, 12);
-
   // Handle type 2 sentinel '2CCC' explicitly matching Python fallback check
   const firstChar = scope_block[0];
   const type_code = (!isNaN(parseInt(firstChar, 10)) && isFinite(firstChar)) ? parseInt(firstChar, 16) : 2;
@@ -229,10 +230,16 @@ async function processIncomingFrame(uuid_str, major, minor) {
   const tail_flags = clean_uuid.substring(28, 32);
 
   // check if notification exists
-  const notificationExists = database.execute("select * from notifications where notification_id = ? limit 1", [notification_id]).rows._array[0];
+  let notificationExists = null;
+  try {
+    const res = database?.execute?.("select * from notifications where notification_id = ? limit 1", [notification_id]);
+    notificationExists = res?.rows?._array?.[0] || null;
+  } catch (dbErr) {
+    console.warn("DB check error:", dbErr);
+  }
 
   if (notificationExists) {
-    console.log("notification exists with id: ", notification_id);
+    console.log("Notification exists with id: ", notification_id);
     return;
   }
 
@@ -261,7 +268,14 @@ async function processIncomingFrame(uuid_str, major, minor) {
     const day = parseInt(tail_flags[0], 16) - 3;
     const periodId = parseInt(tail_flags[1], 16);
 
-    const lecture = database.execute("select * from timetable where day = ? and period_id = ?", [await reverseScopes("day", day), periodId]).rows._array[0];
+    let lecture = null;
+    try {
+      const dayScope = await reverseScopes("day", day);
+      const res = database?.execute?.("select * from timetable where day = ? and period_id = ?", [dayScope, periodId]);
+      lecture = res?.rows?._array?.[0] || null;
+    } catch (e) {
+      console.warn("Timetable lecture fetch error:", e);
+    }
 
     const message = `Period ${decodePeriods(encoded_periods).map((p) => p)
       .join(", ")} of ${lecture?.teacher_name || "some teacher"} cancelled, on leave ${leave_type === "duration" ? `from ${new Date(new Date().getTime() + (from_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()} to ${new Date(new Date().getTime() + (to_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()}` : `for ${new Date().toLocaleDateString()}`}`;
@@ -285,10 +299,13 @@ async function processIncomingFrame(uuid_str, major, minor) {
     if ((userData?.branch_id === branch || branch === "all") && (userData?.year === parseInt(year) || year === "all") && (userData?.section === section || section === "all")) {
       if (from_diff === 0) {
         // update local timetable
-        const result = database.execute("update timetable set cancelled = ? and cancelled_from = ? and cancelled_to = ? where id = ?", [1, lecture?.id]);
-        console.log(result);
+        try {
+          database?.execute?.("update timetable set cancelled = ?, cancelled_from = ?, cancelled_to = ? where id = ?", [1, null, null, lecture.id]);
+        } catch (updateErr) {
+          console.warn("Timetable update failed:", updateErr);
+        }
 
-        if(updateTimetableCallback) updateTimetableCallback(userData);
+        if (updateTimetableCallback) updateTimetableCallback(userData);
       }
 
       // Alert.alert(notification.title, notification.body);
@@ -313,9 +330,19 @@ async function processIncomingFrame(uuid_str, major, minor) {
     const sub_day = await reverseScopes("day", parseInt(encoded_substitutor[2], 16));
     const sub_period_id = parseInt(encoded_substitutor[3], 16);
 
-    const substitutee = database.execute("select * from timetable where day = ? and period_id = ?", [new Date().toLocaleDateString("en-Gb", { weekday: "long" }), original_period_id]).rows._array[0];
-    const substitutor = database.execute("select * from timetable where day = ? and period_id = ?", [sub_day, sub_period_id]).rows._array[0];
-    // if (!substitutee && !substitutor) return;
+    let substitutee = null;
+    let substitutor = null;
+    try {
+      const todayName = new Date().toLocaleDateString("en-GB", { weekday: "long" });
+      const res1 = database?.execute?.("select * from timetable where day = ? and period_id = ?", [todayName, original_period_id]);
+      substitutee = res1?.rows?._array?.[0] || null;
+
+      const res2 = database?.execute?.("select * from timetable where day = ? and period_id = ?", [sub_day, sub_period_id]);
+      substitutor = res2?.rows?._array?.[0] || null;
+    } catch (dbErr) {
+      console.warn("Substitution query error:", dbErr);
+    }
+
 
     const message = substitute_status === 1 ? `Class ${substitutee?.subject_name || "some"} of ${substitutee?.teacher_name || "some teacher"} is substituted by ${substitutor?.teacher_name || "some teacher"}` : `Substitution of class ${substitutee?.subject_name || "some"} cancelled by ${substitutor?.teacher_name || "some teacher"}`;
 
@@ -335,20 +362,27 @@ async function processIncomingFrame(uuid_str, major, minor) {
     reBroadcast([{ broadcasted: 0, uuid: uuid_str, major, minor }]);
 
     // check if scope matches and popup notification
-    if ((userData?.branch_id === branch || branch === "all") && (userData?.year === parseInt(year) || year === "all") && (userData?.section === section || section === "all")) {
+    if (
+      (userData?.branch_id === branch || branch === "all")
+      && (userData?.year === parseInt(year) || year === "all")
+      && (userData?.section === section || section === "all")
+    ) {
+
       // update local timetable
+      const substituted_till = new Date();
+      substituted_till.setHours(18, 0, 0, 0);
+
       let params = [];
       if (substitute_status === 1) {
         params = [substitutor?.teacher_id, substitutor?.teacher_name, substituted_till, substitutee?.id];
       } else {
         params = [null, null, null, substitutee?.id];
       }
-      const substituted_till = new Date();
-      substituted_till.setTime(18, 0, 0, 0);
+
       const result = database.execute("update timetable set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", params);
       console.log(result);
 
-      if(updateTimetableCallback) updateTimetableCallback(userData);
+      if (updateTimetableCallback) updateTimetableCallback(userData);
 
       // Alert.alert(notification.title, notification.body);
       notify(notification);
@@ -499,14 +533,20 @@ async function processAnnouncement(database, userData, notification_id, tail_fla
     saveNotification(database, notification);
 
     // re broadcast it
-    // reBroadcast(current_active.rawNotifications);
+    reBroadcast(current_active.rawNotifications);
 
     // check if scope matches and popup notification
-    console.log(current_active?.scope, notification)
+    const scope = current_active["scope"] || {};
+    const branches = Array.isArray(scope.branches) ? scope.branches : [];
+    const years = Array.isArray(scope.years) ? scope.years : [];
+    const sections = Array.isArray(scope.sections) ? scope.sections : [];
 
-    if (current_active["scope"].branches.some(b => b === userData.branch_id || b === "all") && current_active["scope"].years.some(y => y === `${userData.year}` || y === "all") && current_active["scope"].sections.some(s => s === userData.section || s === "all")) {
-      // Alert.alert(notification.title, notification.body);
-      notify(notification);
+    const matchBranch = branches.length === 0 || branches.some(b => b === userData?.branch_id || b === "all");
+    const matchYear = years.length === 0 || years.some(y => y === `${userData?.year}` || y === "all");
+    const matchSection = sections.length === 0 || sections.some(s => s === userData?.section || s === "all");
+
+    if (matchBranch && matchYear && matchSection) {
+      await notify(notification);
     }
 
     delete announcements_registry[notification_id];
@@ -515,19 +555,19 @@ async function processAnnouncement(database, userData, notification_id, tail_fla
   }
 }
 
-function base64ToHex(base64Str) {
-  const rawBinary = Buffer.from(base64Str, 'base64');
-  return rawBinary.toString('hex').toUpperCase();
-}
 
+// ==============  samples to test processing notification  ==============
+// processIncomingFrame("41545445-0140-0002-0204-1999AAAC5221", 1280, 51210);
+// processIncomingFrame("41545445-1141-0011-0003-9221EABCCC1", 1280, 51210);
 
-/**
- * RECEIVER CALLBACK: Intercepts raw native BLE events
- */
+// processIncomingFrame("41545445-2DD8-4090-0002-76F23CA22000", 1280, 51210);
+// processIncomingFrame("41545445-0068-6900-0000-76F23CA22011", 0, 0);
+// processIncomingFrame("41545445-0068-6579-0000-76F23CA22021", 0, 0);
 
+// RECEIVER CALLBACK: Intercepts raw native BLE events
 const handleDiscoverPeripheral = (device) => {
   const manufacturerData = device.manufacturerData;
-  const { uuid, major, minor, rssi } = decodeAdvertisement(manufacturerData);
+  const { uuid, major, minor, rssi } = decodeAdvertisement(manufacturerData) || {};
 
   // console.log("payload: ", device.name, uuid, major, minor)
 
@@ -548,17 +588,6 @@ const handleDiscoverPeripheral = (device) => {
     processIncomingFrame(uuid, major, minor);
   }
 };
-
-/**
- * INTERFACE EXPORT: Start scanning loop
- */
-
-// processIncomingFrame("41545445-0140-0002-0204-1999AAAC5221", 1280, 51210);
-// processIncomingFrame("41545445-1141-0011-0003-9221EABCCC1", 1280, 51210);
-
-// processIncomingFrame("41545445-2DD8-4090-0002-76F23CA22000", 1280, 51210);
-// processIncomingFrame("41545445-0068-6900-0000-76F23CA22011", 0, 0);
-// processIncomingFrame("41545445-0068-6579-0000-76F23CA22021", 0, 0);
 
 export async function startMeshScannerLoop() {
   if (isScanningLoopActive) return;
@@ -599,9 +628,7 @@ export async function startMeshScannerLoop() {
   );
 }
 
-/**
- * INTERFACE EXPORT: Stop scanning loop
- */
+// INTERFACE EXPORT: Stop scanning loop
 export async function stopMeshScannerLoop() {
   isScanningLoopActive = false;
   plxManager.stopDeviceScan();
