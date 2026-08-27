@@ -18,7 +18,6 @@ import { Fetch } from "../services/api";
 
 const StudentLeaveManagement = () => {
   const {
-    userData,
     loadLeaves,
     leaveHistory,
     setLeaveHistory,
