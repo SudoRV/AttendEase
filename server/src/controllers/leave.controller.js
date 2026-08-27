@@ -1,5 +1,6 @@
 const pool = require("../config/mysql");
 const admin = require("../config/fcm");
+const { clean } = require("../utils/buildFcmTopics");
 
 exports.submitStudentLeave = async (req, res) => {
     const { subject, application, applicable_from, applicable_to } = req.body;
@@ -12,28 +13,23 @@ exports.submitStudentLeave = async (req, res) => {
     // student leave
     if (applicant.role === "Student") {
         query = `insert into leaves (
-        name, 
-        college_id,
-        course_id,
-        year, 
-        branch,
-        student_id, 
+        user_id,
         subject, 
         application, 
         applicable_from, 
         applicable_to, 
         status,
         affected_days
-      ) select ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?
+      ) select ?, ?, ?, ?, ?, 'Pending', ?
        where not exists (
         select 1 
         from leaves
-        where student_id = ?
+        where id = ?
           and status = 'Pending'
           and applicable_from = ?
           and applicable_to = ?
        )`;
-        values = [applicant?.name, applicant?.college_id, applicant?.course_id, applicant?.year, applicant?.branch_id, applicant?.student_id, subject, application, new Date(applicable_from), new Date(applicable_to), affected_days, applicant?.student_id, new Date(applicable_from), new Date(applicable_to)];
+        values = [applicant?.id, subject, application, new Date(applicable_from), new Date(applicable_to), affected_days, applicant?.id, new Date(applicable_from), new Date(applicable_to)];
     }
 
     try {
@@ -61,7 +57,7 @@ exports.submitStudentLeave = async (req, res) => {
 
 exports.studentsLeaves = async (req, res) => {
     const { filter: leaveFilter, time } = req.query;
-    const userData = req.user;
+    const user = req.user;
 
     let filter = {};
     if (leaveFilter) {
@@ -74,32 +70,32 @@ exports.studentsLeaves = async (req, res) => {
     let studentLeavesQuery;
     let studentValues;
 
-    if (userData?.role === "Student") {
+    if (user?.role === "Student") {
         studentLeavesQuery = `
-        select id, name, year, branch, student_id, subject, application, applicable_from, applicable_to, status, created_at 
-        from leaves 
-        where college_id = ? and student_id = ? 
-        and month(created_at) = ? 
-        and year(created_at) = year(current_date()) 
-        order by created_at desc`;
-        studentValues = [userData?.college_id, userData?.student_id, filter.month + 1];
+        select l.id, l.user_id, u.name, u.year, u.branch_id, u.student_id, l.subject, l.application, l.applicable_from, l.applicable_to, l.status, l.created_at 
+        from leaves l left join users u on l.user_id = u.id 
+        where l.user_id = ? 
+        and month(l.created_at) = ? 
+        and year(l.created_at) = year(current_date()) 
+        order by l.created_at desc`;
+        studentValues = [user?.id, filter.month + 1];
     } else {
         studentLeavesQuery = `
-        SELECT l.id, l.name,l.year, l.branch, l.student_id, l.subject, l.application, l.applicable_from, l.applicable_to, l.status, l.created_at,
-        COUNT(*) OVER (PARTITION BY l.student_id) AS total_leaves
-        FROM leaves l
-        WHERE l.college_id = ? AND l.applicable_to > ? 
+        SELECT l.id, l.user_id, u.name, u.year, u.branch_id, u.student_id, l.subject, l.application, l.applicable_from, l.applicable_to, l.status, l.created_at,
+        COUNT(*) OVER (PARTITION BY l.id) AS total_leaves
+        FROM leaves l left join users u on l.user_id = u.id
+        WHERE u.college_id = ? AND l.applicable_to > ? 
           AND EXISTS (
             SELECT 1
             FROM schedule s
             WHERE s.teacher_id = ?
-              AND s.year = l.year
-              AND s.branch_id = l.branch
-              AND s.section = l.section
+              AND s.year = u.year
+              AND s.branch_id = u.branch_id
+              AND s.section = u.section
               AND FIND_IN_SET(s.day, l.affected_days)
           )
         ORDER BY l.created_at DESC`;
-        studentValues = [userData?.college_id, new Date(time), userData?.teacher_id]
+        studentValues = [user?.college_id, new Date(time), user?.teacher_id]
     }
 
     try {
@@ -112,13 +108,12 @@ exports.studentsLeaves = async (req, res) => {
 }
 
 exports.verifyStudentLeave = async (req, res) => {
-    const { action, applicant } = req.body;
+    const { action, application } = req.body;
     const verifier = req.user;
 
-    if (req.user.role !== "Teacher") return res.status(401).json({success: false, message: "Unauthorized access!"});
+    if (verifier.role !== "Teacher") return res.status(401).json({ success: false, message: "Unauthorized access!" });
 
-    const query = `update leaves l set l.status = ? where l.student_id = ? 
-    and id = ? and exists (
+    const query = `update leaves l set l.status = ? where l.id = ? and exists (
       select 1
       from users u
       where u.teacher_id = ?
@@ -126,22 +121,21 @@ exports.verifyStudentLeave = async (req, res) => {
     )`
 
     try {
-        const [response] = await pool.query(query, [action, applicant?.student_id, applicant?.id, verifier.teacher_id])
+        const [response] = await pool.query(query, [action, application?.id, verifier.teacher_id])
 
         if (response.affectedRows > 0) {
             res.json({ success: true, message: "successfully " + action });
 
             // notify user
             // fetch user fcm token
+            const [tokens] = await pool.query(`select f.fcm_token from fcm_tokens f join users u on f.user_id = u.id where u.student_id = ?`, [application.student_id]);
 
-            const [tokens] = await pool.query(`select f.fcm_token from fcm_tokens f join users u on f.user_id = u.id where u.student_id = ?`, [applicant.student_id]);
+            if (tokens.length) {
+                await notify(tokens, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier?.name}`, "LEAVE_STATUS", { scope: "Individual" });
+            }
 
-            tokens.forEach(async (token) => {
-                if (token) {
-                    await notify(token.fcm_token, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier?.name}`, "LEAVE_STATUS", {scope: "Individual"});
-                }
-            })
-        }
+            return;
+        } res.json({ success: false, message: "No leave exists or Internal server error!" })
 
     } catch (error) {
         console.log(error)
@@ -153,7 +147,7 @@ exports.submitTeacherLeaves = async (req, res) => {
     const { leave_type, classes } = req.body;
     const applicant = req.user;
 
-    if (req.user.role !== "Teacher") return res.status(401).json({success: false, message: "Unauthorized access!"});
+    if (req.user.role !== "Teacher") return res.status(401).json({ success: false, message: "Unauthorized access!" });
 
     const affected_days = getAffectedDays(req.body.from || req.body.on, req.body.to || req.body.on);
 
@@ -163,41 +157,26 @@ exports.submitTeacherLeaves = async (req, res) => {
 
     // save leave to leaves table
     const query1 = `insert into leaves (
-      name,  
-      college_id,
-      teacher_id, 
+      user_id, 
       subject, 
       application, 
       applicable_from, 
       applicable_to, 
       status,
       affected_days
-    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    ) values (?, ?, ?, ?, ?, ?, ?)`;
 
-    const values1 = [applicant.name, applicant?.college_id, applicant?.teacher_id, "Priviliged", "Priviliged", from, to, "Approved", affected_days];
+    const values1 = [applicant?.id, "Leave", "Priviliged", from, to, "Approved", affected_days];
 
     let query2 = "";
     let values2 = [];
 
     // if leave type = period
     if (leave_type == "period") {
-        // Build tuple placeholders
-        const tuplePlaceholders = classes.map(() => "(?, ?, ?, ?, ?, ?)").join(", ");
-
-        // Flatten all values into one array
-        const tupleValues = classes.flatMap(c => [
-            c.day,
-            c.period_id,
-            c.subject_id,
-            c.branch_id,
-            c.year,
-            c.section
-        ]);
-
         query2 = `UPDATE schedule
       SET cancelled = ?, cancelled_from = ?, cancelled_to = ?
       WHERE teacher_id = ?
-        AND (day, period_id, subject_id, branch_id, year, section) IN (${tuplePlaceholders});
+        AND id IN (${classes?.map(c => "?").join(", ")});
       `;
 
         values2 = [
@@ -205,8 +184,9 @@ exports.submitTeacherLeaves = async (req, res) => {
             from,
             to,
             applicant.teacher_id,
-            ...tupleValues
+            ...classes?.map(c => c.id)
         ];
+
     } else {
         // if leave type day | duration then check for affected periods
         query2 = `update schedule set cancelled = ?, cancelled_from = ?, cancelled_to = ? where teacher_id = ? and day in (${affected_days.split(",").map(ad => "?").join(",")})`;
@@ -216,17 +196,12 @@ exports.submitTeacherLeaves = async (req, res) => {
 
     try {
         // check for duplicates for leave type period
-        const [leaveExists] = await pool.query("select * from leaves where teacher_id = ? and applicable_from = ? and applicable_to = ?", [applicant.teacher_id, from, to]);
+        const [leaveExists] = await pool.query("select id from leaves where user_id = ? and applicable_from = ? and applicable_to = ?", [applicant.id, from, to]);
 
         if (leaveExists.length === 0) {
             const response1 = await pool.query(query1, values1);
         }
         const response2 = await pool.query(query2, values2);
-
-        const currentDate = new Date(new Date().toDateString());
-        const fromDate = new Date(new Date(from).toDateString());
-        const toDate = new Date(new Date(to).toDateString());
-
 
         // send notification to affected class
         // fetch affetected class
@@ -235,21 +210,22 @@ exports.submitTeacherLeaves = async (req, res) => {
         })]);
 
         // notify affected students
-        const notification = {};
-        affectedClasses.forEach((clas) => {
-            if (!notification[`${clas.branch_id}_${clas.year}_${clas.section}`]) {
-                notification[`${clas.branch_id}_${clas.year}_${clas.section}`] = [clas];
+        const groupedClasses = {};
+        for (const affectedClass of affectedClasses) {
+            const key = `${clean(affectedClass?.course_id)}_${clean(affectedClass?.branch_id)}_${affectedClass?.year}_${affectedClass?.section}`
+            if (!groupedClasses[key]) {
+                groupedClasses[key] = [affectedClass];
             } else {
-                notification[`${clas.branch_id}_${clas.year}_${clas.section}`].push(clas);
+                groupedClasses[key].push(affectedClass);
             }
-        })
+        }
 
-        Object.keys(notification).forEach(async (topic) => {
-            // console.log(topic, `Period ${notification[topic].map((p => p.period_id)).join(", ")} of ${notification[topic][0].teacher_name} Cancelled`)
+        Object.keys(groupedClasses).forEach(async (key) => {
+            // const scope = key.split("_");
 
-            const message = `Period ${notification[topic]
+            const message = `Period ${groupedClasses[key]
                 .map((p) => p.period_id)
-                .join(", ")} of ${notification[topic][0].teacher_name} cancelled, on leave ${new Date(from).toDateString() === new Date(to).toDateString()
+                .join(", ")} of ${groupedClasses[key][0].teacher_name} cancelled, on leave ${new Date(from).toDateString() === new Date(to).toDateString()
                     ? `for ${new Date(from).toLocaleDateString("en-GB", {
                         day: "numeric",
                         month: "short",
@@ -266,8 +242,10 @@ exports.submitTeacherLeaves = async (req, res) => {
                     })}`
                 }`;
 
+            // const condition = `'COLLEGE_${groupedClasses[key][0]?.college_id}' in topics && 'COURSE_${scope[0]}' in topics && 'BRANCH_${scope[1]}' in topics && 'YEAR_${scope[2]}' in topics && 'SECTION_${scope[3]}' in topics`;
+
             await admin.messaging().send({
-                topic: topic,
+                topic: `COLLEGE_${applicant.college_id}_${key}`,
                 data: {
                     type: "CLASS_CANCELLED",
                     title: "Class Cancelled",
@@ -275,12 +253,12 @@ exports.submitTeacherLeaves = async (req, res) => {
                         leave_type,
                         status: "1",
                         teacher_id: applicant.teacher_id,
-                        period_id: notification[topic]
+                        period_id: groupedClasses[key]
                             .map((p) => p.period_id),
                         on, from, to
                     }),
                     body: message,
-                    scope: topic,
+                    scope: key,
                 },
 
                 android: {
@@ -317,7 +295,7 @@ exports.submitTeacherLeaves = async (req, res) => {
 
 exports.teachersLeaves = async (req, res) => {
     const { filter: leaveFilter, time } = req.query;
-    const userData = req.user;
+    const user = req.user;
 
     let filter = {};
     if (leaveFilter) {
@@ -330,20 +308,21 @@ exports.teachersLeaves = async (req, res) => {
     let teacherLeavesQuery;
     let teacherValues;
 
-    if (userData?.role === "Teacher") {
-        teacherLeavesQuery = `select teacher_id, id, name, applicable_from, applicable_to, status from leaves where college_id = ? and teacher_id != 'not a teacher' and applicable_to > ?`;
-        teacherValues = [userData?.college_id, new Date(time)];
+    if (user?.role === "Teacher") {
+        teacherLeavesQuery = `select u.teacher_id, l.id, u.name, l.applicable_from, l.applicable_to, l.status from leaves l left join users u on l.user_id = u.id where u.college_id = ? and u.teacher_id != 'not a teacher' and l.applicable_to > ?`;
+        teacherValues = [user?.college_id, new Date(time)];
     } else {
         teacherLeavesQuery = `
-        SELECT DISTINCT l.id, l.teacher_id, l.name, l.applicable_from, l.applicable_to, l.status
-        FROM leaves l
-        JOIN schedule s ON l.teacher_id = s.teacher_id
-        WHERE l.college_id = ?
+        SELECT DISTINCT l.id, u.teacher_id, u.name, l.applicable_from, l.applicable_to, l.status
+        FROM leaves l 
+        left join users u on l.user_id = u.id
+        JOIN schedule s ON u.teacher_id = s.teacher_id
+        WHERE u.college_id = ?
           AND s.year = ? 
           AND s.branch_id = ? 
           AND s.section = ?
           AND applicable_to > ?`;
-        teacherValues = [userData?.college_id, userData.year, userData.branch_id, userData.section || "A", new Date(time)];
+        teacherValues = [user?.college_id, user.year, user.branch_id, user.section || "A", new Date(time)];
     }
 
     try {
@@ -376,42 +355,42 @@ function getAffectedDays(from, to, timeZone = "Asia/Kolkata") {
     return [...days].join(",");
 }
 
-async function notify(token, title, body, dataType, data) {
-  const message = {
-    token,
-    data: {
-      type: dataType,
-      title,
-      body,
-      ...data
-    },
+async function notify(tokens, title, body, dataType, data) {
+    const message = {
+        tokens,
+        data: {
+            type: dataType,
+            title,
+            body,
+            ...data
+        },
 
-    android: {
-      priority: "high",
-    },
+        android: {
+            priority: "high",
+        },
 
-    webpush: {
-      headers: {
-        Urgency: "high"
-      },
+        webpush: {
+            headers: {
+                Urgency: "high"
+            },
 
-      notification: {
-        title,
-        body,
-      },
+            notification: {
+                title,
+                body,
+            },
 
-      fcmOptions: {
-        link: "https://attendease-nivr.onrender.com/"
-      }
+            fcmOptions: {
+                link: "https://attendease-nivr.onrender.com/"
+            }
+        }
+
+    };
+
+    try {
+        const response = await admin.messaging().sendEachForMulticast(message);
+        console.log("Notification sent:", response);
+        return response;
+    } catch (err) {
+        console.error("FCM error:", err.message);
     }
-
-  };
-
-  try {
-    const response = await admin.messaging().send(message);
-    console.log("Notification sent:", response);
-    return response;
-  } catch (err) {
-    console.error("FCM error:", err.message);
-  }
 }

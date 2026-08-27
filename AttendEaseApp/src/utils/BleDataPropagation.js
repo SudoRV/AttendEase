@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, Button, PermissionsAndroid, Platform } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 import BLEAdvertise from 'react-native-ble-advertise';
-import { scopes, reverseScopes, decToHex, hexToDec } from '../constant/scopes';
+import { scopeAll, scopes, reverseScopes, decToHex } from '../constant/scopes';
 import { startMeshScannerLoop, stopMeshScannerLoop } from './BleDataScanning';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -31,53 +30,55 @@ async function safeBleScanStart() {
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export default async function BleDataPropagation(database, remoteMessage) {
+  console.log("Incoming Remote Message: ", remoteMessage);
+  // loading user data
   const user_creds = await AsyncStorage.getItem("user_creds");
   const userData = JSON.parse(user_creds || "{}");
-  
+
+  // BLE toggled state 
   const ble_on = await AsyncStorage.getItem("ble_state");
   if (!ble_on) return;
 
-  console.log("Incoming Remote Message: ", remoteMessage);
-
-  const hasPermission = await requestBLEPermissions();
-  console.log("Has permission: ", hasPermission);
-
+  // checking for valid scope
   if (!remoteMessage?.data?.scope) {
     console.log("No valid scope found in push payload.");
     return;
   }
-  else if (remoteMessage?.data?.scope === "Individual") {
+  if (remoteMessage?.data?.scope.includes("Individual")) {
     console.log("Individual notification, stopping BLE!");
+    return;
   };
 
+  // BLE Permission
+  const hasPermission = await requestBLEPermissions();
   if (!hasPermission) {
-    console.log("Cannot broadcast: Permissions missing.");
+    console.warn("Cannot broadcast: Permissions missing.");
     return;
   }
 
+
+
+  // setting company id
   BLEAdvertise.setCompanyId(companyId);
 
-  const metadata = JSON.parse(remoteMessage.data.metadata || "{}");
 
-  if (remoteMessage.data.scope.includes("Individual")) {
-    console.warn("skipping ble broadcast, individual notification");
-    return;
-  };
+  const metadata = JSON.parse(remoteMessage.data.metadata || "{}"); // usefull for announcement scope
+
   const notificationScope = remoteMessage.data.scope.replace(`COLLEGE_${userData?.college_id}_`, "").split("_").slice(1);
 
   // Extract raw identifiers from your mapping configuration file
-  const typeCode = scopes("notification_type", remoteMessage.data.type.replace(" ", "_").toLowerCase());
-  const branchCode = scopes("branch", notificationScope[0]);
-  const yearCode = scopes("year", notificationScope[1]);
-  const sectionCode = scopes("section", notificationScope[2]);
-  const cleanScopeData = `${typeCode}${branchCode}${yearCode}${sectionCode}`;
-  
-  // console.log(notificationScope, typeCode, branchCode, yearCode, sectionCode)
+  const rawType = (remoteMessage.data.type || "").replace(" ", "_").toLowerCase();
+  const typeCode = await scopes("notification_type", rawType);
+  const branchCode = await scopes("branch", notificationScope[0]);
+  const yearCode = await scopes("year", notificationScope[1]);
+  const sectionCode = await scopes("section", notificationScope[2]);
 
-  if(!typeCode || !branchCode || !yearCode || !sectionCode) {
+  if ((!rawType || !branchCode || !yearCode || !sectionCode) && typeCode !== 2) {
     console.warn("skipping ble broadcast, invalid scope");
     return;
   };
+
+  const cleanScopeData = `${typeCode}${branchCode}${yearCode}${sectionCode}`;
   const scopeBlock = cleanScopeData.padStart(4, '0').substring(0, 4).toUpperCase();
 
   const notification_id = (sHash(remoteMessage.messageId) >>> 0)
@@ -112,12 +113,21 @@ export default async function BleDataPropagation(database, remoteMessage) {
     // it will be used to get the teacher name 
     const encodedPeriods = encodePeriods(metadata?.period_id || []);
 
-    const applicant = database.execute("select day, period_id from timetable where teacher_id = ? limit 1", [metadata.teacher_id]).rows._array[0];
+    let applicant = null;
+    try {
+      const result = database?.execute?.(
+        "SELECT day, period_id FROM timetable WHERE teacher_id = ? LIMIT 1",
+        [metadata?.teacher_id]
+      );
+      applicant = result?.rows?._array?.[0] || null;
+    } catch (dbErr) {
+      console.warn("Database execution error on applicant query:", dbErr);
+    }
 
     // Stitch everything together following the strict 8-4-4-4-12 size rules
-    const uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${fromDiff}${toDiff}-${notification_id}${decToHex(3 + (scopes("day", applicant?.day || -1)) || 7)}${decToHex(!!(applicant?.period_id + 1) ? applicant?.period_id : 14)}${metadata.leave_type === "period" ? "0" : metadata.leave_type === "day" ? "1" : "2"}1`;
+    const uuid = `${appid}-${scopeBlock}-${encodedPeriods}-${fromDiff}${toDiff}-${notification_id}${decToHex(3 + (await scopes("day", applicant?.day || -1)) || 7)}${decToHex(!!(applicant?.period_id + 1) ? applicant?.period_id : 14)}${metadata.leave_type === "period" ? "0" : metadata.leave_type === "day" ? "1" : "2"}1`;
 
-    const maxHops = 5;
+    const maxHops = 6;
     const currentHops = 0;
     const major = (maxHops << 8) | currentHops;
     const minor = (0xC8 << 8) | 0x0A;
@@ -135,11 +145,11 @@ export default async function BleDataPropagation(database, remoteMessage) {
       "SELECT day, period_id FROM timetable WHERE teacher_id = ? LIMIT 1",
       [metadata.substitutor]
     ).rows._array[0];
-    const encodedSubstitutor = `${scopes("day", substitutor?.day || -1) || 7}${decToHex(!!(substitutor?.period_id + 1) ? substitutor?.period_id : 14)}`.padStart(4, "0").toUpperCase();
+    const encodedSubstitutor = `${await scopes("day", substitutor?.day || -1) || 7}${decToHex(!!(substitutor?.period_id + 1) ? substitutor?.period_id : 14)}`.padStart(4, "0").toUpperCase();
 
     const uuid = `${appid}-${scopeBlock}-${encodedPeriod}-${encodedSubstitutor}-${notification_id}CCC1`;
 
-    const maxHops = 5;
+    const maxHops = 6;
     const currentHops = 0;
     const major = (maxHops << 8) | currentHops;
     const minor = (0xC8 << 8) | 0x0A;
@@ -150,7 +160,8 @@ export default async function BleDataPropagation(database, remoteMessage) {
   // Case 2: Announcements (Fragmented Packets)
   else if (typeCode === 2) {
     const notification = [];
-    const announcementScope = packAnnouncementMetadata(typeCode, metadata.scope, metadata.target_branch, metadata.target_year, metadata.target_section);
+    const announcementScope = await packAnnouncementMetadata(typeCode, metadata.scope, metadata.target_branch, metadata.target_year, metadata.target_section);
+    // console.log(announcementScope)
 
     const randomHex = Math.floor(Math.random() * 0xFFF).toString(16).padEnd(3, '0').toUpperCase();
     const dynamicScopeBlock = `2${randomHex}`;
@@ -158,7 +169,7 @@ export default async function BleDataPropagation(database, remoteMessage) {
     // Packet Index 0: Metadata Envelope Setup
     const uuidMetadata = `${appid}-${dynamicScopeBlock}-${announcementScope.slice(0, 4)}-${announcementScope.slice(4, 8)}-${notification_id}2000`;
 
-    const maxHops = 5;
+    const maxHops = 6;
     const currentHops = 0;
     const major = (maxHops << 8) | currentHops;
     const minor = (0xC8 << 8) | 0x0A;
@@ -287,7 +298,7 @@ export async function processQueue() {
       for (let index = 0; index < activeChunks.length; index++) {
         const packet = activeChunks[index];
         try {
-          await await BLEAdvertise.stopBroadcast();
+          await BLEAdvertise.stopBroadcast();
           await delay(50)
 
           isBroadCasting = true;
@@ -332,7 +343,7 @@ export async function processQueue() {
   }
 
   // Final cleanup once the carousel naturally grinds to a halt
-  // console.log(`All notification packets verified at ${burst_size} broadcasts. Engine Idle.`);
+  console.log(`All notification packets verified at ${burst_size} broadcasts. Engine Idle.`);
   await delay(1000);
   await stop();
   isProcessingQueue = false;
@@ -361,7 +372,7 @@ export function broadcast(uuid, major, minor) {
 export async function stop() {
   return BLEAdvertise.stopBroadcast()
     .then(async () => {
-      console.log('Broadcast stopped successfully');
+      // console.log('Broadcast stopped successfully');
       isBroadCasting = false;
       await delay(2000);
       // start scanning for new ble notifications
@@ -415,14 +426,6 @@ function sHash(str) {
 }
 
 
-function packAnnouncementMetadata(type, scope, branches = [], years = [], sections = []) {
-  const branchMask = Array.from({ length: 7 }, (_, b) => b).reduce((mask, b) => branches.includes(reverseScopes("branch", b)) ? mask | (1 << b) : mask, 0);
-  const yearMask = Array.from({ length: 6 }, (_, y) => y).reduce((mask, y) => years.includes(reverseScopes("year", y)) ? mask | (1 << y) : mask, 0);
-  const sectionMask = Array.from({ length: 15 }, (_, s) => s).reduce((mask, s) => sections.includes(reverseScopes("section", s)) ? mask | (1 << s) : mask, 0);
-
-  // Added scope straight into the primary metadata generator
-  return packMetadata(type, scope, branchMask, yearMask, sectionMask);
-}
 
 // 30-29 → type (2 bits)
 // 28-22 → branches (7 bits)
@@ -430,12 +433,40 @@ function packAnnouncementMetadata(type, scope, branches = [], years = [], sectio
 // 15-1 → sections (15 bits)
 // 0 → scope (1 bit)
 
-function packMetadata(type, scope, branchMask, yearMask, sectionMask) {
-  return (
+export function packMetadata(type, scope, branchMask, yearMask, sectionMask) {
+  const packedValue =
     ((type & 0x03) << 29) |
-    ((branchMask & 0x7F) << 22) |
-    ((yearMask & 0x3F) << 16) |
-    ((sectionMask & 0x7FFF) << 1) |
-    (scope & 0x01)
-  ).toString(16).padStart(8, "0").toUpperCase();
+    ((branchMask & 0x7f) << 22) |
+    ((yearMask & 0x3f) << 16) |
+    ((sectionMask & 0x7fff) << 1) |
+    (scope & 0x01);
+
+  return (packedValue >>> 0).toString(16).padStart(8, "0").toUpperCase();
+}
+
+async function encodeMask(scopeKey, items = []) {
+  if (!items || !items.length) return 0;
+
+  const scopeMap = await scopeAll(scopeKey);
+  return items.reduce((mask, item) => {
+    // Normalize clean string or number lookup
+    const key = typeof item === "string" ? item.trim() : item;
+    const bitIndex = scopeMap[key];
+
+    if (bitIndex !== undefined && bitIndex >= 0) {
+      return mask | (1 << bitIndex);
+    }
+    return mask;
+  }, 0);
+}
+
+async function packAnnouncementMetadata(type, scope, branches = [], years = [], sections = []) {
+
+  const branchMask = await encodeMask("branch", branches);
+  const yearMask = await encodeMask("year", years);
+  const sectionMask = await encodeMask("section", sections);
+
+  const scopeHex = packMetadata(type, scope, branchMask, yearMask, sectionMask);
+
+  return scopeHex;
 }

@@ -13,7 +13,6 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppStates } from "../context/AppStates";
 import Auth from "../components/Auth";
 import BleToggle from "../components/BleToggle";
@@ -114,7 +113,7 @@ export default function ProfileScreen() {
           const response = await Fetch("/api/auth/password/reset/request-otp", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: userData?.email}),
+            body: JSON.stringify({ email: userData?.email }),
           });
           const resData = await response.json();
 
@@ -172,7 +171,7 @@ export default function ProfileScreen() {
         animated={true}
       />
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         {/* GRADIENT HEADER */}
         <LinearGradient
           colors={["#4F46E5", "#6366F1"]}
@@ -200,10 +199,10 @@ export default function ProfileScreen() {
             </Text>
 
             <View className="my-2 bg-white/20 px-4 py-1 rounded-full">
-            <Text className="text-indigo-100 font-bold">{userData?.role} @</Text>
+              <Text className="text-indigo-100 font-bold">{userData?.role} @</Text>
             </View>
             <Text className="text-indigo-50 text-base text-center font-medium">
-               {userData?.college_name}
+              {userData?.college_name}
             </Text>
           </View>
         </LinearGradient>
@@ -277,8 +276,8 @@ export default function ProfileScreen() {
               onPress={() => updateTheme('light')}
               className={`flex-1 py-2.5 rounded-lg items-center ${themePreference === "light" ? "bg-white" : ""}`}
             >
-              <Text className={`text-base font-semibold ${themePreference === "light" ? "" : "dark:text-neutral-300"}`}>
-                ☀️ Light
+              <Text className={`text-base font-semibold ${themePreference === "light" ? "text-neutral-800" : "dark:text-neutral-300"}`}>
+                ☀️ Light.
               </Text>
             </TouchableOpacity>
 
@@ -294,26 +293,26 @@ export default function ProfileScreen() {
           </View>
         </GlassCard>
 
-      </ScrollView>
+        {/* LOGOUT TRIGGER */}
+        <View className="mt-2 px-5 py-4">
+          <TouchableOpacity
+            onPress={logout}
+            style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+            className="bg-white dark:bg-neutral-900 py-4 rounded-2xl flex-row items-center justify-center gap-2.5 border border-neutral-200 dark:border-neutral-700 shadow-sm active:bg-slate-50 dark:active:bg-neutral-800"
+          >
+            <Ionicons
+              name="log-out-outline"
+              size={20}
+              color={themePreference === "light" ? "#ef4468" : "#f87171"}
+              className="text-red-500 dark:text-red-400"
+            />
+            <Text className="text-red-500 dark:text-red-400 text-base font-bold tracking-wide">
+              Logout
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* LOGOUT TRIGGER */}
-      <View className="px-5 py-4 bg-slate-50/50 dark:bg-neutral-950/50 ">
-        <TouchableOpacity
-          onPress={logout}
-          style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.97 : 1 }] }]}
-          className="bg-white dark:bg-neutral-900 py-4 rounded-2xl flex-row items-center justify-center gap-2.5 border border-slate-200 dark:border-neutral-700 shadow-sm active:bg-slate-50 dark:active:bg-neutral-800"
-        >
-          <Ionicons
-            name="log-out-outline"
-            size={20}
-            color="#ffa1a1"
-            className="text-red-500 dark:text-red-400"
-          />
-          <Text className="text-red-500 dark:text-red-400 text-base font-bold tracking-wide">
-            Logout Account
-          </Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       {/* INTERACTIVE SECURITY OPERATIONS CONTROL SHEET */}
       <Modal

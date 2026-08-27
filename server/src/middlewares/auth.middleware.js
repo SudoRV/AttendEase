@@ -20,7 +20,7 @@ const verifySessionToken = async (req, res, next) => {
     const { user_id, email, role, token_version } = jwt.verify(token, process.env.JWT_SECRET);
     
     // check if user exists with the token
-    const [rows] = await pool.query("SELECT u.id, u.role, u.name, u.student_id, u.teacher_id, col.university, col.college_id, col.college_name, u.course_id, c.course_name, u.branch_id, b.branch_name, u.year, u.semester, u.section, email, u.password_hash, start_month, collegeId, admissionId, courseId, branchId FROM users u LEFT JOIN courses c ON u.course_id = c.course_id LEFT JOIN colleges col ON u.college_id = col.college_id LEFT JOIN branches b ON u.branch_id = b.branch_id WHERE u.id = ? AND u.email = ? AND role = ?", [user_id, email, role]);
+    const [rows] = await pool.query("SELECT u.id, u.role, u.name, u.student_id, u.teacher_id, col.university, col.id as college_id, col.college_name, u.course_id, c.course_name, u.branch_id, b.branch_name, u.year, u.semester, u.section, u.email, u.password_hash, start_month, collegeId, admissionId, courseId, branchId FROM users u LEFT JOIN courses c ON u.course_id = c.course_id LEFT JOIN colleges col ON u.college_id = col.id LEFT JOIN branches b ON u.branch_id = b.branch_id WHERE u.id = ? AND u.email = ? AND role = ?", [user_id, email, role]);
     const user = rows[0];
 
     delete user?.password_hash;

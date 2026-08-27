@@ -7,6 +7,7 @@ import { useColorScheme } from 'nativewind';
 import { enableBluetooth } from "../components/BleToggle";
 import changeNavigationBarColor from 'react-native-navigation-bar-color';
 import { getCurrentTab } from "../navigation/AppNavigator";
+import clean from "../utils/cleanCollegeMetadata";
 
 import BleDataPropagation from "../utils/BleDataPropagation";
 import { startMeshScannerLoop } from "../utils/BleDataScanning";
@@ -53,7 +54,6 @@ export const GlobalProvider = ({ children }) => {
 
   // ble dev states
   const [bleDevices, setBleDevices] = useState([]);
-  const [bleError, setBleError] = useState("");
 
   const updateTheme = async (newMode) => {
     setThemePreference(newMode);
@@ -76,6 +76,10 @@ export const GlobalProvider = ({ children }) => {
       setInterval(fn, 60 * 60 * 1000); // every whole hour
     }, msToNextHour);
   }
+
+  runAtWholeHour(() => {
+    loadTimetable(userData);
+  });
 
   const saveFcmToken = async (userCreds) => {
     if (!userCreds || !userCreds.email) return false;
@@ -102,7 +106,7 @@ export const GlobalProvider = ({ children }) => {
         return false;
       }
 
-      console.log("✅ FCM Token & Topics saved successfully!");
+      console.log("✅ FCM Token saved & Topics subscribed successfully!");
       return true;
 
     } catch (error) {
@@ -130,26 +134,21 @@ export const GlobalProvider = ({ children }) => {
     }
   }
 
-  runAtWholeHour(() => {
-    loadTimetable(userData);
-  });
 
   /* =====================
      TIMETABLE
   ===================== */
   const loadTimetable = async (userCreds, selectedDay) => {
-    // set saved classes
-    const savedClasses = await AsyncStorage.getItem("classes");
-    if (!!savedClasses) {
-      setClasses(JSON.parse(savedClasses));
-    }
-
     if (!userCreds) return;
 
     const date = new Date();
     const day = selectedDay || date.toLocaleString("en-Gb", { weekday: "long" });
     const role = userCreds?.role?.toLowerCase();
     const section = userCreds?.section || "A";
+
+    // load local timetable 
+    const rawSavedClasses = database.execute("select * from timetable where day = ?", [day]);
+    const savedClasses = rawSavedClasses?.rows?._array;
 
     let endpoint = "";
 
@@ -163,11 +162,19 @@ export const GlobalProvider = ({ children }) => {
 
     try {
       const response = await Fetch(endpoint);
-      const json = await response.json();
-      const data = json?.data;
+      let data;
 
-      if (json?.timetable) {
-        return json.timetable;
+      if (response?.status === 503) {
+        data = {
+          classes: savedClasses
+        };
+      } else {
+        const json = await response.json();
+        data = json?.data;
+
+        if (json?.timetable) {
+          return json.timetable;
+        }
       }
 
       data.classes = data?.classes?.map(d => {
@@ -207,17 +214,11 @@ export const GlobalProvider = ({ children }) => {
         setClasses({ day, classes: timetable })
       };
 
-      // console.log(timetable)
-      AsyncStorage.setItem("classes", JSON.stringify({ day, classes: timetable }));
-
     } catch (err) {
       console.log("Timetable error:", err);
     }
   };
 
-  /* =====================
-     LEAVES
-  ===================== */
 
   const loadLeaves = async (filter) => {
     if (!userData?.email) return;
@@ -251,24 +252,54 @@ export const GlobalProvider = ({ children }) => {
     }
   }
 
-  /* =====================
-     INIT USER (AsyncStorage)
-  ===================== */
   useEffect(() => {
+    // Load saved theme from storage on app bootup
+    async function loadSavedTheme() {
+      try {
+        const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+        if (!!savedTheme) {
+          setThemePreference(savedTheme);
+          setColorScheme(savedTheme);
+        } else {
+          setThemePreference('system');
+          setColorScheme('system');
+        }
+      } catch (e) {
+        console.error("Failed to load theme preference", e);
+      } finally {
+        setLoadingTheme(false);
+      }
+    }
+    loadSavedTheme();
+
+
     // fetch user data
     const fetchUser = async () => {
       const tab = getCurrentTab();
       if (tab === "Login") return;
 
       const res = await Fetch("/api/auth/me");
-      const response = await res.json();
-      const user = response.user;
 
-      if (user) {
-        setUserData(user);
-      } else setUserData(null);
+      if (!res.ok && res?.status === 503) {
+        const rawSavedUser = await AsyncStorage.getItem("user_creds");
+        const savedUser = JSON.parse(rawSavedUser || "{}");
+
+        if (savedUser?.id) {
+          setUserData(savedUser);
+        };
+      }
+      else {
+        const response = await res.json();
+        const user = response.user;
+
+        if (user) {
+          setUserData(user);
+        } else setUserData(null);
+      }
+
     }
     fetchUser();
+
 
     // load ble state
     async function checkBleState() {
@@ -282,6 +313,7 @@ export const GlobalProvider = ({ children }) => {
             await enableBluetooth();
             // start scanning
             await startMeshScannerLoop();
+            console.log('🟢 BLE Core Scanner Started');
           };
           return parsedValue;
         } catch (e) {
@@ -291,12 +323,34 @@ export const GlobalProvider = ({ children }) => {
       }
     }
     checkBleState();
-  }, []);
 
 
-  useEffect(() => {
     // Bind context state modifiers directly to the scanning engine reference pointers
-    initializeScannerCallbacks(setBleDevices, setBleError);
+    initializeScannerCallbacks(setBleDevices, loadTimetable);
+
+
+    // download college metadata
+    async function loadMetadata() {
+      // load saved metadata
+      const today = new Date();
+      const savedMetadata = await AsyncStorage.getItem("college_metadata");
+      let metadata = JSON.parse(savedMetadata || "{}");
+
+      if (!metadata?.exp || new Date(metadata?.exp) < today.getTime()) {
+        console.log("fetching metadata", new Date(metadata.exp))
+        const res = await Fetch("/college/metadata/all");
+        const response = await res.json();
+        // console.log(response)
+        if (response?.data) metadata = response.data;
+      }
+
+      if (!metadata?.exp || new Date(metadata?.exp) < today) {
+        metadata.exp = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).getTime();
+        await AsyncStorage.setItem("college_metadata", JSON.stringify(metadata))
+      };
+    }
+
+    loadMetadata();
   }, []);
 
   useEffect(() => {
@@ -317,36 +371,17 @@ export const GlobalProvider = ({ children }) => {
     setNavColor();
   }, [colorScheme])
 
-  // Load saved theme from storage on app bootup
-  useEffect(() => {
-    async function loadSavedTheme() {
-      try {
-        const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (!!savedTheme) {
-          setThemePreference(savedTheme);
-          setColorScheme(savedTheme);
-        } else {
-          setThemePreference('system');
-          setColorScheme('system');
-        }
-      } catch (e) {
-        console.error("Failed to load theme preference", e);
-      } finally {
-        setLoadingTheme(false);
-      }
-    }
-    loadSavedTheme();
-  }, []);
 
   useEffect(() => {
     if (!userData?.email) return;
     setLogout(false);
 
-    loadTimetable(userData);
-    loadLeaves();
-
     // save fcm token
     saveFcmToken(userData);
+
+    loadTimetable(userData);
+    if (userData.role === "Student") saveTimetable();
+    loadLeaves();
 
     // listen for new message
     // 1. Get the modular messaging instance
@@ -357,7 +392,7 @@ export const GlobalProvider = ({ children }) => {
     //   "priority": 1,
     //   "sentTime": 1781611965387,
     //   "data": {
-    //     "scope": "CSE_4_A",
+    //     "scope": "BTECH_CSE_4_A",
     //     "body": "Period 1 of Dr. Jagat Pal Singh cancelled, on leave for 16 Jun 2026",
     //     "title": "Class Cancelled",
     //     "type": "CLASS_CANCELLED",
@@ -368,37 +403,55 @@ export const GlobalProvider = ({ children }) => {
     //   "ttl": 2419200
     // });
 
+    // BleDataPropagation(database, {
+    //   "originalPriority": 1,
+    //   "priority": 1,
+    //   "sentTime": 1787725747441,
+    //   "data": {
+    //     "body": "hey",
+    //     "metadata": "{\"scope\":\"students\",\"target_college\":1001,\"target_course\":[\"B.TECH\"],\"target_branch\":[\"AI/ML\",\"CSE\"],\"target_year\":[4],\"target_section\":[\"all\"]}",
+    //     "scope": "{\"courses\":[\"B.TECH\"],\"branches\":[\"AI/ML\",\"CSE\"],\"years\":[4],\"sections\":[\"all\"]}",
+    //     "title": "hi",
+    //     "type": "ANNOUNCEMENT"
+    //   },
+    //   "from": "959032391778",
+    //   "messageId": "0:1787725747446195%3c69d815f9fd7ecd",
+    //   "ttl": 2419200
+    // });
+
 
     // 2. Set up the foreground listener
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
-      console.log('A new FCM message arrived!', JSON.stringify(remoteMessage));
-
       // save to local database
       const notification_id = (sHash(remoteMessage.messageId) >>> 0)
         .toString(16).toUpperCase()
         .padStart(8, "0");
-
-      saveNotification(database, { notification_id: notification_id, scope: remoteMessage.data.scope, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body });
+      saveNotification(database, {
+        notification_id: notification_id,
+        scope: remoteMessage.data.scope,
+        source: "FCM",
+        type: remoteMessage.data.type,
+        title: remoteMessage.data.title,
+        body: remoteMessage.data.body
+      });
 
       // propagate notification
       BleDataPropagation(database, remoteMessage);
 
       // Refresh data silently!
-      loadTimetable(userData);
-      loadLeaves();
+      if (remoteMessage?.data?.type !== "ANNOUNCEMENTS") {
+        console.log("refreshing leaves and timetable")
+        loadTimetable(userData);
+        loadLeaves();
+      }
     });
 
-    if (userData.role === "Student") saveTimetable();
 
     // 3. Clean up the listener when the component unmounts
     return () => {
       unsubscribe();
     };
   }, [userData]);
-
-  /* =====================
-     AUTO LOAD DATA
-  ===================== */
 
   return (
     <GlobalContext.Provider
@@ -417,7 +470,6 @@ export const GlobalProvider = ({ children }) => {
         colorScheme,
         themePreference, updateTheme,
 
-        bleError, setBleError,
         bleDevices, setBleDevices,
       }}
     >

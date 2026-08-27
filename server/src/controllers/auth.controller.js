@@ -4,7 +4,7 @@ const transporter = require("../config/mail");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const { buildFcmTopicsByTarget } = require("../utils/buildFcmTopics");
+const { buildFcmTopicsByTarget2 } = require("../utils/buildFcmTopics");
 
 // register
 exports.register = async (req, res) => {
@@ -66,7 +66,7 @@ exports.login = async (req, res) => {
     }
 
     // authentication from database / get password hash from databse
-    const [rows] = await pool.query("SELECT u.id, u.role, u.name, u.student_id, u.teacher_id, col.university, col.college_id, col.college_name, u.course_id, c.course_name, u.branch_id, b.branch_name, u.year, u.semester, u.section, email, u.password_hash, start_month, collegeId, admissionId, courseId, branchId FROM users u LEFT JOIN courses c ON u.course_id = c.course_id LEFT JOIN colleges col ON u.college_id = col.college_id LEFT JOIN branches b ON u.branch_id = b.branch_id WHERE u.email = ?", [email]);
+    const [rows] = await pool.query("SELECT u.id, u.role, u.name, u.student_id, u.teacher_id, col.university, col.id as college_id, col.college_name, u.course_id, c.course_name, u.branch_id, b.branch_name, u.year, u.semester, u.section, u.email, u.password_hash, start_month, collegeId, admissionId, courseId, branchId FROM users u LEFT JOIN courses c ON u.course_id = c.course_id LEFT JOIN colleges col ON u.college_id = col.id LEFT JOIN branches b ON u.branch_id = b.branch_id WHERE u.email = ?", [email]);
     const user = rows[0];
 
     if (!user.email) {
@@ -118,7 +118,7 @@ exports.logout = async (req, res) => {
     });
 
     // unsubscribe topics
-    const topics = await buildFcmTopicsByTarget(user.college_id, [user.course_id], [user.branch_id], [user.year], [user.section], user.role === "Student" ? "students" : "teachers");
+    const topics = await buildFcmTopicsByTarget2(user.college_id, [user.course_id], [user.branch_id], [user.year], [user.section], user.role === "Student" ? "students" : "teachers");
 
     for (const topic of topics) {
         await admin.messaging().unsubscribeFromTopic([fcmToken], topic);

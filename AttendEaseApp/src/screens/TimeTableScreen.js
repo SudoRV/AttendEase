@@ -110,7 +110,6 @@ const TimeTableScreen = () => {
           if (formData?.course_id) fetchMetadata(key);
         };
       }
-
     }
 
     fetchMetadata();

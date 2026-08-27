@@ -118,17 +118,19 @@ export default function Announce() {
     const query = queryRef.current?.query;
     // console.log(query, queryRef.current)
 
+
+
     if (!queryRef.current.added) return;
     if (query === "courses" && !userData?.college_id) return;
-    if (query === "branches" && targetCourses.length == 0) return;
-    if (query === "years" && targetBranches.length == 0) return;
-    if (query === "sections" && targetYears.length == 0) return;
+    if (query === "branches" && targetCourses?.length == 0) return;
+    if (query === "years" && targetBranches?.length == 0) return;
+    if (query === "sections" && targetYears?.length == 0) return;
 
     const payload = {
       college_id: userData?.college_id,
-      course_id: targetCourses.map(c => c.value),
-      branch_id: targetBranches.map(b => b.value),
-      year: targetYears.map(y => y.value)
+      course_id: targetCourses?.map(c => c.value)?.filter(c => (c !== "all" && c !== "null")),
+      branch_id: targetBranches?.map(b => b.value)?.filter(b => (b !== "all" && b !== "null")),
+      year: targetYears?.map(y => y.value)?.filter(y => (y !== "all" && y !== "null"))
     }
 
     // console.log(query, payload)
@@ -143,13 +145,13 @@ export default function Announce() {
       });
       const data = await response.json();
 
-      if (data.courses) setMetadata(prev => ({ ...prev, courses: data.courses.map(c => ({ value: c.course_id, label: c.course_name })) }));
+      if (data.courses) setMetadata(prev => ({ ...prev, courses: [{ value: "all", label: "All courses" }, ...data.courses.map(c => ({ value: c.course_id, label: c.course_name }))] }));
 
-      if (data.branches) setMetadata(prev => ({ ...prev, branches: data.branches.map(b => ({ value: b.branch_id, label: b.branch_name })) }));
+      if (data.branches) setMetadata(prev => ({ ...prev, branches: [{ value: "all", label: "All branches" }, ...data.branches.map(b => ({ value: b.branch_id, label: b.branch_name }))] }));
 
-      if (data.years) setMetadata(prev => ({ ...prev, years: data.years.map(y => ({ value: y.year, label: y.year })) }));
+      if (data.years) setMetadata(prev => ({ ...prev, years: [{ value: "all", label: "All years" }, ...data.years.map(y => ({ value: y.year, label: y.year }))] }));
 
-      if (data.sections) setMetadata(prev => ({ ...prev, sections: data.sections.map(s => ({ value: s.section, label: s.section })) }));
+      if (data.sections) setMetadata(prev => ({ ...prev, sections: [{ value: "all", label: "All sections" }, ...data.sections.map(s => ({ value: s.section, label: s.section }))] }));
     }
 
     if (queryTimeout) clearTimeout(queryTimeout);
@@ -159,34 +161,62 @@ export default function Announce() {
 
   }, [userData, targetCourses, targetBranches, targetYears])
 
-  const toggleSelection = (label, value, list, setter) => {
+  const toggleSelection = (label, query, value, list, setter) => {
     queryRef.current = {
-      query: label,
-      added: !list.includes(value)
+      query: query,
+      added: !list?.includes(value),
+      value
     };
 
+    if(!queryRef.current.added){
+      if(label === "courses") {
+        setTargetBranches([]);
+        setTargetYears([]);
+        setTargetSections([]);
+      }
+      if(label === "branches") {
+        setTargetYears([]);
+        setTargetSections([]);
+      }
+      if(label === "years") {
+        setTargetSections([]);
+      }
+    } 
+    else if(value.value === "all") {
+      if(queryRef.current.added) {
+        setter(metadata[label])
+      } else {
+        setter([])
+      }
+      return
+    };
     setter(
-      list.includes(value)
-        ? list.filter(v => v !== value)
+      list.some(l => l.value === value.value)
+        ? list.filter(v => v.value !== value.value)
         : [...list, value]
     );
   };
 
-  const renderMultiSelect = (label, qLabel, data, selected, setter) => (
+  const renderMultiSelect = (label, query, data, selected, setter) => (
     <View className="mb-6">
       <Text className="text-base font-bold text-zinc-800 dark:text-neutral-200 mb-3 tracking-tight">
         {label}
       </Text>
 
       <View className="flex-row flex-wrap gap-3">
+        {
+          data.length === 0 && (
+            <Text className="ml-3 px-2 py-1 text-neutral-500 dark:text-neutral-400 rounded-md border border-dashed border-gray-300 dark:border-neutral-600">Select previous option first</Text>
+          )
+        }
         {data.map(item => {
-          const active = selected.includes(item);
+          const active = selected?.includes(item);
           return (
             <TouchableOpacity
               key={item?.value}
               activeOpacity={0.7}
               onPress={() =>
-                toggleSelection(qLabel, item, selected, setter)
+                toggleSelection(label.toLowerCase(), query, item, selected, setter)
               }
               className={`px-4 py-2 rounded-xl border font-medium ${active
                 ? "bg-indigo-600 border-indigo-600 dark:bg-indigo-600 dark:border-indigo-500"
@@ -199,7 +229,7 @@ export default function Announce() {
                   : "text-zinc-700 dark:text-neutral-300"
                   }`}
               >
-                {item?.value}
+                {String(item?.value)?.toUpperCase()}
               </Text>
             </TouchableOpacity>
           );
@@ -291,7 +321,7 @@ export default function Announce() {
         {/* CONDITIONALLY RENDERED MULTISELECTS FOR STUDENTS */}
         {scope === "students" && (
           <View className="bg-zinc-50/50 dark:bg-neutral-900/30 border border-zinc-100 dark:border-neutral-800/40 p-4 rounded-2xl mb-6">
-            {renderMultiSelect("courses", "branches", metadata?.courses, targetCourses, setTargetCourses)}
+            {renderMultiSelect("Courses", "branches", metadata?.courses, targetCourses, setTargetCourses)}
             {renderMultiSelect("Branches", "years", metadata?.branches, targetBranches, setTargetBranches)}
             {renderMultiSelect("Years", "sections", metadata?.years, targetYears, setTargetYears)}
             {renderMultiSelect("Sections", undefined, metadata?.sections, targetSections, setTargetSections)}

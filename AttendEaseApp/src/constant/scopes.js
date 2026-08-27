@@ -1,8 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Fetch } from "../services/api";
-import clean from "../utils/cleanCollegeMetadata";
 
-export const scope = {
+let isScopeUpdated = false;
+let loadPromise = null;
+
+const scope = {
   "notification_type": {
     "class_cancelled": 0,
     "class_substitution": 1,
@@ -23,25 +24,32 @@ export const scope = {
   }
 };
 
+async function isLoadingMetadata() {
+  if(isScopeUpdated) return Promise.resolve(true);
+  
+  if(!loadPromise) {
+    loadPromise = loadMetadata()
+    .then(() => {
+      isScopeUpdated = true;
+    })
+    .catch((err) => {
+      loadPromise = null;
+      throw err;
+    })
+  }
+
+  return loadPromise;
+}
+
 // download college metadata
 async function loadMetadata() {
   // load saved metadata
-  const today = new Date();
   const savedMetadata = await AsyncStorage.getItem("college_metadata");
   let metadata = JSON.parse(savedMetadata || "{}");
 
-  if (!metadata?.exp || new Date(metadata?.exp) < today) {
-    const res = await Fetch("/college/metadata/all");
-    const response = await res.json();
-    // console.log(response)
-    if (response?.data) metadata = response.data;
-  } else metadata = JSON.parse(savedMetadata);
-
-  console.log(metadata, savedMetadata)
-
   if (metadata?.branch) scope.branch = {
     "all": 0,
-    ...Object.fromEntries(metadata.branch.split(",").map((b, index) => [clean(b.trim()), index + 1]))
+    ...Object.fromEntries(metadata.branch.split(",").map((b, index) => [b.trim(), index + 1]))
   };
   if (metadata?.year) scope.year = {
     "all": 0,
@@ -55,19 +63,23 @@ async function loadMetadata() {
     ...Object.fromEntries(metadata.day.split(",").map((d, index) => [d.trim(), index]))
   };
 
-  if (!metadata?.exp || new Date(metadata?.exp) < today) {
-    metadata.exp = new Date(today.getDate() + 1, today.getMonth(), today.getFullYear());
-    await AsyncStorage.setItem("college_metadata", JSON.stringify(metadata))
-  };
+  console.log(scope)
+  return true;
 }
 
-loadMetadata();
-
-export function scopes(attr, val) {
-  return scope[attr][val];
+export async function scopeAll(key) {
+  await isLoadingMetadata();
+  return scope[key];
 }
 
-export function reverseScopes(attr, val) {
+export async function scopes(attr, val) {
+  await isLoadingMetadata();
+  return scope[attr]?.[val];
+}
+
+export async function reverseScopes(attr, val) {
+  await isLoadingMetadata();
+  if (!scope[attr]) return undefined;
   return Object.keys(scope[attr]).find(key => scope[attr][key] === val);
 }
 

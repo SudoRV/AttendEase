@@ -53,21 +53,21 @@ export default function Announce() {
 
   useEffect(() => {
     if (!userData?.email || scope === "teachers") return;
-  
+
     const query = queryRef.current?.query;
     // console.log(query, queryRef.current)
 
     if (!queryRef.current.added) return;
-    if(query === "courses" && !userData?.college_id) return;
-    if(query === "branches" && targetCourses.length == 0) return;
-    if(query === "years" && targetBranches.length == 0) return;
-    if(query === "sections" && targetYears.length == 0) return;
+    if (query === "courses" && !userData?.college_id) return;
+    if (query === "branches" && targetCourses.length == 0) return;
+    if (query === "years" && targetBranches.length == 0) return;
+    if (query === "sections" && targetYears.length == 0) return;
 
     const payload = {
       college_id: userData?.college_id,
-      course_id: targetCourses.map(c => c.value),
-      branch_id: targetBranches.map(b => b.value),
-      year: targetYears.map(y => y.value)
+      course_id: targetCourses.map(c => c.value).filter(c => (c !== "all" && c !== "null")),
+      branch_id: targetBranches.map(b => b.value).filter(b => (b !== "all" && b !== "null")),
+      year: targetYears.map(y => y.value).filter(y => (y !== "all" && y !== "null"))
     }
 
     async function fetchMetadata() {
@@ -82,13 +82,13 @@ export default function Announce() {
 
       // console.log(data)
 
-      if (data.courses) setMetadata(prev => ({ ...prev, courses: data.courses.map(c => ({ value: c.course_id, label: c.course_name })) }));
+      if (data.courses) setMetadata(prev => ({ ...prev, courses: [{ value: "all", label: "All courses" }, ...data.courses.map(c => ({ value: c.course_id, label: c.course_id }))] }));
 
-      if (data.branches) setMetadata(prev => ({ ...prev, branches: data.branches.map(b => ({ value: b.branch_id, label: b.branch_name })) }));
+      if (data.branches) setMetadata(prev => ({ ...prev, branches: [{ value: "all", label: "All branches" }, , ...data.branches.map(b => ({ value: b.branch_id, label: b.branch_id }))] }));
 
-      if (data.years) setMetadata(prev => ({ ...prev, years: data.years.map(y => ({ value: y.year, label: y.year })) }));
+      if (data.years) setMetadata(prev => ({ ...prev, years: [{ value: "all", label: "All years" }, , ...data.years.map(y => ({ value: y.year, label: y.year }))] }));
 
-      if (data.sections) setMetadata(prev => ({ ...prev, sections: data.sections.map(s => ({ value: s.section, label: s.section })) }));
+      if (data.sections) setMetadata(prev => ({ ...prev, sections: [{ value: "all", label: "All sections" }, , ...data.sections.map(s => ({ value: s.section, label: s.section }))] }));
     }
 
     if (queryTimeout) clearTimeout(queryTimeout);
@@ -114,6 +114,9 @@ export default function Announce() {
 
   const handleAnnounce = async (e) => {
     e.preventDefault();
+
+    if((targetCourses.length === 0 || targetBranches.length === 0 || targetYears.length === 0 || targetSections.length === 0 || !formData?.expires_at) && (scope === "teachers" && !formData?.expires_at)) return alert("Select correct target(s)")
+    
     setLoading(true);
 
     const payload = {
@@ -125,10 +128,10 @@ export default function Announce() {
       },
       target_college: userData?.college_id,
       scope,
-      target_course: targetCourses.map((o) => o.value),
-      target_branch: targetBranches.map((o) => o.value),
-      target_year: targetYears.map((o) => o.value),
-      target_section: targetSections.map((o) => o.value),
+      target_course: targetCourses.find(c => c?.value === "all") ? ["all"] : targetCourses.map((o) => o.value),
+      target_branch: targetBranches.find(b => b?.value === "all") ? ["all"] : targetBranches.map((o) => o.value),
+      target_year: targetYears.find(y => y?.value === "all") ? ["all"] : targetYears.map((o) => o.value),
+      target_section: targetSections.find(s => s?.value === "all") ? ["all"] : targetSections.map((o) => o.value),
       status: "Active",
       expires_at: formData.expires_at
         ? formatDate(formData.expires_at)
@@ -176,7 +179,8 @@ export default function Announce() {
       ...base,
       borderRadius: '12px',
       overflow: 'hidden',
-      padding: '4px'
+      padding: '4px',
+      zIndex: 100
     }),
     option: (base, state) => ({
       ...base,
@@ -193,13 +197,27 @@ export default function Announce() {
         backgroundColor: '#4f46e5'
       }
     }),
-    multiValue: (base) => ({
-      ...base,
-      backgroundColor: 'rgba(99, 102, 241, 0.08)',
-      borderRadius: '6px',
-      fontWeight: '600',
-      color: '#4f46e5'
-    }),
+    multiValue: (base, state) => {
+      // state.selectProps.value contains the entire array of currently selected items
+      const isAllSelected = state.selectProps.value?.some(item => item.value === 'all');
+    
+      // If "all" is active and this current pill is NOT "all", hide it
+      if (isAllSelected && state.data.value !== 'all') {
+        return {
+          ...base,
+          display: 'none'
+        };
+      }
+    
+      // Normal styling for "all" (or for everything when "all" is not chosen)
+      return {
+        ...base,
+        backgroundColor: 'rgba(99, 102, 241, 0.08)',
+        borderRadius: '6px',
+        fontWeight: '600',
+        color: '#4f46e5'
+      };
+    },
     multiValueLabel: (base) => ({
       ...base,
       color: '#4f46e5',
@@ -309,7 +327,9 @@ export default function Announce() {
                       query: "branches",
                       added: actionMeta.option ? true : false
                     };
-                    setTargetCourses(selectedOption);
+                    if (actionMeta?.option?.value === "all") setTargetCourses(metadata?.courses);
+                    else if(actionMeta?.removedValue?.value === "all") setTargetCourses([]);
+                    else setTargetCourses(selectedOption);
                   }}
                   styles={selectStyles}
                 />
@@ -324,7 +344,9 @@ export default function Announce() {
                       query: "years",
                       added: actionMeta.option ? true : false
                     };
-                    setTargetBranches(selectedOption);
+                    if (actionMeta?.option?.value === "all") setTargetBranches(metadata?.branches);
+                    else if(actionMeta?.removedValue?.value === "all") setTargetBranches([]);
+                    else setTargetBranches(selectedOption);
                   }}
                   styles={selectStyles}
                 />
@@ -339,7 +361,9 @@ export default function Announce() {
                       query: "sections",
                       added: actionMeta.option ? true : false
                     };
-                    setTargetYears(selectedOption);
+                    if (actionMeta?.option?.value === "all") setTargetYears(metadata?.years);
+                    else if(actionMeta?.removedValue?.value === "all") setTargetYears([]);
+                    else setTargetYears(selectedOption);
                   }}
                   styles={selectStyles}
                 />
@@ -349,8 +373,10 @@ export default function Announce() {
                   placeholder="Filter Target Section(s)"
                   options={metadata?.sections}
                   value={targetSections}
-                  onChange={(s) => {
-                    setTargetSections(s);
+                  onChange={(selectedOption, actionMeta) => {                   
+                    if (actionMeta?.option?.value === "all") setTargetSections(metadata?.sections);
+                    else if(actionMeta?.removedValue?.value === "all") setTargetSections([]);
+                    else setTargetSections(selectedOption);
                   }}
                   styles={selectStyles}
                 />

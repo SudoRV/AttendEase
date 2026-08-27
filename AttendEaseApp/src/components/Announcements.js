@@ -36,20 +36,32 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
         []
       );
 
+      console.log(results)
+
       // Extracts the native array from inside your specific object structure
       let rows = [];
+
+      // "{"type":"announcement","scope":"students","branches":["AI/ML","CSE"],"years":["4"],"sections":["all"]}"
 
       if (results?.rows?._array) {
         rows = results.rows._array;
         rows = rows.filter(r => {
-          if (r.type === "announcement") {
-            const scope = JSON.parse(r.scope);
-            if (scope.branches.some(b => b === clean(userData.branch_id) || b === "all") && scope.years.some(y => y === `${userData.year}` || y === "all") && scope.sections.some(s => s === userData.section || s === "all")) return r;
+          if (r.type.toLowerCase() === "announcement") {
+            const scope = JSON.parse(r.scope || "{}");
+            
+            if (scope?.branches?.some(b => b === clean(userData?.branch_id) || b === "all")
+              && scope?.years?.some(y => Number(y) === Number(userData.year) || y === "all")
+              && scope?.sections?.some(s => s === userData.section || s === "all")) return r;
           } else {
-            let scope = r.scope.replace(`COLLEGE_${userData?.college_id}_`, "").split("_");
-            if(r.source === "FCM") scope = scope.slice(1);
-            if (scope.includes("Individual")) return r;
-            if ((scope[0] === userData?.branch_id || scope[0] === "all") && (scope[1] === `${userData?.year}` || scope[1] === "all") && (scope[2] === userData?.section || scope[2] === "all")) return r;
+            let scope = r?.scope?.split("_").slice(2);
+            if (scope?.includes("Individual")) return r;
+
+            if (scope.length < 3) return;
+
+            if (((scope[0] === clean(userData?.course_id) || scope[0] === "all") || r.source === "BLE")
+              && (scope[1] === clean(userData?.branch_id) || scope[1] === "all")
+              && (scope[2] === `${userData?.year}` || scope[2] === "all")
+              && (scope[3] === userData?.section || scope[3] === "all")) return r;
           }
         })
       } else if (results?.rows?.length > 0) {
@@ -196,13 +208,14 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
         )}
 
         {/* NOTIFICATION BUTTON TOGGLE TRIGGER */}
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => setNotificationModalVisible(true)}
-          className="ml-auto bg-white p-2 rounded-xl border border-slate-200/60 shadow-sm"
-        >
-          <Ionicons name="chatbubble-ellipses-outline" size={22} color="#4F46E5" />
-        </TouchableOpacity>
+        <View className="ml-auto p-2 w-11 h-11 items-center justify-center rounded-full bg-indigo-50 elevation-md">
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setNotificationModalVisible(true)}
+          >
+            <Ionicons name="notifications" size={22} color="#4F46E5" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList

@@ -4,7 +4,6 @@ const path = require("path");
 const admin = require("./src/config/fcm");
 const pool = require("./src/config/mysql");
 const cookieParser = require("cookie-parser");
-const { buildFcmTopicsByTarget } = require("./src/utils/buildFcmTopics");
 require("dotenv").config();
 
 
@@ -17,8 +16,9 @@ const leaveRoutes = require("./src/routes/leave.routes");
 const announcementRoutes = require("./src/routes/announcement.routes");
 const attendanceRouter = require("./src/routes/attendance.routes");
 
-const morningTimetableReminder = require("./src/crons/reminder.timetable.morning");
-const nightTimetableReminder = require("./src/crons/reminder.timetable.night")
+const { buildFcmTopicsFromSchedule, buildFcmTopicsByTarget, buildFcmTopicsByTarget2 } = require("./src/utils/buildFcmTopics");
+const { morningTimetableReminder } = require("./src/crons/reminder.timetable.morning");
+const { notifyTimetable, nightTimetableReminder } = require("./src/crons/reminder.timetable.night")
 
 
 
@@ -77,7 +77,7 @@ app.post("/save-fcm-token", verifySessionToken, async (req, res) => {
   const { token } = req.body;
   const user = req.user;
 
-  const topics = await buildFcmTopicsByTarget(user.college_id, [user.course_id], [user.branch_id], [user.year], [user.section], user.role === "Student" ? "students" : "teachers");
+  const topics = await buildFcmTopicsByTarget2(user.college_id, [user.course_id], [user.branch_id], [user.year], [user.section], user.role === "Student" ? "students" : "teachers");
 
   const query = `INSERT INTO fcm_tokens (user_id, device_name, device_id, fcm_token) 
   VALUES (?, ?, ?, ?) 
@@ -104,7 +104,7 @@ app.post("/save-fcm-token", verifySessionToken, async (req, res) => {
 app.get("/college/metadata/all", verifySessionToken, async (req, res) => {
   const user = req.user;
 
-  const [ rows ] = await pool.query("select group_concat(distinct branch_id) as branch, group_concat(distinct year) as year, group_concat(distinct section) as section, group_concat(distinct day) as day from schedule where college_id = ?", [user.college_id]);
+  const [ rows ] = await pool.query("select group_concat(distinct branch_id order by branch_id) as branch, group_concat(distinct year order by year) as year, group_concat(distinct section order by section) as section, group_concat(distinct day order by day) as day from schedule where college_id = ?", [user.college_id]);
 
   if(rows.length > 0) res.json({success: true, message: "successfully fetched college metadata!", data: rows[0]});
   else res.json({success: false, message: `failed to fetch metadata of college id: ${user.college_id}`});
@@ -117,7 +117,7 @@ app.query("/college/metadata", verifySessionToken, async (req, res) => {
   // console.log(req.query, collegeId, courseId, branchId, year)
 
   if (query === "colleges") {
-    const [colleges] = await pool.query("select id, college_id, college_name, university from colleges");
+    const [colleges] = await pool.query("select id, college_id, college_name, university from colleges order by college_name");
     // console.log(colleges);
 
     if (colleges.length > 0) return res.status(200).json({success: true, colleges, message: "Successfully fetched colleges."});
@@ -125,7 +125,7 @@ app.query("/college/metadata", verifySessionToken, async (req, res) => {
   } 
 
   else if (query === "courses") {
-    const [courses] = await pool.query("select distinct c.id, c.course_name, c.course_id, c.total_semesters from courses c inner join schedule s on s.college_id = c.college_id where s.college_id in (?)", [collegeId]);
+    const [courses] = await pool.query("select distinct c.id, c.course_name, c.course_id, c.total_semesters from courses c inner join schedule s on s.college_id = c.college_id where s.college_id in (?) order by course_id", [collegeId]);
     // console.log(courses);
 
     if (courses.length > 0) return res.status(200).json({success: true, courses, message: "Successfully fetched courses."});
@@ -133,7 +133,7 @@ app.query("/college/metadata", verifySessionToken, async (req, res) => {
   }
 
   else if (query === "branches") {
-    const [branches] = await pool.query("select distinct b.id, b.branch_name, b.branch_id from schedule s inner join branches b on s.branch_id = b.branch_id where s.college_id in (?) and s.course_id in (?)", [collegeId, courseId]);
+    const [branches] = await pool.query("select distinct b.id, b.branch_name, b.branch_id from schedule s inner join branches b on s.branch_id = b.branch_id where s.college_id in (?) and s.course_id in (?) order by branch_id", [collegeId, courseId]);
     // console.log(branches);
 
     if (branches.length > 0) return res.status(200).json({success: true, branches, message: "Successfully fetched branches."});
@@ -141,7 +141,7 @@ app.query("/college/metadata", verifySessionToken, async (req, res) => {
   }
 
   else if (query === "years") {
-    const [years] = await pool.query("select distinct year from schedule where college_id in (?) and course_id in (?) and branch_id in (?)", [collegeId, courseId, branchId]);
+    const [years] = await pool.query("select distinct year from schedule where college_id in (?) and course_id in (?) and branch_id in (?) order by year", [collegeId, courseId, branchId]);
     // console.log(years);
 
     if (years.length > 0) return res.status(200).json({success: true, years, message: "Successfully fetched years."});
@@ -149,7 +149,7 @@ app.query("/college/metadata", verifySessionToken, async (req, res) => {
   }
 
   else if (query === "sections") {
-    const [sections] = await pool.query("select distinct section from schedule where college_id in (?) and course_id in (?) and branch_id in (?) and year in (?)", [collegeId, courseId, branchId, year]);
+    const [sections] = await pool.query("select distinct section from schedule where college_id in (?) and course_id in (?) and branch_id in (?) and year in (?) order by section", [collegeId, courseId, branchId, year]);
     // console.log(sections);
 
     if (sections.length > 0) return res.status(200).json({success: true, sections, message: "Successfully fetched sections."});
@@ -191,10 +191,11 @@ app.use("/api/timetable/classes/image", express.static(path.join(__dirname, 'sta
 }));
 
 // routing all client endpoints to react build files except api calls
-// app.use(express.static(path.join(__dirname, "build")));
-// app.get(/.*/, (req, res) => {
-//   res.sendFile(path.join(__dirname, "build", "index.html"));
-// });
+app.use(express.static(path.join(__dirname, "build")));
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(__dirname, "build", "index.html"));
+});
+
 
 // ✅ START SERVER
 const PORT = 8000;

@@ -50,7 +50,7 @@ const StudentLeaveManagement = () => {
     });
 
   /* ---------------- verify action ---------------- */
-  async function verifyLeave(action, applicant) {
+  async function verifyLeave(action, application) {
     try {
       const response = await Fetch("/api/leaves/students/verify", {
         method: "POST",
@@ -59,7 +59,7 @@ const StudentLeaveManagement = () => {
         },
         body: JSON.stringify({
           action: action,
-          applicant: applicant,
+          application: application,
           verifier: {
             role: userData.role,
             teacher_id: userData.teacher_id,
@@ -72,7 +72,7 @@ const StudentLeaveManagement = () => {
 
       if (res_data?.success) {
         setLeaveHistory(prev =>
-          prev.filter(l => l.student_id !== applicant.student_id)
+          prev.filter(l => l.student_id !== application.student_id)
         );
       }
     } catch (error) {
@@ -184,11 +184,11 @@ const StudentLeaveManagement = () => {
                 {/* Profile Meta Frame Metadata */}
                 <div className="flex justify-between items-start gap-2">
                   <div className="space-y-0.5 min-w-0">
-                    <h4 className="lg:text-lg font-bold text-neutral-900 dark:text-neutral-50">
+                    <h4 className="lg:text-lg font-bold text-neutral-900 dark:text-neutral-300">
                       {leave.name}
                     </h4>
-                    <p className="text-sm uppercase text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
-                      {leave.branch} • Year {leave.year}
+                    <p className="text-xs uppercase text-neutral-400 dark:text-neutral-500 flex items-center gap-1">
+                      {leave.branch_id} • Year {leave.year}
                     </p>
                   </div>
                   <span className="shrink-0 text-[14px] px-2.5 py-0.5 rounded-lg bg-blue-50 dark:bg-neutral-900 font-bold text-neutral-500 dark:text-neutral-400 border border-neutral-200/20">
@@ -198,30 +198,32 @@ const StudentLeaveManagement = () => {
 
                 {/* Sub-context contextual conditional blocks */}
                 <div className="min-w-0">
-                  {activeTab === "verify" ? (
-                    <div className="flex items-start gap-1.5 bg-neutral-50/50 dark:bg-neutral-950 p-2.5 rounded-xl border border-neutral-200/30 dark:border-neutral-900">
-                      <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wide mt-0.5 shrink-0">Sub:</span>
-                      <span className="text-xs text-neutral-600 dark:text-neutral-300 font-semibold truncate flex-1">
-                        {leave.subject}
+
+                  <div className="flex items-center gap-1.5 bg-neutral-50/50 dark:bg-neutral-950 py-2 rounded-xl border border-neutral-200/30 dark:border-neutral-900">
+                    <span className="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wide mt-0.5 shrink-0">Sub:</span>
+                    <span className="text-xs text-neutral-600 dark:text-neutral-300 font-semibold truncate flex-1">
+                      {leave.subject}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 bg-neutral-200/50 dark:bg-neutral-900 p-2.5 rounded-xl border border-neutral-200/30 dark:border-neutral-900">
+                    <div className="flex flex-col">
+                      <span className="text-[12px] font-bold text-neutral-400 uppercase tracking-wide">From</span>
+                      <span className="text-sm font-bold text-neutral-700 dark:text-neutral-200">
+                        {formatDateDisplay(leave.applicable_from)}
                       </span>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-3 bg-neutral-200/50 dark:bg-neutral-900 p-2.5 rounded-xl border border-neutral-200/30 dark:border-neutral-900">
-                      <div className="flex flex-col">
-                        <span className="text-[12px] font-bold text-neutral-400 uppercase tracking-wide">From</span>
-                        <span className="text-sm font-bold text-neutral-700 dark:text-neutral-200">
-                          {formatDateDisplay(leave.applicable_from)}
-                        </span>
-                      </div>
-                      <div className="text-neutral-300 dark:text-neutral-700 font-light select-none">→</div>
-                      <div className="flex flex-col">
-                        <span className="text-[12px] font-bold text-neutral-400 uppercase tracking-wide">To</span>
-                        <span className="text-sm font-bold text-neutral-700 dark:text-neutral-200">
-                          {formatDateDisplay(leave.applicable_to)}
-                        </span>
-                      </div>
+
+                    <div className="text-neutral-300 dark:text-neutral-700 font-light select-none">→</div>
+                    <div className="flex flex-col">
+                      <span className="text-[12px] font-bold text-neutral-400 uppercase tracking-wide">To</span>
+                      <span className="text-sm font-bold text-neutral-700 dark:text-neutral-200">
+                        {formatDateDisplay(leave.applicable_to)}
+                      </span>
                     </div>
-                  )}
+
+                  </div>
+
                 </div>
               </div>
 
@@ -229,7 +231,7 @@ const StudentLeaveManagement = () => {
               <div className="flex items-center justify-between mt-2 border-t border-neutral-100 dark:border-neutral-900/60 gap-4">
                 <button
                   onClick={() => setSelectedLeave(leave)}
-                  className="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors uppercase tracking-wider border-none bg-transparent p-0 inline-flex items-center gap-1"
+                  className="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors uppercase tracking-wider border-none bg-transparent p-0 inline-flex items-center gap-1 cursor-pointer"
                 >
                   <FiFileText size={16} /> View File
                 </button>
@@ -238,14 +240,14 @@ const StudentLeaveManagement = () => {
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => verifyLeave("Rejected", leave)}
-                      className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 border-none bg-transparent transition-colors"
+                      className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 border-none bg-transparent transition-colors cursor-pointer"
                       title="Reject Request"
                     >
                       <FiX size={15} />
                     </button>
                     <button
                       onClick={() => verifyLeave("Approved", leave)}
-                      className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-600/10 border-none transition-all duration-150"
+                      className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-600/10 border-none transition-all duration-150 cursor-pointer"
                       title="Approve Request"
                     >
                       <FiCheck size={15} />

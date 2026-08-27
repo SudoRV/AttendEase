@@ -1,10 +1,9 @@
-import { NativeModules, DeviceEventEmitter, Alert } from 'react-native';
 import { BleManager } from 'react-native-ble-plx';
-import { scope as collegeMetadataScope, reverseScopes } from '../constant/scopes';
+import { scopeAll, reverseScopes } from '../constant/scopes';
 import { getDBConnection, saveNotification } from '../database/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queueNotification, processQueue } from './BleDataPropagation';
-import notifee, { AndroidStyle, EventType, AndroidImportance, AndroidVisibility } from '@notifee/react-native';
+import notifee, { AndroidStyle, EventType, AndroidImportance } from '@notifee/react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
 import decodeAdvertisement from './DecodeAdvertisement';
 
@@ -15,12 +14,12 @@ const plxManager = new BleManager();
 let isScanningLoopActive = false;
 
 let updateDevicesCallback = null;
-let updateErrorCallback = null;
+let updateTimetableCallback = null;
 const discoveredDevicesMap = new Map();
 
-export function initializeScannerCallbacks(setDevices, setError) {
+export function initializeScannerCallbacks(setDevices, loadTimetable) {
   updateDevicesCallback = setDevices;
-  updateErrorCallback = setError;
+  updateTimetableCallback = loadTimetable
 }
 
 async function requestBluetoothPermissions() {
@@ -64,24 +63,44 @@ function hexToAscii(hexStr) {
 /**
  * UTILITY: Unpacks metadata bitmask strings matching your reverse profile map
  */
-function unpackMetadata(hex) {
+export async function decodeMask(scopeKey, mask) {
+  const scopeMap = await scopeAll(scopeKey); // e.g. { "all": 0, "CSE": 1, ... }
+  if (!scopeMap) return [];
+
+  // Invert map to { 0: "all", 1: "CSE", ... } for fast synchronous lookup
+  const inverted = Object.fromEntries(
+    Object.entries(scopeMap).map(([name, idx]) => [idx, name])
+  );
+
+  return Object.values(scopeMap)
+    .filter((idx) => (mask & (1 << idx)) !== 0)
+    .map((idx) => inverted[idx])
+    .filter(Boolean);
+}
+
+export async function unpackMetadata(hex) {
   const value = parseInt(hex, 16);
+
   const type = (value >> 29) & 0x03;
+  const branchMask = (value >> 22) & 0x7f;
+  const yearMask = (value >> 16) & 0x3f;
+  const sectionMask = (value >> 1) & 0x7fff;
   const scope = value & 0x01;
 
-  const branchMask = (value >> 22) & 0x7F;
-  const yearMask = (value >> 16) & 0x3F;
-  const sectionMask = (value >> 1) & 0x7FFF;
-
-  console.log(branchMask, yearMask, sectionMask, collegeMetadataScope)
+  const [typeCode, scopeCode, branches, years, sections] = await Promise.all([
+    reverseScopes("notification_type", type),
+    reverseScopes("scope", scope), // Resolves 0 -> "students", 1 -> "teachers"
+    decodeMask("branch", branchMask),
+    decodeMask("year", yearMask),
+    decodeMask("section", sectionMask),
+  ]);
 
   return {
-    type: reverseScopes("notification_type", type),
-    scope: scope,
-
-    branches: Array.from({ length: Object.keys(collegeMetadataScope?.branch)?.length }, (_, b) => b).filter(b => branchMask & (1 << b)).map(b => reverseScopes("branch", b)),
-    years: Array.from({ length: Object.keys(collegeMetadataScope?.year)?.length }, (_, y) => y).filter(y => yearMask & (1 << y)).map(y => reverseScopes("year", y)),
-    sections: Array.from({ length: Object.keys(collegeMetadataScope?.section)?.length }, (_, s) => s).filter(s => sectionMask & (1 << s)).map(s => reverseScopes("section", s))
+    type: typeCode,
+    scope: scopeCode ?? scope,
+    branches,
+    years,
+    sections,
   };
 }
 
@@ -213,7 +232,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
   const notificationExists = database.execute("select * from notifications where notification_id = ? limit 1", [notification_id]).rows._array[0];
 
   if (notificationExists) {
-    // console.log("notification exists with id: ", notification_id);
+    console.log("notification exists with id: ", notification_id);
     return;
   }
 
@@ -227,9 +246,9 @@ async function processIncomingFrame(uuid_str, major, minor) {
   // --- CASE 0: Class Cancellation ---
   // =================================================================
   if (type_code === 0 && tail_flags[0] !== "2") {
-    const branch = reverseScopes("branch", parseInt(scope_block[1], 16));
-    const year = reverseScopes("year", parseInt(scope_block[2], 16));
-    const section = reverseScopes("section", parseInt(scope_block[3], 16));
+    const branch = await reverseScopes("branch", parseInt(scope_block[1], 16));
+    const year = await reverseScopes("year", parseInt(scope_block[2], 16));
+    const section = await reverseScopes("section", parseInt(scope_block[3], 16));
 
     const encoded_periods = clean_uuid.substring(12, 16);
     const from_diff = parseInt(clean_uuid.substring(16, 18), 16);
@@ -242,16 +261,16 @@ async function processIncomingFrame(uuid_str, major, minor) {
     const day = parseInt(tail_flags[0], 16) - 3;
     const periodId = parseInt(tail_flags[1], 16);
 
-    const teacher = database.execute("select * from timetable where day = ? and period_id = ?", [reverseScopes("day", day), periodId]).rows._array[0];
+    const lecture = database.execute("select * from timetable where day = ? and period_id = ?", [await reverseScopes("day", day), periodId]).rows._array[0];
 
     const message = `Period ${decodePeriods(encoded_periods).map((p) => p)
-      .join(", ")} of ${teacher?.teacher_name || "some teacher"} cancelled, on leave ${leave_type === "duration" ? `from ${new Date(new Date().getTime() + (from_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()} to ${new Date(new Date().getTime() + (to_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()}` : `for ${new Date().toLocaleDateString()}`}`;
+      .join(", ")} of ${lecture?.teacher_name || "some teacher"} cancelled, on leave ${leave_type === "duration" ? `from ${new Date(new Date().getTime() + (from_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()} to ${new Date(new Date().getTime() + (to_diff * 24 * 60 * 60 * 1000)).toLocaleDateString()}` : `for ${new Date().toLocaleDateString()}`}`;
 
     const notification = {
       notification_id,
       scope: `${branch}_${year}_${section}`,
       source: "BLE",
-      type: reverseScopes("notification_type", type_code),
+      type: await reverseScopes("notification_type", type_code),
       title: "Class Cancellation",
       body: message
     };
@@ -264,6 +283,14 @@ async function processIncomingFrame(uuid_str, major, minor) {
 
     // check if scope matches and popup notification
     if ((userData?.branch_id === branch || branch === "all") && (userData?.year === parseInt(year) || year === "all") && (userData?.section === section || section === "all")) {
+      if (from_diff === 0) {
+        // update local timetable
+        const result = database.execute("update timetable set cancelled = ? and cancelled_from = ? and cancelled_to = ? where id = ?", [1, lecture?.id]);
+        console.log(result);
+
+        if(updateTimetableCallback) updateTimetableCallback(userData);
+      }
+
       // Alert.alert(notification.title, notification.body);
       notify(notification);
     }
@@ -273,9 +300,9 @@ async function processIncomingFrame(uuid_str, major, minor) {
   // --- CASE 1: Class Substitution ---
   // =================================================================
   else if (type_code === 1 && tail_flags[0] !== "2") {
-    const branch = reverseScopes("branch", parseInt(scope_block[1], 16));
-    const year = reverseScopes("year", parseInt(scope_block[2], 16));
-    const section = reverseScopes("section", parseInt(scope_block[3], 16));
+    const branch = await reverseScopes("branch", parseInt(scope_block[1], 16));
+    const year = await reverseScopes("year", parseInt(scope_block[2], 16));
+    const section = await reverseScopes("section", parseInt(scope_block[3], 16));
 
     const encoded_period = clean_uuid.substring(12, 16);
     const encoded_substitutor = clean_uuid.substring(16, 20);
@@ -283,7 +310,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
     const substitute_status = parseInt(encoded_period[2], 16);
     const original_period_id = parseInt(encoded_period[3], 16);
 
-    const sub_day = reverseScopes("day", parseInt(encoded_substitutor[2], 16));
+    const sub_day = await reverseScopes("day", parseInt(encoded_substitutor[2], 16));
     const sub_period_id = parseInt(encoded_substitutor[3], 16);
 
     const substitutee = database.execute("select * from timetable where day = ? and period_id = ?", [new Date().toLocaleDateString("en-Gb", { weekday: "long" }), original_period_id]).rows._array[0];
@@ -296,7 +323,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
       notification_id,
       scope: `${branch}_${year}_${section}`,
       source: "BLE",
-      type: reverseScopes("notification_type", type_code),
+      type: await reverseScopes("notification_type", type_code),
       title: "Class Substitution",
       body: message
     };
@@ -309,6 +336,20 @@ async function processIncomingFrame(uuid_str, major, minor) {
 
     // check if scope matches and popup notification
     if ((userData?.branch_id === branch || branch === "all") && (userData?.year === parseInt(year) || year === "all") && (userData?.section === section || section === "all")) {
+      // update local timetable
+      let params = [];
+      if (substitute_status === 1) {
+        params = [substitutor?.teacher_id, substitutor?.teacher_name, substituted_till, substitutee?.id];
+      } else {
+        params = [null, null, null, substitutee?.id];
+      }
+      const substituted_till = new Date();
+      substituted_till.setTime(18, 0, 0, 0);
+      const result = database.execute("update timetable set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", params);
+      console.log(result);
+
+      if(updateTimetableCallback) updateTimetableCallback(userData);
+
       // Alert.alert(notification.title, notification.body);
       notify(notification);
     }
@@ -342,7 +383,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
       // A. Handle Metadata Envelope
       if (chunk_type === "0") {
         const metadata_hex = clean_uuid.substring(12, 20);
-        const scope = unpackMetadata(metadata_hex);
+        const scope = await unpackMetadata(metadata_hex);
         current_active["scope"] = scope
 
         console.log(scope)
@@ -449,7 +490,7 @@ async function processAnnouncement(database, userData, notification_id, tail_fla
       notification_id,
       scope: JSON.stringify(current_active["scope"]),
       source: "BLE",
-      type: reverseScopes("notification_type", parseInt(tail_flags[0])),
+      type: await reverseScopes("notification_type", parseInt(tail_flags[0])),
       title: final_title.trim(),
       body: final_body.trim()
     };
@@ -490,18 +531,18 @@ const handleDiscoverPeripheral = (device) => {
 
   // console.log("payload: ", device.name, uuid, major, minor)
 
-  // if (updateDevicesCallback) {
-  //   const devicePayload = {
-  //     device,
-  //     type: uuid?.substring(0, 8) === TARGET_APP_ID ? "attendease_native" : "general",
-  //     uuid,
-  //     major,
-  //     minor
-  //   };
+  if (updateDevicesCallback) {
+    const devicePayload = {
+      device,
+      type: uuid?.substring(0, 8) === TARGET_APP_ID ? "attendease_native" : "general",
+      uuid,
+      major,
+      minor
+    };
 
-  // discoveredDevicesMap.set(device.id, devicePayload);
-  // updateDevicesCallback(Array.from(discoveredDevicesMap.values()));
-  // }
+    discoveredDevicesMap.set(device.id, devicePayload);
+    updateDevicesCallback(Array.from(discoveredDevicesMap.values()));
+  }
 
   if (manufacturerData) {
     processIncomingFrame(uuid, major, minor);
@@ -531,7 +572,7 @@ export async function startMeshScannerLoop() {
   isScanningLoopActive = true;
 
   // Start scanning immediately. Null filters mean look for absolutely EVERYTHING in range.
-  console.log('🟢 BLE Core Scanner Started');
+  // console.log('🟢 BLE Core Scanner Started');
   plxManager.startDeviceScan(
     null,
     {
@@ -564,5 +605,5 @@ export async function startMeshScannerLoop() {
 export async function stopMeshScannerLoop() {
   isScanningLoopActive = false;
   plxManager.stopDeviceScan();
-  console.log('🛑 BLE PLX Scanner Loop Terminated.');
+  // console.log('🛑 BLE PLX Scanner Loop Terminated.');
 }

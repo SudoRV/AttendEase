@@ -17,7 +17,17 @@ export const Fetch = async (endpoint, options = {}) => {
         console.error("Error pulling session token", error);
     }
 
-    const response = await fetch(`${BASE_URL}${endpoint}`, options);
+    let response = {};
+    try {
+        response = await fetch(`${BASE_URL}${endpoint}`, options);
+    } catch (error) {
+        response = {
+            status: 503,
+            ok: false,
+            error
+        }
+    }
+
     if (response.status === 401) {
         // perform logout
         await AsyncStorage.clear();

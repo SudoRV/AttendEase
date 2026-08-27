@@ -1,6 +1,6 @@
 const pool = require("../config/mysql");
 const admin = require("../config/fcm");
-const { buildFcmTopicsByTarget } = require("../utils/buildFcmTopics");
+const { clean } = require("../utils/buildFcmTopics");
 
 // fetch student timetable
 exports.studentTimetable = async (req, res) => {
@@ -86,7 +86,8 @@ exports.setSubstitution = async (req, res) => {
   const substitutor = req.user;
 
   // check if substitute teacher exists or not 
-  const [substitutionTeachers] = await pool.query("select teacher_id from users where teacher_id in (?)", [[substitutor.teacher_id, substitutee.teacher_id]]);
+  const [substitutionTeachers] = await pool.query("select id, teacher_id from users where teacher_id in (?)", [[substitutor.teacher_id, substitutee.teacher_id]]);
+
 
   if (!!substitutionTeachers.find(tid => tid.teacher_id === substitutor.teacher_id)?.id) {
     let result;
@@ -104,7 +105,7 @@ exports.setSubstitution = async (req, res) => {
       res.status(200).json({ success: true, message: (action === "acquired" ? "Class substituted successfully" : "Substitution cancelled.") });
 
       //notify students
-      const [substitutedClass] = await pool.query("select s.period_id, s.subject_id, s.subject_name, s.teacher_id, u.name as teacher_name, s.college_id, s.course_id, s.branch_id, s.year, s.section from schedule s inner join users u on s.teacher_id = u.teacher_id where id = ?", [class_id]);
+      const [substitutedClass] = await pool.query("select period_id, subject_id, subject_name, teacher_id, teacher_name, college_id, course_id, branch_id, year, section from schedule where id = ?", [class_id]);
 
       const message = action === "acquired" ? `Class ${substitutedClass[0].subject_name} of ${substitutedClass[0].teacher_name} is substituted by ${substitutor.name}` : `Substitution of class ${substitutedClass[0].subject_name} cancelled by ${substitutor.name}`;
 
@@ -116,7 +117,12 @@ exports.setSubstitution = async (req, res) => {
             period_id: substitutedClass[0].period_id,
             substitutor: substitutor.teacher_id
           })
-        }, [substitutedClass[0].college_id], [substitutedClass[0].course_id], [substitutedClass[0].branch_id], [substitutedClass[0].year], [substitutedClass[0].section], "students");
+        },
+          substitutedClass[0].college_id,
+          substitutedClass[0].course_id,
+          substitutedClass[0].branch_id,
+          substitutedClass[0].year,
+          substitutedClass[0].section);
       }
 
       // notify absent teacher
@@ -124,16 +130,14 @@ exports.setSubstitution = async (req, res) => {
 
       if (!!substituteeUserId) {
         const [absentTeacher] = await pool.query("select * from fcm_tokens where user_id = ?", [substituteeUserId]);
-
         const tokens = absentTeacher.map(at => at.fcm_token);
-
-        if(tokens.length <= 0) return;
+        if (tokens.length <= 0) return;
 
         const message = {
           data: {
             type: "CLASS_SUBSTITUTION",
             title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
-            body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.name}` : `Your class ${substitutedClass[0].subject_name} substitution cancelled by ${substitutor.name}`,
+            body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.name}` : `Your class ${substitutedClass[0].subject_name}'s substitution cancelled by ${substitutor.name}`,
             scope: "Individual"
           },
           tokens: tokens,
@@ -157,7 +161,6 @@ exports.setSubstitution = async (req, res) => {
             }
           }
         };
-
         const response = await admin.messaging().sendEachForMulticast(message);
       }
 
@@ -233,47 +236,43 @@ exports.deleteClass = async (req, res) => {
 
 
 
-async function notifyGroup(title, body, dataType, data, target_college, target_courses, target_branches, target_years, target_sections, scope) {
+async function notifyGroup(title, body, dataType, data, target_college, target_course, target_branch, target_year, target_section) {
   return new Promise(async (resolve, reject) => {
 
-    // console.log(target_college, target_courses, target_branches, target_years, target_sections, scope, "target")
-    const topics = await buildFcmTopicsByTarget(target_college, target_courses, target_branches, target_years, target_sections, scope, "target");
+    // const condition = `'COLLEGE_${target_college}' in topics && 'COURSE_${clean(target_course)}' in topics && 'BRANCH_${clean(target_branch)}' in topics && 'YEAR_${target_year}' in topics && 'SECTION_${target_section}' in topics`;
 
-    // console.log(topics)
+    // console.log(condition, body)
 
-    topics.forEach(async (topic) => {
-      await admin.messaging().send({
-        topic: topic,
+    await admin.messaging().send({
+      topic: `COLLEGE_${target_college}_${clean(target_course)}_${clean(target_branch)}_${target_year}_${target_section}`,
+      data: {
+        type: dataType,
+        title: title,
+        body: body,
+        scope: `${target_course}_${target_branch}_${target_year}_${target_section}`,
+        ...data
+      },
 
-        data: {
-          type: dataType,
-          title: title,
-          body: body,
-          scope: topic,
-          ...data
+      android: {
+        priority: "high",
+      },
+
+      webpush: {
+        headers: {
+          Urgency: "high"
         },
 
-        android: {
-          priority: "high",
+        notification: {
+          title,
+          body,
         },
 
-        webpush: {
-          headers: {
-            Urgency: "high"
-          },
-
-          notification: {
-            title,
-            body,
-          },
-
-          fcmOptions: {
-            link: "https://attendease-nivr.onrender.com/"
-          }
+        fcmOptions: {
+          link: "https://attendease-nivr.onrender.com/"
         }
+      }
 
-      });
-    })
+    });
 
     resolve({ success: true })
   })

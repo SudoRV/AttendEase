@@ -128,6 +128,7 @@ export const GlobalProvider = ({ children }) => {
             });
 
             const response = await res.json();
+            
             return !!response.success;
 
         } catch (err) {

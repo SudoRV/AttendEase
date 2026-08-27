@@ -10,6 +10,7 @@ import {
   Modal,
   TouchableOpacity,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import NetInfo from '@react-native-community/netinfo';
 import { BleManager } from 'react-native-ble-plx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -85,11 +86,12 @@ export async function enableBluetooth() {
 const DeviceItem = memo(({ item }) => (
   <View className="p-4 py-3 border-b border-zinc-100 dark:border-neutral-700 bg-white dark:bg-neutral-800">
     <Text className="font-bold text-zinc-900 dark:text-white">
+      {item.device?.id || 'Unknown Device'}
+    </Text>
+    <Text className="font-bold text-zinc-900 dark:text-white">
       {item.device?.name || 'Unknown Device'}
     </Text>
     <Text className="text-sm text-zinc-500 font-mono mt-0.5">uuid: {item?.uuid || 'N/A'}</Text>
-    <Text className="text-sm text-zinc-500 font-mono mt-0.5">uuid: {item?.major || 'N/A'}</Text>
-    <Text className="text-sm text-zinc-500 font-mono mt-0.5">uuid: {item?.minor || 'N/A'}</Text>
     <Text className="text-sm text-neutral-600 dark:text-neutral-300">RSSI: {item.device?.rssi}</Text>
   </View>
 ));
@@ -102,7 +104,7 @@ export default function BleToggle({ bleOn, setBleOn }) {
   // Filter state
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'general', 'attendease_native'
 
-  const { bleDevices, bleError } = AppStates();
+  const { bleDevices } = AppStates();
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -193,10 +195,10 @@ export default function BleToggle({ bleOn, setBleOn }) {
             
             <View className="flex-row justify-between items-center mb-4 pb-2 border-b border-zinc-100 dark:border-neutral-800">
               <Text className="text-xl font-bold text-zinc-900 dark:text-white">
-                Discovered Devices ({filteredDevices.length})
+                NearBy Devices: {filteredDevices.length}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text className="text-sky-500 font-bold text-base px-2 py-1">Close</Text>
+                <Ionicons name="chevron-down" size={20} />
               </TouchableOpacity>
             </View>
 
@@ -210,9 +212,9 @@ export default function BleToggle({ bleOn, setBleOn }) {
                 <TouchableOpacity
                   key={filter.key}
                   onPress={() => setActiveFilter(filter.key)}
-                  className={`px-4 py-2 rounded-full border ${
+                  className={`px-4 py-1.5 rounded-full ${
                     activeFilter === filter.key 
-                      ? 'bg-sky-500 border-sky-500' 
+                      ? 'bg-indigo-500' 
                       : 'bg-white border-zinc-300 dark:bg-neutral-800'
                   }`}
                 >
@@ -257,7 +259,7 @@ export default function BleToggle({ bleOn, setBleOn }) {
       </View>
 
       <TouchableOpacity onPress={() => setModalVisible(true)} className="mt-4">
-        <Text className="text-base text-sky-600 font-semibold dark:text-neutral-300">View Advertising Devices</Text>
+        <Text className="text-base text-neutral-800 font-semibold dark:text-neutral-300 underline">AttendEase BLE Network</Text>
       </TouchableOpacity>
     </View>
   );

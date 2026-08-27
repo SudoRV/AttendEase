@@ -35,11 +35,9 @@ async function buildFcmTopicsFromSchedule(mode="subscription") {
             topics.add({topic: clean(topic_5), ...raw_topic});
         }
 
-        // console.log(Array.from(topics));
         resolve(Array.from(topics));
     })
 }
-
 
 
 
@@ -54,6 +52,8 @@ async function buildFcmTopicsByTarget(
 ) {
     const conditions = [];
     const params = [];
+
+    if(scope === "teachers") return ["TEACHERS"];
 
     // Always filter by college
     conditions.push("college_id = ?");
@@ -90,22 +90,58 @@ async function buildFcmTopicsByTarget(
     const [raw_topics] = await pool.query(query, params);
     const topics = raw_topics.map(rt => `COLLEGE_${target_college}_${clean(rt.course_id)}_${clean(rt.branch_id)}_${rt.year}_${rt.section}`);
 
-    if(scope === "students" && mode === "subscription") return topics.flatMap(topic => {
-        let replacee = ""
-        const new_topics = topic.split("_").slice(2).toReversed().map(t => {
-            replacee = `_${t}` + replacee;
-            const nt = topic.replace(replacee, "");
+    let final_topics;
 
-            if(nt.split("_").length > 1) {
-                return nt;
-            }
-        });
+    if(scope === "students" && mode === "subscription") {
+        final_topics = topics.flatMap(topic => {
+            let replacee = ""
+            const new_topics = topic.split("_").slice(2).toReversed().map(t => {
+                replacee = `_${t}` + replacee;
+                const nt = topic.replace(replacee, "");
+    
+                if(nt.split("_").length > 1) {
+                    return nt;
+                }
+            });
+    
+            return [topic, ...new_topics];
+        })
+    }
+    else if(scope === "students" && mode === "target") final_topics = topics;
 
-        return [topic, ...new_topics];
-    })
-    else if(scope === "students" && mode === "target") return topics;
+    console.log(final_topics)
+    return final_topics;
+}
 
-    else if(scope === "teachers") return ["TEACHERS"];
+
+
+async function buildFcmTopicsByTarget2(
+    target_college,
+    target_courses,
+    target_branches,
+    target_years,
+    target_sections,
+    scope,
+    mode="subscription" //target
+) {
+    if(mode === "subscription") {
+        let topics;
+        
+        if(scope === "students") topics = [
+            `COLLEGE_${target_college}_${clean(target_courses[0])}_${clean(target_branches[0])}_${target_years[0]}_${target_sections[0]}`,
+            `COLLEGE_${target_college}`,
+            `COURSE_${clean(target_courses[0])}`,
+            `BRANCH_${clean(target_branches[0])}`,
+            `YEAR_${target_years[0]}`,
+            `SECTION_${target_sections[0]}`,
+        ]
+        else topics = [
+            `COLLEGE_${target_college}`,
+            "TEACHER"
+        ]
+
+        return topics;
+    }
 }
 
 
@@ -122,5 +158,6 @@ function clean(str) {
 module.exports = {
     buildFcmTopicsFromSchedule,
     buildFcmTopicsByTarget,
+    buildFcmTopicsByTarget2,
     clean
 }

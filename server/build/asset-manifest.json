@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/static/css/main.4182f01c.css",
+    "main.js": "/static/js/main.67825339.js",
+    "static/js/453.6db6115e.chunk.js": "/static/js/453.6db6115e.chunk.js",
+    "static/media/attendease_icon.png": "/static/media/attendease_icon.0417a9f4381909ffc926.png",
+    "index.html": "/index.html",
+    "main.4182f01c.css.map": "/static/css/main.4182f01c.css.map",
+    "main.67825339.js.map": "/static/js/main.67825339.js.map",
+    "453.6db6115e.chunk.js.map": "/static/js/453.6db6115e.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.4182f01c.css",
+    "static/js/main.67825339.js"
+  ]
+}
