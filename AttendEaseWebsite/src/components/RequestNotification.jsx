@@ -24,7 +24,7 @@ export async function requestNotification() {
 }
 
 export default function RequestNotification() {
-  // const { userData, SubscribePushNotification } = AppStates();
+  // const { user, SubscribePushNotification } = AppStates();
   const [permissionStatus, setPermissionStatus] = useState(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
       return Notification.permission;
@@ -75,7 +75,7 @@ export default function RequestNotification() {
         setPermissionStatus("granted");
         const refreshing = await alert("Refreshing...");
         if (refreshing) window.location.reload();
-        // await SubscribePushNotification(userData);
+        // await SubscribePushNotification(user);
       } else {
         setPermissionStatus("denied");
         setErrorMessage("Permission denied. Enable notifications in your browser settings.");

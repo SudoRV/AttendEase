@@ -18,7 +18,7 @@ import logout from "../utils/logout";
 
 
 export default function PasswordSettings() {
-  const { userData } = AppStates();
+  const { user } = AppStates();
   const [modalVisible, setModalVisible] = useState(false);
   const [authMode, setAuthMode] = useState(""); // "change" or "reset"
   const [loading, setLoading] = useState(false);
@@ -59,7 +59,7 @@ export default function PasswordSettings() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            email: userData.email,
+            email: user.email,
             old_password: form.oldPassword,
             new_password: form.newPassword,
             type: "change",
@@ -87,7 +87,7 @@ export default function PasswordSettings() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              email: userData?.email,
+              email: user?.email,
               type: "request_otp",
             }),
           });
@@ -108,7 +108,7 @@ export default function PasswordSettings() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              email: userData.email,
+              email: user.email,
               otp: form.otp,
               new_password: form.newPassword,
               type: "verify_reset"

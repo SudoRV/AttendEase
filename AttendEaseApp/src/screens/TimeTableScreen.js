@@ -18,7 +18,7 @@ const { width, height } = Dimensions.get("window");
 
 const TimeTableScreen = () => {
   const navigation = useNavigation();
-  const { classes, userData, teacherLeaveHistory, loadTimetable } = AppStates();
+  const { classes, user, teacherLeaveHistory, loadTimetable } = AppStates();
 
   const [rotated, setRotated] = useState(false);
   const [selectedDay, setSelectedDay] = useState(classes?.day || new Date().toLocaleString("en-Gb", { weekday: "long" }));
@@ -78,7 +78,7 @@ const TimeTableScreen = () => {
       });
 
       const payload = {
-        college_id: [userData?.college_id],
+        college_id: [user?.college_id],
         course_id: [formData?.course_id],
         branch_id: [formData?.branch_id],
         year: [formData?.year]
@@ -113,7 +113,7 @@ const TimeTableScreen = () => {
     }
 
     fetchMetadata();
-  }, [longPressAction, userData?.college_id, formData?.course_id, formData?.branch_id, formData?.year])
+  }, [longPressAction, user?.college_id, formData?.course_id, formData?.branch_id, formData?.year])
 
   // --- INITIAL BOOTSTRAP SYNC CALL ---
   useEffect(() => {
@@ -122,7 +122,7 @@ const TimeTableScreen = () => {
       try {
         // Run initial data population on mount
         if (!classes || Object.keys(classes).length === 0) {
-          await loadTimetable(userData);
+          await loadTimetable(user);
         }
       } catch (err) {
         console.error("Bootstrapping failed:", err);
@@ -170,8 +170,8 @@ const TimeTableScreen = () => {
         setFormData({
           day: data.day || activeTimetableSource.day || "",
           year: data.year || "",
-          college_id: userData?.college_id,
-          course_id: userData?.course_id,
+          college_id: user?.college_id,
+          course_id: user?.course_id,
           branch_id: data.branch_id || "",
           branch_name: data.branch_name || "",
           section: data.section || "",
@@ -242,8 +242,8 @@ const TimeTableScreen = () => {
       changes.year = changes.year === "" ? "" : parseInt(changes.year, 10);
       changes.room_number = changes.room_number === "" ? "" : parseInt(changes.room_number, 10);
       changes.semester = changes.semester === "" ? "" : parseInt(changes.semester, 10);
-      changes.teacher_id = userData?.teacher_id || "";
-      changes.teacher_name = userData?.name || "";
+      changes.teacher_id = user?.teacher_id || "";
+      changes.teacher_name = user?.name || "";
     }
 
     const payload = {
@@ -311,7 +311,7 @@ const TimeTableScreen = () => {
 
   async function loadSpecificTimetable() {
     setLoadingTimetable(true);
-    const timetable = await loadTimetable(userData, selectedDay);
+    const timetable = await loadTimetable(user, selectedDay);
     setSelectedTimetable(timetable || {});
     setLoadingTimetable(false);
   }
@@ -326,7 +326,7 @@ const TimeTableScreen = () => {
       setSelectedDay(classes.day);
     } else {
       setLoadingTimetable(true);
-      await loadTimetable(userData);
+      await loadTimetable(user);
       setSelectedDay(null);
       setSelectedTimetable({});
       setLoadingTimetable(false);
@@ -335,7 +335,7 @@ const TimeTableScreen = () => {
 
   async function refreshHomepage(params) {
     refreshTimetable();
-    if (userData?.role === "Student" && attendanceRef.current) {
+    if (user?.role === "Student" && attendanceRef.current) {
       attendanceRef.current.refreshData();
     }
   }
@@ -346,7 +346,7 @@ const TimeTableScreen = () => {
   const [redirected, setRedirected] = useState(false);
   let notLoggedInTimer;
 
-  if (!isInitialLoading && !!userData?.role === false) return <NotSignedIn />
+  if (!isInitialLoading && !!user?.role === false) return <NotSignedIn />
 
   if (!!isInitialLoading) {
 
@@ -503,7 +503,7 @@ const TimeTableScreen = () => {
                                 : item?.substitute_teacher_id ? "text-teal-500" : "text-neutral-200"
                                 }`}
                             >
-                              {userData?.role === "Teacher"
+                              {user?.role === "Teacher"
                                 ? `${item.branch_id || ""}-${item.year || ""}-${item.section || ""}`
                                 : item?.substitute_teacher_name || item.teacher_name || "No Instructor"}
                             </Text>
@@ -522,10 +522,10 @@ const TimeTableScreen = () => {
 
           </ScrollView>
 
-          {/* {userData?.role === "Student" && <AttendanceDashboard ref={attendanceRef} />} */}
+          {/* {user?.role === "Student" && <AttendanceDashboard ref={attendanceRef} />} */}
 
           {
-            userData?.role === "Teacher" && (
+            user?.role === "Teacher" && (
               <TeacherLeave />
             )
           }
@@ -557,7 +557,7 @@ const TimeTableScreen = () => {
                   <Text className="text-lg font-semibold ml-3 text-red-600 ">Delete Subject</Text>
                 </TouchableOpacity>
 
-                {userData?.role === "Student" && (
+                {user?.role === "Student" && (
                   <TouchableOpacity onPress={() => handleContextOption("leaves")} className="flex-row items-center p-3 bg-slate-50 dark:bg-neutral-800/40 rounded-xl">
                     <Ionicons name="calendar-outline" size={22} color="#6b7280" />
                     <Text className="text-lg font-semibold ml-3 text-slate-800 dark:text-neutral-300">View Teacher Leaves</Text>

@@ -3,7 +3,7 @@ import { FiX, FiChevronDown, FiChevronUp, FiCalendar, FiFileText } from "react-i
 import { Fetch } from "../services/api";
 
 const StudentLeave = () => {
-  const { userData, leaveHistory, loadLeaves, formatDate } = AppStates();
+  const { user, leaveHistory, loadLeaves, formatDate } = AppStates();
 
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -18,7 +18,7 @@ const StudentLeave = () => {
   const [leavesByMonth, setLeavesByMonth] = useState({});
 
   async function fetchLeaves() {
-    if (!userData?.email) return;
+    if (!user?.email) return;
     const leaves_by_month = await loadLeaves(leavesFilter);
     
     if (leaves_by_month?.student_leaves?.length > 0) {
@@ -30,7 +30,7 @@ const StudentLeave = () => {
 
   useEffect(() => {
     fetchLeaves();
-  }, [userData, leavesFilter]);
+  }, [user, leavesFilter]);
 
   async function submitLeave(e) {
     e.preventDefault();
@@ -54,7 +54,7 @@ const StudentLeave = () => {
     toDateObj.setHours(23, 55, 0, 0);
 
     const leave = {
-      applicant: userData,
+      applicant: user,
       subject,
       application,
       applicable_from: formatDate(fromDateObj),

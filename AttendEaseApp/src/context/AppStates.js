@@ -1,22 +1,21 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useRoute } from '@react-navigation/native'
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import requestFcmToken from "../utils/requestFcmToken";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import { useColorScheme } from 'nativewind';
 import { enableBluetooth } from "../components/BleToggle";
 import changeNavigationBarColor from 'react-native-navigation-bar-color';
-import { getCurrentTab } from "../navigation/AppNavigator";
-import clean from "../utils/cleanCollegeMetadata";
+import { getCurrentTab } from "../navigation/navigationRef";
 
-import BleDataPropagation from "../utils/BleDataPropagation";
-import { startMeshScannerLoop } from "../utils/BleDataScanning";
+// import BleDataPropagation from "../utils/BleDataPropagation";
+import BleAdvertiser from "../utils/BleAdvertiser";
+// import { startMeshScannerLoop } from "../utils/BleDataScanning";
 import { getDBConnection, saveNotification } from "../database/database";
 
-import { initializeScannerCallbacks } from '../utils/BleDataScanning';
+// import { initializeScannerCallbacks } from '../utils/BleDataScanning';
 
 // custom fetch api
 import { Fetch } from "../services/api";
+import popNotification from "../services/pop_notification";
 
 const THEME_STORAGE_KEY = '@user_theme_preference';
 
@@ -38,7 +37,7 @@ function sHash(str) {
 const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
-  const [userData, setUserData] = useState({});
+  const [user, setUserData] = useState({});
   const [classes, setClasses] = useState([]);
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
@@ -61,69 +60,15 @@ export const GlobalProvider = ({ children }) => {
     await AsyncStorage.setItem(THEME_STORAGE_KEY, newMode);
   };
 
-  // highlight current period
-  function runAtWholeHour(fn) {
-    const now = new Date();
-
-    const msToNextHour =
-      (60 - now.getMinutes()) * 60 * 1000 -
-      now.getSeconds() * 1000 -
-      now.getMilliseconds();
-
-    setTimeout(() => {
-      fn(); // runs exactly at HH:00
-
-      setInterval(fn, 60 * 60 * 1000); // every whole hour
-    }, msToNextHour);
-  }
-
-  runAtWholeHour(() => {
-    loadTimetable(userData);
-  });
-
-  const saveFcmToken = async (userCreds) => {
-    if (!userCreds || !userCreds.email) return false;
-
-    try {
-      // 1. Get the token (This triggers the permission prompt if needed)
-      const token = await requestFcmToken();
-      await AsyncStorage.setItem("fcm_token", token);
-
-      // If user denied permission or token failed, exit cleanly
-      if (!token) return false;
-
-      // 3. Save to your database
-      const response = await Fetch("/save-fcm-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token: token,
-        })
-      });
-
-      if (!response.ok) {
-        console.error("Backend refused token save:", response.status);
-        return false;
-      }
-
-      console.log("✅ FCM Token saved & Topics subscribed successfully!");
-      return true;
-
-    } catch (error) {
-      console.error("Crash inside saveFcmToken:", error);
-      return false;
-    }
-  };
-
   // load whole week timetable and save it in database
   async function saveTimetable() {
-    const timetable = await loadTimetable(userData, "null");
+    const timetable = await loadTimetable(user, "null");
     if (!timetable) return;
 
-    if (Object.keys(timetable).length > 1) {
-      Object.keys(timetable).forEach(day => {
+    if (Object.keys(timetable)?.length > 1) {
+      Object.keys(timetable)?.forEach(day => {
         const items = timetable[day];
-        items.forEach(item => {
+        items?.forEach(item => {
           database.execute(`insert or replace into timetable (id,branch_id,branch_name,year,semester,section,day,period_id,subject_id,subject_name,room_number,teacher_id,teacher_name,cancelled,cancelled_from,cancelled_to,substitute_teacher_id,substitute_teacher_name,substituted_till
           )
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
@@ -133,7 +78,6 @@ export const GlobalProvider = ({ children }) => {
       })
     }
   }
-
 
   /* =====================
      TIMETABLE
@@ -221,7 +165,7 @@ export const GlobalProvider = ({ children }) => {
 
 
   const loadLeaves = async (filter) => {
-    if (!userData?.email) return;
+    if (!user?.email) return;
 
     try {
       // student leaves
@@ -280,23 +224,26 @@ export const GlobalProvider = ({ children }) => {
 
       const res = await Fetch("/api/auth/me");
 
+      let user;
+
       if (!res.ok && res?.status === 503) {
         const rawSavedUser = await AsyncStorage.getItem("user_creds");
         const savedUser = JSON.parse(rawSavedUser || "{}");
 
         if (savedUser?.id) {
-          setUserData(savedUser);
+          user = savedUser;
         };
       }
       else {
         const response = await res.json();
-        const user = response.user;
-
-        if (user) {
-          setUserData(user);
-        } else setUserData(null);
+        if (response?.user) {
+          user = response.user
+        };
       }
 
+      if (user) {
+        setUserData(user);
+      } else setUserData(null);
     }
     fetchUser();
 
@@ -312,7 +259,7 @@ export const GlobalProvider = ({ children }) => {
           if (!!parsedValue) {
             await enableBluetooth();
             // start scanning
-            await startMeshScannerLoop();
+            // await startMeshScannerLoop();
             console.log('🟢 BLE Core Scanner Started');
           };
           return parsedValue;
@@ -326,31 +273,7 @@ export const GlobalProvider = ({ children }) => {
 
 
     // Bind context state modifiers directly to the scanning engine reference pointers
-    initializeScannerCallbacks(setBleDevices, loadTimetable);
-
-
-    // download college metadata
-    async function loadMetadata() {
-      // load saved metadata
-      const today = new Date();
-      const savedMetadata = await AsyncStorage.getItem("college_metadata");
-      let metadata = JSON.parse(savedMetadata || "{}");
-
-      if (!metadata?.exp || new Date(metadata?.exp) < today.getTime()) {
-        console.log("fetching metadata", new Date(metadata.exp))
-        const res = await Fetch("/college/metadata/all");
-        const response = await res.json();
-        // console.log(response)
-        if (response?.data) metadata = response.data;
-      }
-
-      if (!metadata?.exp || new Date(metadata?.exp) < today) {
-        metadata.exp = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).getTime();
-        await AsyncStorage.setItem("college_metadata", JSON.stringify(metadata))
-      };
-    }
-
-    loadMetadata();
+    // initializeScannerCallbacks(setBleDevices, loadTimetable);
   }, []);
 
   useEffect(() => {
@@ -373,37 +296,34 @@ export const GlobalProvider = ({ children }) => {
 
 
   useEffect(() => {
-    if (!userData?.email) return;
+    if (!user?.email) return;
     setLogout(false);
 
-    // save fcm token
-    saveFcmToken(userData);
-
-    loadTimetable(userData);
-    if (userData.role === "Student") saveTimetable();
+    loadTimetable(user);
+    if (user.role === "Student") saveTimetable();
     loadLeaves();
 
     // listen for new message
     // 1. Get the modular messaging instance
     const messagingInstance = getMessaging();
 
-    // BleDataPropagation(database, {
-    //   "originalPriority": 1,
-    //   "priority": 1,
-    //   "sentTime": 1781611965387,
-    //   "data": {
-    //     "scope": "BTECH_CSE_4_A",
-    //     "body": "Period 1 of Dr. Jagat Pal Singh cancelled, on leave for 16 Jun 2026",
-    //     "title": "Class Cancelled",
-    //     "type": "CLASS_CANCELLED",
-    //     "metadata": "{\"leave_type\":\"period\",\"status\":\"1\",\"teacher_id\":\"T_AHT016\",\"period_id\":[1],\"on\":\"1970-01-01T00:00:00.000Z\",\"from\":\"2026-06-15T18:35:00.000Z\",\"to\":\"2026-06-16T18:25:00.000Z\"}"
-    //   },
-    //   "from": "/topics/CSE_4_A",
-    //   "messageId": "0:1781611965391503%3c69d815f9fd7ecd",
-    //   "ttl": 2419200
-    // });
+    BleAdvertiser(database, {
+      "originalPriority": 1,
+      "priority": 1,
+      "sentTime": 1781611965387,
+      "data": {
+        "scope": "BTECH_CSE_4_A",
+        "body": "Period 1 of Dr. Jagat Pal Singh cancelled, on leave for 16 Jun 2026",
+        "title": "Class Cancelled",
+        "type": "CLASS_CANCELLED",
+        "metadata": "{\"leave_type\":\"period\",\"status\":\"1\",\"teacher_id\":\"T_AHT016\",\"period_id\":[1],\"on\":\"1970-01-01T00:00:00.000Z\",\"from\":\"2026-06-15T18:35:00.000Z\",\"to\":\"2026-06-16T18:25:00.000Z\"}"
+      },
+      "from": "/topics/CSE_4_A",
+      "messageId": "0:1781611965391503%3c69d815f9fd7ecd",
+      "ttl": 2419200
+    });
 
-    // BleDataPropagation(database, {
+    // BleAdvertiser(database, {
     //   "originalPriority": 1,
     //   "priority": 1,
     //   "sentTime": 1787725747441,
@@ -436,28 +356,88 @@ export const GlobalProvider = ({ children }) => {
       });
 
       // propagate notification
-      BleDataPropagation(database, remoteMessage);
+      // BleDataPropagation(database, remoteMessage);
+      // BleAdvertiser(database, remoteMessage);
+
+      try {
+        // pop notification
+        popNotification(remoteMessage);
+      } catch (error) {
+        console.warn(error)
+      }
 
       // Refresh data silently!
       if (remoteMessage?.data?.type !== "ANNOUNCEMENTS") {
-        console.log("refreshing leaves and timetable")
-        loadTimetable(userData);
+        loadTimetable(user);
         loadLeaves();
       }
     });
+
+
+
+    // download college metadata/scopes for ble encoding
+    async function loadMetadata() {
+      console.log("loading metadata")
+      if (!user?.id) return;
+      // load saved metadata
+      const today = new Date();
+      const savedMetadata = await AsyncStorage.getItem("college_metadata");
+      let metadata = JSON.parse(savedMetadata || "{}");
+
+      if (!metadata?.exp || new Date(metadata?.exp) < today.getTime()) {
+        console.log("fetching metadata")
+        const res = await Fetch("/college/metadata/all");
+        const response = await res.json();
+        console.log(response)
+        if (response?.data) metadata = response.data;
+      }
+
+      if (!metadata?.exp || new Date(metadata?.exp) < today) {
+        metadata.exp = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).getTime();
+        await AsyncStorage.setItem("college_metadata", JSON.stringify(metadata))
+      };
+    }
+    loadMetadata();
 
 
     // 3. Clean up the listener when the component unmounts
     return () => {
       unsubscribe();
     };
-  }, [userData]);
+  }, [user]);
+
+  // highlight current period
+  useEffect(() => {
+    if (!user?.email) return;
+
+    const runAtWholeHour = (fn) => {
+      const now = new Date();
+      const msToNextHour =
+        (60 - now.getMinutes()) * 60 * 1000 -
+        now.getSeconds() * 1000 -
+        now.getMilliseconds();
+
+      const timeoutId = setTimeout(() => {
+        fn();
+        const intervalId = setInterval(fn, 60 * 60 * 1000);
+        return () => clearInterval(intervalId);
+      }, msToNextHour);
+
+      return () => clearTimeout(timeoutId);
+    };
+
+    const cleanup = runAtWholeHour(() => {
+      loadTimetable(user);
+    });
+
+    return () => cleanup && cleanup();
+  }, [user, loadTimetable]);
 
   return (
     <GlobalContext.Provider
       value={{
         activeTab, setActiveTab,
-        userData, setUserData,
+        user, setUserData,
         classes,
         leaveHistory,
         loadTimetable,
@@ -478,10 +458,34 @@ export const GlobalProvider = ({ children }) => {
   );
 };
 
+const defaultGlobalContext = {
+  activeTab: 0,
+  setActiveTab: () => { },
+  user: null,
+  setUserData: () => { },
+  classes: [],
+  leaveHistory: [],
+  loadTimetable: async () => undefined,
+  database: null,
+  loadLeaves: async () => undefined,
+  teacherLeaveHistory: [],
+  logout: false,
+  setLogout: () => { },
+  formatDate,
+  bleOn: false,
+  setBleOn: () => { },
+  colorScheme: 'light',
+  themePreference: 'system',
+  updateTheme: async () => { },
+  bleDevices: [],
+  setBleDevices: () => { },
+};
+
 export const AppStates = () => {
   const ctx = useContext(GlobalContext);
   if (!ctx) {
-    throw new Error("AppStates must be used inside GlobalProvider");
+    console.warn("AppStates was used outside GlobalProvider; using a safe fallback context.");
+    return defaultGlobalContext;
   }
   return ctx;
 };

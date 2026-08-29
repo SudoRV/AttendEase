@@ -12,7 +12,7 @@ export default function LandingHeader({ toggleSidebar }) {
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
-  const { userData, } = AppStates();
+  const { user, } = AppStates();
 
   return (
     <header className="sticky top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/20 dark:bg-black/20 border-b border-slate-200 dark:border-neutral-700 shadow-sm">
@@ -48,7 +48,7 @@ export default function LandingHeader({ toggleSidebar }) {
             {/* Desktop CTA Buttons */}
             <div className="hidden md:flex gap-3">
               {
-                !!!userData?.id?.trim() && (
+                !!!user?.id?.trim() && (
                   <Link
                     to="/login"
                     className="px-4 py-2 text-center text-indigo-500 border border-indigo-500 rounded-lg !bg-red-400"
@@ -87,7 +87,7 @@ export default function LandingHeader({ toggleSidebar }) {
               <div className="flex flex-col gap-2 pt-2 border-t border-slate-200 dark:border-neutral-600">
 
                 {
-                  !userData?.id?.trim() && (
+                  !user?.id?.trim() && (
                     <Link
                       to="/login"
                       className="px-4 py-2 text-center text-indigo-500 border border-indigo-500 rounded-lg"

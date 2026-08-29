@@ -121,7 +121,11 @@ exports.logout = async (req, res) => {
     const topics = await buildFcmTopicsByTarget2(user.college_id, [user.course_id], [user.branch_id], [user.year], [user.section], user.role === "Student" ? "students" : "teachers");
 
     for (const topic of topics) {
-        await admin.messaging().unsubscribeFromTopic([fcmToken], topic);
+        try {
+            await admin.messaging().unsubscribeFromTopic([fcmToken], topic);
+        } catch (error) {
+            return res.status(200).json({ success: false, message: error?.message || "Internal Server Error." });
+        }
     }
 
     // delete the token

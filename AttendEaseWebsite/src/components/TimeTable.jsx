@@ -17,7 +17,7 @@ const TimeTable = () => {
     "04:00 PM", "05:00 PM",
   ];
 
-  const { classes, userData, loadTimetable, teacherLeaveHistory } = AppStates();
+  const { classes, user, loadTimetable, teacherLeaveHistory } = AppStates();
   const slots = defaultTimeSlots;
   const editMenuRef = useRef(null);
   const longPressTimer = useRef(null);
@@ -129,7 +129,7 @@ const TimeTable = () => {
               <p className={`subject-code ${current ? "!text-gray-100 !font-light" : ""} ${item?.cancelled ? "text-red-500" : "text-neutral-50"}`}>{code}</p>
               <p className={`subject-name ${current ? "!text-gray-100 !font-light" : ""}`}>{name}</p>
               <p className={`Teacher-name text-ellipsis !line-clamp-1 ${current ? "!text-gray-100 !font-light" : ""} ${item?.subject_name === "LUNCH" ? "!border-none !text-yellow-400" : ""}`}>
-                {userData?.role === "Teacher" ? `${branch || ""}-${year || ""}-${section || ""}-${room_number || ""}` : item?.substitute_teacher_name || teacher}
+                {user?.role === "Teacher" ? `${branch || ""}-${year || ""}-${section || ""}-${room_number || ""}` : item?.substitute_teacher_name || teacher}
               </p>
             </div>
           ) : (
@@ -215,8 +215,8 @@ const TimeTable = () => {
       }
     } else if (action === "Insert") {
       changes = { ...formData };
-      changes.teacher_id = userData?.teacher_id || "";
-      changes.teacher_name = userData?.name || "";
+      changes.teacher_id = user?.teacher_id || "";
+      changes.teacher_name = user?.name || "";
     }
 
     const data = {
@@ -271,7 +271,7 @@ const TimeTable = () => {
       });
 
       const payload = {
-        college_id: [userData?.college_id],
+        college_id: [user?.college_id],
         course_id: [formData?.course_id],
         branch_id: [formData?.branch_id],
         year: [formData?.year]
@@ -306,11 +306,11 @@ const TimeTable = () => {
     }
 
     fetchMetadata();
-  }, [currentEditCell?.option, userData?.college_id, formData?.course_id, formData?.branch_id, formData?.year])
+  }, [currentEditCell?.option, user?.college_id, formData?.course_id, formData?.branch_id, formData?.year])
 
   async function loadSpecificTimetable() {
     setLoadingTimetable(true);
-    const timetable = await loadTimetable(userData, selectedDay);
+    const timetable = await loadTimetable(user, selectedDay);
     setSelectedTimetable(timetable || {});
     setLoadingTimetable(false);
   }
@@ -325,7 +325,7 @@ const TimeTable = () => {
       setSelectedDay(classes.day);
     } else {
       setLoadingTimetable(true);
-      await loadTimetable(userData);
+      await loadTimetable(user);
       setLoadingTimetable(false);
     }
   }
@@ -393,7 +393,7 @@ const TimeTable = () => {
             )}
 
             {/* CONDITIONAL RENDER RULE: ONLY VISIBLE IFF ROLE IS TEACHER */}
-            {userData?.role === "Student" && (
+            {user?.role === "Student" && (
               <button className="rounded-md border-none bg-transparent hover:bg-indigo-50 text-indigo-600 border-t border-neutral-100 pt-2 p-2 text-sm text-left font-medium cursor-pointer"
                 onClick={() => handleMenuOptionClick("leaves")}>View Teacher Leaves</button>
             )}

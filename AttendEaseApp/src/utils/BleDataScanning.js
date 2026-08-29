@@ -2,7 +2,7 @@ import { BleManager } from 'react-native-ble-plx';
 import { scopeAll, reverseScopes } from '../constant/scopes';
 import { getDBConnection, saveNotification } from '../database/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { queueNotification, processQueue } from './BleDataPropagation';
+// import { queueNotification, processQueue } from './BleDataPropagation';
 import notifee, { AndroidStyle, EventType, AndroidImportance } from '@notifee/react-native';
 import { PermissionsAndroid, Platform } from 'react-native';
 import decodeAdvertisement from './DecodeAdvertisement';
@@ -139,20 +139,20 @@ function reBroadcast(notifications) {
     // console.log(`Re-broadcasting payload with updated hop count: ${nextHops}/${maxHops}`);
 
     // 6. Send it to the queue for transmission
-    queueNotification(notifications);
-    processQueue();
+    // queueNotification(notifications);
+    // processQueue();
   } else {
     console.log("Packet dropped: Maximum hop limit reached.");
   }
 }
 
-const channelMap = {
-  "CLASS_CANCELLED": "class_cancellation_alerts",
-  "CLASS_SUBSTITUTION": "class_substitution_alerts",
-  "ANNOUNCEMENT": "announcement_alerts"
-};
-
 async function notify(notification) {
+  const channelMap = {
+    "CLASS_CANCELLED": "class_cancellation_alerts",
+    "CLASS_SUBSTITUTION": "class_substitution_alerts",
+    "ANNOUNCEMENT": "announcement_alerts"
+  };
+  
   const rawType = (notification?.type || "").toString().toUpperCase();
   const channelId = channelMap[rawType] || "default_alerts";
 
@@ -177,7 +177,8 @@ async function notify(notification) {
       asForegroundService: false,
 
       style: {
-        type: AndroidStyle.BIGTEXT,
+        type: notification?.image ? AndroidStyle.BIGPICTURE : AndroidStyle.BIGTEXT,
+        picture: notification?.image,
         text: notification.body || "Message",
       },
 
@@ -205,7 +206,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
 
   const database = getDBConnection();
   const user_creds = await AsyncStorage.getItem("user_creds");
-  const userData = JSON.parse(user_creds || "{}");
+  const user = JSON.parse(user_creds || "{}");
 
   // 1. Clean up standard hyphens to parse string chunks easily
   const clean_uuid = uuid_str.replace(/-/g, "").toUpperCase();
@@ -243,7 +244,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
     return;
   }
 
-  if (userData?.role === "Teacher" && [0, 1].includes(type_code) && tail_flags[0] !== "2") {
+  if (user?.role === "Teacher" && [0, 1].includes(type_code) && tail_flags[0] !== "2") {
     console.log("rebroadcasting for students.")
     reBroadcast([{ broadcasted: 0, uuid: uuid_str, major, minor }]);
     return;
@@ -296,7 +297,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
     reBroadcast([{ broadcasted: 0, uuid: uuid_str, major, minor }]);
 
     // check if scope matches and popup notification
-    if ((userData?.branch_id === branch || branch === "all") && (userData?.year === parseInt(year) || year === "all") && (userData?.section === section || section === "all")) {
+    if ((user?.branch_id === branch || branch === "all") && (user?.year === parseInt(year) || year === "all") && (user?.section === section || section === "all")) {
       if (from_diff === 0) {
         // update local timetable
         try {
@@ -305,7 +306,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
           console.warn("Timetable update failed:", updateErr);
         }
 
-        if (updateTimetableCallback) updateTimetableCallback(userData);
+        if (updateTimetableCallback) updateTimetableCallback(user);
       }
 
       // Alert.alert(notification.title, notification.body);
@@ -363,9 +364,9 @@ async function processIncomingFrame(uuid_str, major, minor) {
 
     // check if scope matches and popup notification
     if (
-      (userData?.branch_id === branch || branch === "all")
-      && (userData?.year === parseInt(year) || year === "all")
-      && (userData?.section === section || section === "all")
+      (user?.branch_id === branch || branch === "all")
+      && (user?.year === parseInt(year) || year === "all")
+      && (user?.section === section || section === "all")
     ) {
 
       // update local timetable
@@ -382,7 +383,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
       const result = database.execute("update timetable set substitute_teacher_id = ?, substitute_teacher_name = ?, substituted_till = ? where id = ?", params);
       console.log(result);
 
-      if (updateTimetableCallback) updateTimetableCallback(userData);
+      if (updateTimetableCallback) updateTimetableCallback(user);
 
       // Alert.alert(notification.title, notification.body);
       notify(notification);
@@ -425,7 +426,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
         if (!current_active["chunks_received"].includes(tracking_key)) {
           current_active["chunks_received"].push(tracking_key);
           current_active["announcement_timeout"] = setTimeout(() => {
-            processAnnouncement(database, userData, notification_id, tail_flags, current_active);
+            processAnnouncement(database, user, notification_id, tail_flags, current_active);
           }, 16000)
         }
 
@@ -484,7 +485,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
         current_active["max_body_idx"] !== null
       ) {
 
-        processAnnouncement(database, userData, notification_id, tail_flags, current_active);
+        processAnnouncement(database, user, notification_id, tail_flags, current_active);
         clearTimeout(current_active.announcement_timeout);
       } else {
         // console.log("⏳ Awaiting initial Index 0 payload packets to establish sequence bounds...");
@@ -496,7 +497,7 @@ async function processIncomingFrame(uuid_str, major, minor) {
   }
 }
 
-async function processAnnouncement(database, userData, notification_id, tail_flags, current_active) {
+async function processAnnouncement(database, user, notification_id, tail_flags, current_active) {
   let title_continuous = true;
   for (let i = 0; i <= current_active["max_title_idx"]; i++) {
     if (current_active["title_fragments"][i] === undefined) {
@@ -541,9 +542,9 @@ async function processAnnouncement(database, userData, notification_id, tail_fla
     const years = Array.isArray(scope.years) ? scope.years : [];
     const sections = Array.isArray(scope.sections) ? scope.sections : [];
 
-    const matchBranch = branches.length === 0 || branches.some(b => b === userData?.branch_id || b === "all");
-    const matchYear = years.length === 0 || years.some(y => y === `${userData?.year}` || y === "all");
-    const matchSection = sections.length === 0 || sections.some(s => s === userData?.section || s === "all");
+    const matchBranch = branches.length === 0 || branches.some(b => b === user?.branch_id || b === "all");
+    const matchYear = years.length === 0 || years.some(y => y === `${user?.year}` || y === "all");
+    const matchSection = sections.length === 0 || sections.some(s => s === user?.section || s === "all");
 
     if (matchBranch && matchYear && matchSection) {
       await notify(notification);

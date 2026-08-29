@@ -3,10 +3,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Fetch } from "../services/api";
 import { Alert } from "react-native";
 
-export default async function logout(setLoading, userData) {
+export default async function logout(setLoading, user) {
     if (setLoading) setLoading(true);
     const messagingInstance = getMessaging();
     const token = await AsyncStorage.getItem("fcm_token");
+    console.log(token)
     
     // ask for logout 
     const res = await Fetch("/api/auth/logout", {

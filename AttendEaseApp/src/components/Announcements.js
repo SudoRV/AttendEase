@@ -15,7 +15,7 @@ import { AppStates } from "../context/AppStates";
 import clean from "../utils/cleanCollegeMetadata";
 
 const Announcements = ({ type, announcements, loadAnnouncements }) => {
-  const { userData, database } = AppStates();
+  const { user, database } = AppStates();
 
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
 
@@ -49,19 +49,19 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
           if (r.type.toLowerCase() === "announcement") {
             const scope = JSON.parse(r.scope || "{}");
             
-            if (scope?.branches?.some(b => b === clean(userData?.branch_id) || b === "all")
-              && scope?.years?.some(y => Number(y) === Number(userData.year) || y === "all")
-              && scope?.sections?.some(s => s === userData.section || s === "all")) return r;
+            if (scope?.branches?.some(b => b === clean(user?.branch_id) || b === "all")
+              && scope?.years?.some(y => Number(y) === Number(user.year) || y === "all")
+              && scope?.sections?.some(s => s === user.section || s === "all")) return r;
           } else {
             let scope = r?.scope?.split("_").slice(2);
             if (scope?.includes("Individual")) return r;
 
             if (scope.length < 3) return;
 
-            if (((scope[0] === clean(userData?.course_id) || scope[0] === "all") || r.source === "BLE")
-              && (scope[1] === clean(userData?.branch_id) || scope[1] === "all")
-              && (scope[2] === `${userData?.year}` || scope[2] === "all")
-              && (scope[3] === userData?.section || scope[3] === "all")) return r;
+            if (((scope[0] === clean(user?.course_id) || scope[0] === "all") || r.source === "BLE")
+              && (scope[1] === clean(user?.branch_id) || scope[1] === "all")
+              && (scope[2] === `${user?.year}` || scope[2] === "all")
+              && (scope[3] === user?.section || scope[3] === "all")) return r;
           }
         })
       } else if (results?.rows?.length > 0) {
@@ -158,7 +158,7 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
             </View>
           )}
 
-          {item?.created_by?.id === userData?.teacher_id && (
+          {item?.created_by?.id === user?.teacher_id && (
             <View className="bg-green-500/80 px-2 py-0.5 rounded-full">
               <Text className="text-[10px] text-white font-bold uppercase">by you</Text>
             </View>
@@ -236,7 +236,7 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
           <RefreshControl
             refreshing={loadingAnnouncements}
             onRefresh={async () => {
-              await loadAnnouncements(userData);
+              await loadAnnouncements(user);
             }}
             // 🌟 Change this numeric value to push the loader down to your exact desired position
             progressViewOffset={-30}

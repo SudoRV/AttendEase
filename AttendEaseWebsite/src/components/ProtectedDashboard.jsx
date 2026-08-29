@@ -5,7 +5,7 @@ import RequestNotification from "./RequestNotification";
 import { AppStates } from "../services/states";
 
 export default function ProtectedDashboard() {
-  const { userData } = AppStates();
+  const { user } = AppStates();
   const [loginScreen, setLoginScreen] = useState(0);
 
   // initial
@@ -23,17 +23,17 @@ export default function ProtectedDashboard() {
     )
   }
   
-  if(!userData && userData === null) {
+  if(!user && user === null) {
     return <div className="w-full min-h-screen bg-neutral-100 dark:bg-neutral-900 flex justify-center items-center">
       <p className="text-3xl font-light">loading...</p>
     </div>
   }
 
-  if (userData) return (
+  if (user) return (
     <div>
       <RequestNotification />
       {
-        userData?.role === "Student" ? (
+        user?.role === "Student" ? (
           <StudentDashboard />
         ) : (
           <TeacherDashboard />

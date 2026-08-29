@@ -138,7 +138,7 @@ exports.setSubstitution = async (req, res) => {
             type: "CLASS_SUBSTITUTION",
             title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
             body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.name}` : `Your class ${substitutedClass[0].subject_name}'s substitution cancelled by ${substitutor.name}`,
-            scope: "Individual"
+            scope: "INDIVIDUAL"
           },
           tokens: tokens,
 
@@ -244,12 +244,12 @@ async function notifyGroup(title, body, dataType, data, target_college, target_c
     // console.log(condition, body)
 
     await admin.messaging().send({
-      topic: `COLLEGE_${target_college}_${clean(target_course)}_${clean(target_branch)}_${target_year}_${target_section}`,
+      topic: clean(`COLLEGE_${target_college}_${target_course}_${target_branch}_${target_year}_${target_section}`),
       data: {
         type: dataType,
         title: title,
         body: body,
-        scope: `${target_course}_${target_branch}_${target_year}_${target_section}`,
+        scope: clean(`${target_course}_${target_branch}_${target_year}_${target_section}`),
         ...data
       },
 

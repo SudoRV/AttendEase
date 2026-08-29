@@ -9,7 +9,7 @@ const BASE_URL = process.env.API;
 // notify for next day timetable
 // Night 10:00 pm
 const nightTimetableReminder = () => {
-    cron.schedule("0 22 * * *", () => {
+    cron.schedule("0 10 * * *", () => {
         const today = new Date();
         const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toLocaleDateString("en-Gb", { weekday: "long" })
         if(day === "Sunday") return;
@@ -18,6 +18,8 @@ const nightTimetableReminder = () => {
         notifyTimetable(day);
     }, { timezone: "Asia/Kolkata" })
 };
+
+// notifyTimetable("Friday")
 
 async function notifyTimetable(day) {
     const topics = await buildFcmTopicsFromSchedule("target");
@@ -28,9 +30,14 @@ async function notifyTimetable(day) {
 
         let message = "";
         // morning schedule message preperation
-        classes.forEach((clas) => {
+        classes.filter(clas => clas.cancelled === 0).forEach((clas) => {
             message += `${clas.period_id}) ${clas.subject_id} • ${clas.subject_name.length > 26 ? clas.subject_name.slice(0, 23) + "..." : clas.subject_name}\n`
         })
+
+        const cancelledClasses = classes.filter(clas => clas.cancelled === 1);
+        if(cancelledClasses.length === classes.length) message += "No lectures tommorow";
+
+        message += cancelledClasses.length ? `\n\nlecture${cancelledClasses?.length > 1 ? "s" : ""} ${cancelledClasses?.map(cc => cc.period_id).join(", ")} cancelled.` : "";
 
         // create image of timetable
         let scheduleImage = "";
@@ -38,7 +45,7 @@ async function notifyTimetable(day) {
 
         try {
             // Attempt to generate the image using the headless browser utility
-            scheduleImage = classes.length > 0 ? await createTableImage(topic, dayName, classes) : null;
+            scheduleImage = classes.length > 0 ? await createTableImage(clean(`COLLEGE_${topic.college_id}_${topic.course_id}_${topic.branch_id}_${topic.year}_${topic.section}`), dayName, classes) : null;
 
             // If successful and an image path is returned, construct the URL
             if (scheduleImage) {
@@ -47,22 +54,17 @@ async function notifyTimetable(day) {
         } catch (browserError) {
             // Gracefully log the error so your server keeps running
             console.error("❌ Headless browser failed to generate schedule image:", browserError.message);
-
-            // Optional: Set a fallback image URL if you have a generic placeholder
-            // scheduleImageUrl = `${BASE_URL}/static/images/default-schedule.png`;
         }
 
-        const condition = `'COLLEGE_${topic?.college_id}' in topics && 'COURSE_${clean(topic?.course_id)}' in topics && 'BRANCH_${clean(topic?.branch_id)}' in topics && 'YEAR_${topic?.year}' in topics && 'SECTION_${topic?.section}' in topics`;
-
         await admin.messaging().send({
-            condition,
+            topic: `COLLEGE_${topic.college_id}_${clean(topic.course_id)}_${clean(topic.branch_id)}_${topic.year}_${topic.section}`,
             data: {
                 type: "MORNING_SCHEDULE",
                 title: "📚 Morning Classes",
                 body: message,
                 classes: JSON.stringify(classes),
                 schedule_image: scheduleImageUrl,
-                scope: `${topic.course_id}_${topic.branch_id}_${topic.year}_${topic.section}`
+                scope: clean(`${topic.course_id}_${topic.branch_id}_${topic.year}_${topic.section}`)
             },
 
             android: {
@@ -75,7 +77,7 @@ async function notifyTimetable(day) {
                 },
 
                 notification: {
-                    title: "📚 Today's Classes",
+                    title: "📚 Morning Classes",
                     body: message,
                     image: scheduleImageUrl,
                     icon: "/icon-512.png",

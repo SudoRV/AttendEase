@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import clean from "../utils/cleanCollegeMetadata";
 
 let isScopeUpdated = false;
 let loadPromise = null;
@@ -28,7 +29,7 @@ async function isLoadingMetadata() {
   if(isScopeUpdated) return Promise.resolve(true);
   
   if(!loadPromise) {
-    loadPromise = loadMetadata()
+    loadPromise = loadMetadata2()
     .then(() => {
       isScopeUpdated = true;
     })
@@ -47,6 +48,12 @@ async function loadMetadata() {
   const savedMetadata = await AsyncStorage.getItem("college_metadata");
   let metadata = JSON.parse(savedMetadata || "{}");
 
+  // console.log(metadata)
+
+  if (metadata?.course) scope.course = {
+    "all": 0,
+    ...Object.fromEntries(metadata.course.split(",").map((c, index) => [c.trim(), index + 1]))
+  };
   if (metadata?.branch) scope.branch = {
     "all": 0,
     ...Object.fromEntries(metadata.branch.split(",").map((b, index) => [b.trim(), index + 1]))
@@ -63,7 +70,38 @@ async function loadMetadata() {
     ...Object.fromEntries(metadata.day.split(",").map((d, index) => [d.trim(), index]))
   };
 
-  console.log(scope)
+  // console.log(scope)
+  return true;
+}
+
+async function loadMetadata2() {
+  // load saved metadata
+  const savedMetadata = await AsyncStorage.getItem("college_metadata");
+  let metadata = JSON.parse(savedMetadata || "{}");
+
+  // console.log(metadata)
+
+  if (metadata?.course) scope.course = {
+    "all": 0,
+    ...Object.fromEntries(metadata.course.split(",").map((c, index) => [clean(c), index + 1]))
+  };
+  if (metadata?.branch) scope.branch = {
+    "all": 0,
+    ...Object.fromEntries(metadata.branch.split(",").map((b, index) => [clean(b), index + 1]))
+  };
+  if (metadata?.year) scope.year = {
+    "all": 0,
+    ...Object.fromEntries(metadata.year.split(",").map((y, index) => [y.trim(), Number(y)]))
+  };
+  if (metadata?.section) scope.section = {
+    "all": 0,
+    ...Object.fromEntries(metadata.section.split(",").map((s, index) => [s.trim(), index + 1]))
+  };
+  if (metadata?.day) scope.day = {
+    ...Object.fromEntries(metadata.day.split(",").map((d, index) => [d.trim(), index]))
+  };
+
+  // console.log(scope)
   return true;
 }
 

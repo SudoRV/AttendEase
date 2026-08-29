@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import notifee from '@notifee/react-native';
+import requestFcmToken from "../utils/requestFcmToken";
 import { useColorScheme } from 'nativewind';
 import { AppStates } from "../context/AppStates";
 
@@ -29,6 +31,58 @@ export default function LoginPage({ onSwitch }) {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [resetPassModalVisible, setResetPassModalVisible] = useState(false);
+
+  const saveFcmToken = async (user) => {
+    if (!user || !user?.email) return false;
+
+    try {
+      // 1. Get the token (This triggers the permission prompt if needed)
+      const token = await requestFcmToken();
+
+      // If user denied permission or token failed, exit cleanly
+      if (!token) return false;
+
+      await AsyncStorage.setItem("fcm_token", token);
+
+      // 3. Save to your database
+      const response = await Fetch("/save-fcm-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: token,
+        })
+      });
+
+      if (!response.ok) {
+        console.error("Backend refused token save:", response.status);
+        return false;
+      }
+
+      console.log("✅ FCM Token saved & Topics subscribed successfully!");
+      return true;
+
+    } catch (error) {
+      console.error("Crash inside saveFcmToken:", error);
+      return false;
+    }
+  };
+
+  const checkBattery = async () => {
+    const settings = await notifee.getNotificationSettings();
+
+    // If the user hasn't ignored battery optimizations
+    if (settings.android.alarm === 0) {
+      // You can open the system settings page directly for them:
+      await notifee.openBatteryOptimizationSettings();
+    }
+  };
+
+  async function askBasicPermissions(user) {
+    console.log("asking perms")
+    await notifee.requestPermission();
+    saveFcmToken(user);
+    checkBattery();
+  }
 
   /* =====================
         LOGIN SUBMIT
@@ -55,6 +109,12 @@ export default function LoginPage({ onSwitch }) {
         setTimeout(() => {
           setUserData(data.user_creds);
           setIsLoggingIn(false);
+
+          // ask for notification permission
+          // save fcm token
+          // ask for battery optimization
+          askBasicPermissions(data.user_creds);
+
         }, 1800);
       } else {
         setIsLoggingIn(false);

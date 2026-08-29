@@ -14,7 +14,7 @@ import { Fetch } from "../services/api";
 
 
 export default function Announce() {
-  const { userData, formatDate, loadAnnouncements } = AppStates();
+  const { user, formatDate, loadAnnouncements } = AppStates();
   const { isDark } = useTheme();
 
   const [loading, setLoading] = useState(false);
@@ -52,19 +52,19 @@ export default function Announce() {
   let queryTimeout;
 
   useEffect(() => {
-    if (!userData?.email || scope === "teachers") return;
+    if (!user?.email || scope === "teachers") return;
 
     const query = queryRef.current?.query;
     // console.log(query, queryRef.current)
 
     if (!queryRef.current.added) return;
-    if (query === "courses" && !userData?.college_id) return;
+    if (query === "courses" && !user?.college_id) return;
     if (query === "branches" && targetCourses.length == 0) return;
     if (query === "years" && targetBranches.length == 0) return;
     if (query === "sections" && targetYears.length == 0) return;
 
     const payload = {
-      college_id: userData?.college_id,
+      college_id: user?.college_id,
       course_id: targetCourses.map(c => c.value).filter(c => (c !== "all" && c !== "null")),
       branch_id: targetBranches.map(b => b.value).filter(b => (b !== "all" && b !== "null")),
       year: targetYears.map(y => y.value).filter(y => (y !== "all" && y !== "null"))
@@ -96,7 +96,7 @@ export default function Announce() {
       fetchMetadata();
     }, 1000);
 
-  }, [userData, targetCourses, targetBranches, targetYears])
+  }, [user, targetCourses, targetBranches, targetYears])
 
 
 
@@ -122,11 +122,11 @@ export default function Announce() {
     const payload = {
       ...formData,
       created_by: {
-        name: userData?.name,
-        id: userData?.teacher_id,
+        name: user?.name,
+        id: user?.teacher_id,
 
       },
-      target_college: userData?.college_id,
+      target_college: user?.college_id,
       scope,
       target_course: targetCourses.find(c => c?.value === "all") ? ["all"] : targetCourses.map((o) => o.value),
       target_branch: targetBranches.find(b => b?.value === "all") ? ["all"] : targetBranches.map((o) => o.value),

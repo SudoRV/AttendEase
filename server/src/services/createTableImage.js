@@ -158,9 +158,11 @@ async function createTableImage(class_topic, day, classess) {
         }
     });
 
-    const dir = path.join(__dirname, "../static/schedule_images");
-    const filename = `schedule_${class_topic}_${day}.png`;
+    const dir = path.join(__dirname, "../../src/static/schedule_images");
+    const filename = `schedule_${class_topic}_${day}.png`.toLowerCase();
     const filepath = path.join(dir, filename);
+
+    console.log(filepath)
 
     try {
         if (!fs.existsSync(dir)) {
@@ -169,7 +171,7 @@ async function createTableImage(class_topic, day, classess) {
 
         fs.writeFileSync(filepath, imageBuffer);
 
-        return `/api/timetable/classes/image/${filename}`;
+        return `/timetable/classes/image/${filename}`;
     } catch (error) {
         console.error("Error saving image:", error);
         throw error;

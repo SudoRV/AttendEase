@@ -1,43 +1,23 @@
-import React, { useState, useEffect, RootProvider } from "react";
-import { View, Vibration, StatusBar } from "react-native";
-import Sound from 'react-native-sound';
-import AppNavigator from "./src/navigation/AppNavigator";
+import React, { useState } from "react";
 import { GlobalProvider } from "./src/context/AppStates";
-import PopupNotification from "./src/components/ui/PopupNotification";
-import notifee from '@notifee/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useColorScheme } from "nativewind";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDBConnection } from "./src/database/database";
 
-// Firebase imports
-import { getMessaging, onMessage, deleteToken } from '@react-native-firebase/messaging';
+import AppShell from "./src/components/AppShell";
 
 import "./global.css";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const checkBattery = async () => {
-  const settings = await notifee.getNotificationSettings();
-
-  // If the user hasn't ignored battery optimizations
-  if (settings.android.alarm === 0) {
-    // You can open the system settings page directly for them:
-    await notifee.openBatteryOptimizationSettings();
-  }
-};
 
 export default function App() {
-  const [notification, setNotification] = useState(null);
-  const [sessionKey, setSessionKey] = useState(0);
-  const { colorScheme } = useColorScheme();
   const database = getDBConnection();
-  const messagingInstance = getMessaging();
+  const [sessionKey, setSessionKey] = useState(0);
 
   const handleLogout = async () => {
-    // console.log(sessionKey)
     await AsyncStorage.removeItem("user_creds");
-    await AsyncStorage.removeItem("classes");
     await AsyncStorage.removeItem("attendance_report");
+    await AsyncStorage.removeItem("fcm_token");
+    await AsyncStorage.removeItem("session_token");
 
     database.execute("delete from timetable");
     database.execute("delete from notifications");
@@ -45,65 +25,14 @@ export default function App() {
     setSessionKey(prev => prev + 1);
   };
 
-  useEffect(() => {
-    async function requestPermission() {
-      // This triggers the system "Allow AttendEase to send notifications?" popup
-      await notifee.requestPermission();
-    }
-    requestPermission();
-    checkBattery();
-
-    // Listen for foreground messages
-    const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
-      // play sound
-      const popSound = new Sound('notification.mp3', Sound.MAIN_BUNDLE, (error) => {
-        if (error) console.log(error)
-        if (!error) {
-          popSound.play(() => popSound.release());
-        }
-      });
-
-      // 2. TRIGGER THE VIBRATION
-      const longPattern = [0, 600, 200, 600];
-      Vibration.vibrate(longPattern);
-
-      // Trigger the popup
-      setNotification({
-        title: remoteMessage?.data?.title || remoteMessage.notification?.data?.title || "New Update",
-        body: remoteMessage.notification?.body || remoteMessage?.data?.body || "Check your app for new info."
-      });
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <View className="flex-1">
-          <StatusBar
-            barStyle={colorScheme === "dark" ? "light" : "dark-content"}
-            backgroundColor="transparent"
-            translucent={true}
-            animated={true}
-          />
-
-          {/* Your standard app tree */}
-          <GlobalProvider key={sessionKey} >
-            <AppNavigator onLogout={handleLogout} />
-          </GlobalProvider>
-
-          {/* GLOBAL POPUP */}
-          {notification && (
-            <PopupNotification
-              title={notification.title}
-              body={notification.body}
-              onClose={() => setNotification(null)}
-            />
-          )}
-        </View>
+        <GlobalProvider key={sessionKey} >
+  
+            <AppShell handleLogout={handleLogout} />
+        
+        </GlobalProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

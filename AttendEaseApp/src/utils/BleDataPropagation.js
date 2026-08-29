@@ -36,7 +36,7 @@ export default async function BleDataPropagation(database, remoteMessage) {
   console.log("Incoming Remote Message: ", remoteMessage);
   // loading user data
   const user_creds = await AsyncStorage.getItem("user_creds");
-  const userData = JSON.parse(user_creds || "{}");
+  const user = JSON.parse(user_creds || "{}");
 
   // BLE toggled state 
   const ble_on = await AsyncStorage.getItem("ble_state");
@@ -67,7 +67,7 @@ export default async function BleDataPropagation(database, remoteMessage) {
 
   const metadata = JSON.parse(remoteMessage.data.metadata || "{}"); // usefull for announcement scope
 
-  const notificationScope = remoteMessage.data.scope.replace(`COLLEGE_${userData?.college_id}_`, "").split("_").slice(1);
+  const notificationScope = remoteMessage.data.scope.replace(`COLLEGE_${user?.college_id}_`, "").split("_").slice(1);
 
   // Extract raw identifiers from your mapping configuration file
   const rawType = (remoteMessage.data.type || "").replace(" ", "_").toLowerCase();
@@ -277,7 +277,7 @@ export async function processQueue() {
   isProcessingQueue = true;
   BLEAdvertise.setCompanyId(companyId);
 
-  // console.log("--- Starting Dynamic BLE Transmission Loop ---");
+  console.log("--- Starting BLE Transmission Loop ---");
 
   while (notification_queue.length > 0) {
     try {
@@ -311,6 +311,7 @@ export async function processQueue() {
       }
 
       // console.log(`Bursting notification: ${activeChunks.length} active chunk(s) remaining...`);
+      console.log(".");
 
       // 3. RAPID ATOMIC BURST PHASE
       for (let index = 0; index < activeChunks.length; index++) {
@@ -362,7 +363,7 @@ export async function processQueue() {
   }
 
   // Final cleanup once the carousel naturally grinds to a halt
-  console.log(`All notification packets verified at ${burst_size} broadcasts. Engine Idle.`);
+  console.log(`Broadcasted all notifications successfully.`);
   await delay(1000);
   await stop();
   isProcessingQueue = false;

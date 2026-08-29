@@ -18,7 +18,7 @@ import PullToRefresh from "./ui/PullToRefresh";
 import { Fetch } from "../services/api";
 
 const StudentLeave = () => {
-  const { userData, leaveHistory, loadLeaves, formatDate } = AppStates();
+  const { user, leaveHistory, loadLeaves, formatDate } = AppStates();
 
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
@@ -35,7 +35,7 @@ const StudentLeave = () => {
   const [leavesByMonth, setLeavesByMonth] = useState({});
 
   async function fetchLeaves() {
-    if (!userData?.email) return;
+    if (!user?.email) return;
     const leaves_by_month = await loadLeaves(leavesFilter);
 
     if (leaves_by_month?.student_leaves?.length > 0) {
@@ -47,7 +47,7 @@ const StudentLeave = () => {
 
   useEffect(() => {
     fetchLeaves();
-  }, [userData, leavesFilter]);
+  }, [user, leavesFilter]);
 
   async function submitLeave() {
     if (!application.trim() || !fromDate || !toDate) {

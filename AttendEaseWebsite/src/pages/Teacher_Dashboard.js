@@ -22,7 +22,7 @@ const TeacherDashboard = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const toggleDrawer = () => setIsOpen(!isOpen);
-  const { userData } = AppStates();
+  const { user } = AppStates();
   const { isDark } = useTheme();
 
   return (
@@ -36,7 +36,7 @@ const TeacherDashboard = () => {
         <div className="flex flex-row justify-between items-center mb-8">
           <div>
             <p className="text-xl font-extrabold text-slate-800 dark:text-slate-200 font-sans tracking-tight">
-              {userData?.role} <span className="text-indigo-600 font-bold text-lg"> Dashboard</span>
+              {user?.role} <span className="text-indigo-600 font-bold text-lg"> Dashboard</span>
             </p>
           </div>
 
@@ -51,10 +51,10 @@ const TeacherDashboard = () => {
         {/* User Profile Section */}
         <div className="flex items-center gap-4 p-4 bg-indigo-600 rounded-2xl shadow-lg mb-6">
           <div className="shrink-0">
-            {userData?.avatar ? (
+            {user?.avatar ? (
               <img
                 className="h-12 w-12 rounded-xl object-cover border-2 border-indigo-400/50"
-                src={userData.avatar}
+                src={user.avatar}
                 alt="Avatar"
               />
             ) : (
@@ -64,25 +64,25 @@ const TeacherDashboard = () => {
             )}
           </div>
           <div className="flex flex-col overflow-hidden w-full">
-            <p className="font-bold text-slate-100 leading-tight truncate">{userData?.name}</p>
-            <p className="text-xs text-slate-200 truncate font-medium">{userData?.email}</p>
+            <p className="font-bold text-slate-100 leading-tight truncate">{user?.name}</p>
+            <p className="text-xs text-slate-200 truncate font-medium">{user?.email}</p>
           </div>
         </div>
 
         {/* Detailed Info Card */}
         <div className="flex flex-col gap-1 bg-slate-100 dark:bg-neutral-950/40 border border-slate-100 p-4 rounded-2xl">
-          {userData?.role === "Student" && (
+          {user?.role === "Student" && (
             <>
-              <InfoRow label="Year" value={userData?.year} />
-              <InfoRow label="Branch" value={userData?.branch_id} isTruncated />
-              <InfoRow label="Section" value={userData?.section} />
+              <InfoRow label="Year" value={user?.year} />
+              <InfoRow label="Branch" value={user?.branch_id} isTruncated />
+              <InfoRow label="Section" value={user?.section} />
               <div className="h-px bg-slate-200/60 my-2" />
             </>
           )}
           <div className="flex justify-between items-center px-1">
             <span className="text-[12px] font-bold uppercase tracking-wider text-slate-400">ID Number</span>
             <span className="text-sm font-mono font-bold text-indigo-500 px-2 py-0.5 rounded">
-              {userData?.role === "Student" ? userData?.student_id : userData?.teacher_id}
+              {user?.role === "Student" ? user?.student_id : user?.teacher_id}
             </span>
           </div>
         </div>

@@ -596,7 +596,7 @@ app.post("/api/leaves/students/verify", async (req, res) => {
 // fetch leaves students
 app.get("/api/leaves/students", async (req, res) => {
   const { user_data, filter: leaveFilter, time } = req.query;
-  const userData = JSON.parse((user_data));
+  const user = JSON.parse((user_data));
 
   let filter = {};
   if (leaveFilter) {
@@ -609,7 +609,7 @@ app.get("/api/leaves/students", async (req, res) => {
   let studentLeavesQuery;
   let studentValues;
 
-  if (userData?.role === "Student") {
+  if (user?.role === "Student") {
     studentLeavesQuery = `
       select id, name, year, branch, student_id, subject, application, applicable_from, applicable_to, status, created_at 
       from leaves 
@@ -617,7 +617,7 @@ app.get("/api/leaves/students", async (req, res) => {
       and month(created_at) = ? 
       and year(created_at) = year(current_date()) 
       order by created_at desc`;
-    studentValues = [userData?.student_id, filter.month + 1];
+    studentValues = [user?.student_id, filter.month + 1];
   } else {
     studentLeavesQuery = `
       SELECT l.id, l.name,l.year, l.branch, l.student_id, l.subject, l.application, l.applicable_from, l.applicable_to, l.status, l.created_at,
@@ -634,7 +634,7 @@ app.get("/api/leaves/students", async (req, res) => {
             AND FIND_IN_SET(s.day, l.affected_days)
         )
       ORDER BY l.created_at DESC;`;
-    studentValues = [new Date(time), userData?.teacher_id]
+    studentValues = [new Date(time), user?.teacher_id]
   }
 
   try {
@@ -649,7 +649,7 @@ app.get("/api/leaves/students", async (req, res) => {
 // fetch leaves teachers
 app.get("/api/leaves/teachers", async (req, res) => {
   const { user_data, filter: leaveFilter, time } = req.query;
-  const userData = JSON.parse((user_data));
+  const user = JSON.parse((user_data));
 
   let filter = {};
   if (leaveFilter) {
@@ -662,7 +662,7 @@ app.get("/api/leaves/teachers", async (req, res) => {
   let teacherLeavesQuery;
   let teacherValue;
 
-  if (userData?.role === "teacher") {
+  if (user?.role === "teacher") {
     teacherLeavesQuery = `select teacher_id, id, name, applicable_from, applicable_to, status from leaves where teacher_id != 'not a teacher' and applicable_to > ?`;
     teacherValue = [new Date(time)];
   } else {
@@ -674,7 +674,7 @@ app.get("/api/leaves/teachers", async (req, res) => {
         AND s.branch_id = ? 
         AND s.section = ?
         AND applicable_to > ?`;
-    teacherValues = [userData.year, userData.branch_id, userData.section || "A", new Date(time)];
+    teacherValues = [user.year, user.branch_id, user.section || "A", new Date(time)];
   }
 
   try {

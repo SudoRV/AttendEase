@@ -14,7 +14,7 @@ import { AppStates } from "../context/AppStates";
 import { Fetch } from "../services/api";
 
 export default function Announce() {
-  const { formatDate, isDark, userData } = AppStates();
+  const { formatDate, isDark, user } = AppStates();
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -48,10 +48,10 @@ export default function Announce() {
       body,
       scope,
       created_by: {
-        name: userData?.name,
-        id: userData?.teacher_id,
+        name: user?.name,
+        id: user?.teacher_id,
       },
-      target_college: userData?.college_id,
+      target_college: user?.college_id,
       target_course: targetCourses.map(u => u.value),
       target_year: targetYears.map(u => u.value),
       target_branch: targetBranches.map(u => u.value),
@@ -113,7 +113,7 @@ export default function Announce() {
   let queryTimeout;
 
   useEffect(() => {
-    if (!userData?.email || scope === "teachers") return;
+    if (!user?.email || scope === "teachers") return;
 
     const query = queryRef.current?.query;
     // console.log(query, queryRef.current)
@@ -121,13 +121,13 @@ export default function Announce() {
 
 
     if (!queryRef.current.added) return;
-    if (query === "courses" && !userData?.college_id) return;
+    if (query === "courses" && !user?.college_id) return;
     if (query === "branches" && targetCourses?.length == 0) return;
     if (query === "years" && targetBranches?.length == 0) return;
     if (query === "sections" && targetYears?.length == 0) return;
 
     const payload = {
-      college_id: userData?.college_id,
+      college_id: user?.college_id,
       course_id: targetCourses?.map(c => c.value)?.filter(c => (c !== "all" && c !== "null")),
       branch_id: targetBranches?.map(b => b.value)?.filter(b => (b !== "all" && b !== "null")),
       year: targetYears?.map(y => y.value)?.filter(y => (y !== "all" && y !== "null"))
@@ -159,7 +159,7 @@ export default function Announce() {
       fetchMetadata();
     }, 600);
 
-  }, [userData, targetCourses, targetBranches, targetYears])
+  }, [user, targetCourses, targetBranches, targetYears])
 
   const toggleSelection = (label, query, value, list, setter) => {
     queryRef.current = {

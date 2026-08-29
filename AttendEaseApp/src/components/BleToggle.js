@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import NetInfo from '@react-native-community/netinfo';
+import notifee from '@notifee/react-native';
 import { BleManager } from 'react-native-ble-plx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { startMeshScannerLoop, stopMeshScannerLoop } from '../utils/BleDataScanning';
@@ -19,8 +20,18 @@ import { AppStates } from '../context/AppStates';
 
 const plxManager = new BleManager();
 
+const checkBattery = async () => {
+  const settings = await notifee.getNotificationSettings();
+  // If the user hasn't ignored battery optimizations
+  if (settings.android.alarm === 0) {
+    // You can open the system settings page directly for them:
+    await notifee.openBatteryOptimizationSettings();
+  }
+};
+
 async function requestBLEPermissions() {
   if (Platform.OS !== 'android') return true;
+
   try {
     if (Platform.Version >= 31) {
       const granted = await PermissionsAndroid.requestMultiple([
@@ -135,13 +146,14 @@ export default function BleToggle({ bleOn, setBleOn }) {
       await stopMeshScannerLoop();
       return;
     }
-    await hasInternetAccess();
+
     const permissionGranted = await requestBLEPermissions();
     if (!permissionGranted) {
       Alert.alert('Permissions Required', 'Bluetooth permissions are required.');
       setBleOn(false);
       return;
     }
+    checkBattery();
     const bluetoothEnabled = await enableBluetooth();
     await AsyncStorage.setItem("ble_state", JSON.stringify(!bluetoothEnabled ? bluetoothEnabled : value));
     setBleOn(!bluetoothEnabled ? bluetoothEnabled : value);

@@ -32,7 +32,6 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   
 ];
-
 app.use(cors({
   origin: function (origin, callback) {
     // allow requests with no origin (like mobile apps, curl, or Postman)
@@ -104,7 +103,7 @@ app.post("/save-fcm-token", verifySessionToken, async (req, res) => {
 app.get("/college/metadata/all", verifySessionToken, async (req, res) => {
   const user = req.user;
 
-  const [ rows ] = await pool.query("select group_concat(distinct branch_id order by branch_id) as branch, group_concat(distinct year order by year) as year, group_concat(distinct section order by section) as section, group_concat(distinct day order by day) as day from schedule where college_id = ?", [user.college_id]);
+  const [ rows ] = await pool.query("select group_concat(distinct course_id order by course_id) as course, group_concat(distinct branch_id order by branch_id) as branch, group_concat(distinct year order by year) as year, group_concat(distinct section order by section) as section, group_concat(distinct day order by day) as day from schedule where college_id = ?", [user.college_id]);
 
   if(rows.length > 0) res.json({success: true, message: "successfully fetched college metadata!", data: rows[0]});
   else res.json({success: false, message: `failed to fetch metadata of college id: ${user.college_id}`});
@@ -184,7 +183,7 @@ morningTimetableReminder();
 
 
 // timetable images for morning classes notification
-app.use("/api/timetable/classes/image", express.static(path.join(__dirname, 'static/schedule_images'), {
+app.use("/timetable/classes/image", express.static(path.join(__dirname, '/src/static/schedule_images'), {
   setHeaders: (res, path) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); // Tell phones not to cache
   }

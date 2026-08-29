@@ -45,7 +45,7 @@ const injectionCode = `javascript:(()=>{
 })();`;
 
 export default function AttendanceDashboard() {
-  const { userData, classes, loadTimetable, setUserData } = AppStates();
+  const { user, classes, loadTimetable, setUserData } = AppStates();
   const [hasConfig, setHasConfig] = useState(false);
   const [showSemesterPicker, setShowSemesterPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -98,8 +98,8 @@ export default function AttendanceDashboard() {
 
     if (data.success) {
       setHasConfig(true);
-      if(!userData?.admissionId){
-        const user_creds = { ...userData, collegeId: form?.collegeId, admissionId: form?.admissionId, courseId: form?.courseId, branchId: form?.branchId, semester: form?.durationId, start_month: form?.startMonth };
+      if(!user?.admissionId){
+        const user_creds = { ...user, collegeId: form?.collegeId, admissionId: form?.admissionId, courseId: form?.courseId, branchId: form?.branchId, semester: form?.durationId, start_month: form?.startMonth };
         localStorage.setItem("user_creds", JSON.stringify(user_creds));
         setUserData(user_creds);
       }
@@ -128,21 +128,21 @@ export default function AttendanceDashboard() {
 
   useEffect(() => {
     const utu_creds = {
-      name: userData.name || "",
-      roll: userData.student_id || "",
-      collegeId: userData.collegeId?.toString() || "",
-      admissionId: userData.admissionId?.toString() || "",
-      courseId: userData.courseId?.toString() || "",
-      branchId: userData.branchId?.toString() || "",
-      durationId: userData.semester?.toString() || "",
-      startMonth: userData.start_month?.toString() || new Date().getMonth() + 1
+      name: user.name || "",
+      roll: user.student_id || "",
+      collegeId: user.collegeId?.toString() || "",
+      admissionId: user.admissionId?.toString() || "",
+      courseId: user.courseId?.toString() || "",
+      branchId: user.branchId?.toString() || "",
+      durationId: user.semester?.toString() || "",
+      startMonth: user.start_month?.toString() || new Date().getMonth() + 1
     };
     setForm(prev => ({...prev, ...utu_creds}));
-    if (userData?.admissionId) {
+    if (user?.admissionId) {
       setHasConfig(true);
       loadAttendance(utu_creds);
     }
-  }, [userData?.admissionId]);
+  }, [user?.admissionId]);
 
   useEffect(() => {
     if (attendance.attendance) {
@@ -162,7 +162,7 @@ export default function AttendanceDashboard() {
 
     const nextDay = new Date();
     nextDay.setDate(nextDay.getDate() + 1);
-    const nextDayClasses = await loadTimetable(userData, nextDay.toLocaleString("en-Gb", { weekday: "long" }));
+    const nextDayClasses = await loadTimetable(user, nextDay.toLocaleString("en-Gb", { weekday: "long" }));
     const activeNextDayClasses = nextDayClasses?.classes?.filter(c => c.subject_id?.trim() !== "" && c.cancelled === 0);
 
     const nextDayDrop = calculatSkipImpact(attendanceData, activeNextDayClasses || []);

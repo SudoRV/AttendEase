@@ -4,8 +4,6 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Text, Pressable, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColorScheme } from 'nativewind';
-import { createNavigationContainerRef } from "@react-navigation/native";
-
 import TimeTableScreen from "../screens/TimeTableScreen";
 import LeaveScreen from "../screens/LeaveScreen";
 import AlertsScreen from "../screens/AlertsScreen";
@@ -13,9 +11,9 @@ import ProfileScreen from "../screens/ProfileScreen";
 
 import { AppStates } from "../context/AppStates";
 import AnimatedTabIcon from "../components/ui/AnimatedTabIcon";
+import { navigationRef } from "./navigationRef";
 
 const Tab = createBottomTabNavigator();
-export const navigationRef = createNavigationContainerRef();
 
 export default function AppNavigator({ onLogout }) {
   const { logout } = AppStates();
@@ -122,8 +120,3 @@ export default function AppNavigator({ onLogout }) {
   );
 }
 
-export function getCurrentTab() {
-  if (navigationRef.isReady()) {
-    return navigationRef.getCurrentRoute()?.name;
-  }
-}

@@ -49,7 +49,7 @@ const injectionCode = `javascript:(()=>{
 
 const AttendanceDashboard = forwardRef((props, ref) => {
 
-  const { userData, classes, loadTimetable, setUserData } = AppStates();
+  const { user, classes, loadTimetable, setUserData } = AppStates();
   const [hasConfig, setHasConfig] = useState(false);
   const [showSemesterPicker, setShowSemesterPicker] = useState(false);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -112,8 +112,8 @@ const AttendanceDashboard = forwardRef((props, ref) => {
     if (data.success) {
       setHasConfig(true);
       // set userdata
-      if (!userData?.admissionId) {
-        const user_creds = { ...userData, collegeId: form?.collegeId, admissionId: form?.admissionId, courseId: form?.courseId, branchId: form?.branchId, semester: form?.durationId, start_month: form?.startMonth };
+      if (!user?.admissionId) {
+        const user_creds = { ...user, collegeId: form?.collegeId, admissionId: form?.admissionId, courseId: form?.courseId, branchId: form?.branchId, semester: form?.durationId, start_month: form?.startMonth };
 
         AsyncStorage.setItem("user_creds", JSON.stringify(user_creds));
         setUserData(user_creds);
@@ -160,21 +160,21 @@ const AttendanceDashboard = forwardRef((props, ref) => {
 
   useEffect(() => {
     const utu_creds = {
-      name: userData.name || "",
-      roll: userData.student_id || "",
-      collegeId: userData.collegeId?.toString() || "",
-      admissionId: userData.admissionId?.toString() || "",
-      courseId: userData.courseId?.toString() || "",
-      branchId: userData.branchId?.toString() || "",
-      durationId: userData.semester?.toString() || "",
-      startMonth: userData.start_month?.toString() || ""
+      name: user.name || "",
+      roll: user.student_id || "",
+      collegeId: user.collegeId?.toString() || "",
+      admissionId: user.admissionId?.toString() || "",
+      courseId: user.courseId?.toString() || "",
+      branchId: user.branchId?.toString() || "",
+      durationId: user.semester?.toString() || "",
+      startMonth: user.start_month?.toString() || ""
     };
     setForm(prev => ({ ...prev, ...utu_creds }));
-    if (!userData?.admissionId) return;
+    if (!user?.admissionId) return;
 
     setHasConfig(true);
     loadAttendance(utu_creds);
-  }, [userData?.admissionId, selectedMonth?.month_id])
+  }, [user?.admissionId, selectedMonth?.month_id])
 
   function calculatSkipImpact(attendance, classes) {
     return parseInt(attendance?.report?.total_classes_attended) / (parseInt(attendance?.report?.total_classes_held) + classes?.length) * 100;
@@ -188,7 +188,7 @@ const AttendanceDashboard = forwardRef((props, ref) => {
     const todayDrop = calculatSkipImpact(attendance, todayClasses);
 
     // next day classes skip impact
-    const nextDayClasses = await loadTimetable(userData, new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1).toLocaleString("en-Gb", { weekday: "long" }));
+    const nextDayClasses = await loadTimetable(user, new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1).toLocaleString("en-Gb", { weekday: "long" }));
     const activeNextDayClasses = nextDayClasses?.classes?.filter(c => c.subject_id?.trim() !== "" && c.cancelled === 0)
 
     const nextDayDrop = calculatSkipImpact(attendance, activeNextDayClasses);

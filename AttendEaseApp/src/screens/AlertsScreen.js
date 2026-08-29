@@ -10,7 +10,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Fetch } from "../services/api";
 
 const AlertsScreen = () => {
-  const { userData, formatDate } = AppStates();
+  const { user, formatDate } = AppStates();
   const [announcements, setAnnouncements] = useState([]);
 
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
@@ -19,23 +19,23 @@ const AlertsScreen = () => {
   const [isCreatingAnnouncement, setIsCreatingAnnouncement] = useState(false);
 
   useEffect(() => {
-    if (!userData) return;
-    loadAnnouncements(userData);
+    if (!user) return;
+    loadAnnouncements(user);
 
     const messagingInstance = getMessaging();
     // Set up the foreground notification listener
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
-      loadAnnouncements(userData);
+      loadAnnouncements(user);
     });
 
     return () => {
       unsubscribe();
     };
-  }, [userData]);
+  }, [user]);
 
   const loadAnnouncements = async (user) => {
     try {
-      const endpoint = `/api/announcements?role=${user?.role || "Student"}&teacher_id=${user?.teacher_id || null}&college_id=${userData?.college_id}&course_id=${userData?.course_id}&year=${user.year || ""}&branch=${user.branch_id || ""}&section=${user.section || ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+      const endpoint = `/api/announcements?role=${user?.role || "Student"}&teacher_id=${user?.teacher_id || null}&college_id=${user?.college_id}&course_id=${user?.course_id}&year=${user.year || ""}&branch=${user.branch_id || ""}&section=${user.section || ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
       const res = await Fetch(endpoint);
       const response = await res.json();
@@ -46,12 +46,12 @@ const AlertsScreen = () => {
     }
   };
   
-  if (!userData?.role) return <NotSignedIn />;
+  if (!user?.role) return <NotSignedIn />;
 
   return (
     <>
       {
-        userData?.role === "Student" ? (
+        user?.role === "Student" ? (
           <Announcements announcements={announcements} loadAnnouncements={loadAnnouncements} />
         ) : (
           <View className="flex-1 pt-12">
@@ -96,7 +96,7 @@ const AlertsScreen = () => {
                     // When toggled active, render creation form workflow
                     <Announce onSuccess={() => {
                       setIsCreatingAnnouncement(false); // Snap back to feed view automatically
-                      loadAnnouncements(userData);      // Pull fresh data log
+                      loadAnnouncements(user);      // Pull fresh data log
                     }} />
                   ) : (
                     // Default view maps regular announcements history array feed
@@ -111,7 +111,7 @@ const AlertsScreen = () => {
                 <RefreshControl
                   refreshing={loadingAnnouncements}
                   onRefresh={async () => {
-                    await loadAnnouncements(userData);
+                    await loadAnnouncements(user);
                   }}
                   progressViewOffset={-30}
                   tintColor="#4F46E5" // Indigo color for iOS spinner

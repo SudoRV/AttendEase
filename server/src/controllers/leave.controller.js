@@ -131,7 +131,7 @@ exports.verifyStudentLeave = async (req, res) => {
             const [tokens] = await pool.query(`select f.fcm_token from fcm_tokens f join users u on f.user_id = u.id where u.student_id = ?`, [application.student_id]);
 
             if (tokens.length) {
-                await notify(tokens, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier?.name}`, "LEAVE_STATUS", { scope: "Individual" });
+                await notify(tokens, "Leave Verification", `Leave ${action} by ${verifier.role} - ${verifier?.name}`, "LEAVE_STATUS", { scope: "INDIVIDUAL" });
             }
 
             return;
@@ -212,7 +212,7 @@ exports.submitTeacherLeaves = async (req, res) => {
         // notify affected students
         const groupedClasses = {};
         for (const affectedClass of affectedClasses) {
-            const key = `${clean(affectedClass?.course_id)}_${clean(affectedClass?.branch_id)}_${affectedClass?.year}_${affectedClass?.section}`
+            const key = `${affectedClass?.course_id}_${affectedClass?.branch_id}_${affectedClass?.year}_${affectedClass?.section}`;
             if (!groupedClasses[key]) {
                 groupedClasses[key] = [affectedClass];
             } else {
@@ -222,7 +222,6 @@ exports.submitTeacherLeaves = async (req, res) => {
 
         Object.keys(groupedClasses).forEach(async (key) => {
             // const scope = key.split("_");
-
             const message = `Period ${groupedClasses[key]
                 .map((p) => p.period_id)
                 .join(", ")} of ${groupedClasses[key][0].teacher_name} cancelled, on leave ${new Date(from).toDateString() === new Date(to).toDateString()
@@ -245,7 +244,7 @@ exports.submitTeacherLeaves = async (req, res) => {
             // const condition = `'COLLEGE_${groupedClasses[key][0]?.college_id}' in topics && 'COURSE_${scope[0]}' in topics && 'BRANCH_${scope[1]}' in topics && 'YEAR_${scope[2]}' in topics && 'SECTION_${scope[3]}' in topics`;
 
             await admin.messaging().send({
-                topic: `COLLEGE_${applicant.college_id}_${key}`,
+                topic: clean(`COLLEGE_${applicant.college_id}_${key}`),
                 data: {
                     type: "CLASS_CANCELLED",
                     title: "Class Cancelled",
@@ -258,7 +257,7 @@ exports.submitTeacherLeaves = async (req, res) => {
                         on, from, to
                     }),
                     body: message,
-                    scope: key,
+                    scope: clean(key),
                 },
 
                 android: {

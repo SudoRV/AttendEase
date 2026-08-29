@@ -19,7 +19,7 @@ import { Fetch } from "../services/api";
 
 const TeacherLeave = ({ onClose }) => {
     const {
-        userData, 
+        user, 
         classes,
         loadTimetable,
         loadLeaves,
@@ -69,7 +69,7 @@ const TeacherLeave = ({ onClose }) => {
         try {
             const payload = {
                 leave_type: leaveType,
-                applicant: userData,
+                applicant: user,
                 classes: periods,
                 from: formatDate(fromDate?.setHours(0, 5, 0, 0) || (onDate ? onDate.setHours(0, 5, 0, 0) : new Date().setHours(0, 5, 0, 0))),
                 to: formatDate(toDate?.setHours(23, 55, 0, 0) || (onDate ? new Date(onDate).setHours(23, 55, 0, 0) : new Date().setHours(23, 55, 0, 0))),
@@ -137,8 +137,8 @@ const TeacherLeave = ({ onClose }) => {
                     teacher_id: clas?.teacher_id
                 },
                 substitutor: {
-                    teacher_name: userData?.name,
-                    teacher_id: userData?.teacher_id,                  
+                    teacher_name: user?.name,
+                    teacher_id: user?.teacher_id,                  
                 },
                 substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss'),
                 action: action
@@ -153,8 +153,8 @@ const TeacherLeave = ({ onClose }) => {
                     if (item.id === clas.id) {
                         return {
                             ...item,
-                            substitute_teacher_id: action === "acquired" ? userData?.teacher_id : null,
-                            substitute_teacher_name: action === "acquired" ? userData?.name : null,
+                            substitute_teacher_id: action === "acquired" ? user?.teacher_id : null,
+                            substitute_teacher_name: action === "acquired" ? user?.name : null,
                             substituted_till: action === "acquired"
                                 ? dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss')
                                 : null,
@@ -172,7 +172,7 @@ const TeacherLeave = ({ onClose }) => {
 
     const filteredLeaves = (teacherLeaveHistory || []).filter(l => {
         if (filter === "Mine") {
-            return l.teacher_id === userData?.teacher_id;
+            return l.teacher_id === user?.teacher_id;
         }
         return true;
     });
@@ -388,7 +388,7 @@ const TeacherLeave = ({ onClose }) => {
                             {absentTeacherClasses?.length > 0 ? (
                                 absentTeacherClasses.map((clas) => {
                                     const isSubstituted = !!clas.substitute_teacher_id;
-                                    const isMySubstitution = userData?.teacher_id === clas.substitute_teacher_id;
+                                    const isMySubstitution = user?.teacher_id === clas.substitute_teacher_id;
 
                                     return (
                                         <div

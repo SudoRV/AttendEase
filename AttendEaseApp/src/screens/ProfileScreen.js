@@ -22,7 +22,7 @@ import { Fetch } from "../services/api";
 
 export default function ProfileScreen() {
   const navigator = useNavigation();
-  const { userData, setUserData, setLogout, bleOn, setBleOn, themePreference, updateTheme } = AppStates();
+  const { user, setUserData, setLogout, bleOn, setBleOn, themePreference, updateTheme } = AppStates();
 
   // --- LOGOUT LOADING STATE ---
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -45,7 +45,7 @@ export default function ProfileScreen() {
     otp: ""
   });
 
-  if (!userData || !userData.email) {
+  if (!user || !user.email) {
     return <Auth />;
   }
 
@@ -92,7 +92,7 @@ export default function ProfileScreen() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            email: userData.email,
+            email: user.email,
             old_password: form.oldPassword,
             new_password: form.newPassword,
           }),
@@ -113,7 +113,7 @@ export default function ProfileScreen() {
           const response = await Fetch("/api/auth/password/reset/request-otp", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: userData?.email }),
+            body: JSON.stringify({ email: user?.email }),
           });
           const resData = await response.json();
 
@@ -128,7 +128,7 @@ export default function ProfileScreen() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              email: userData.email,
+              email: user.email,
               otp: form.otp,
               new_password: form.newPassword,
             }),
@@ -187,7 +187,7 @@ export default function ProfileScreen() {
         >
           <View className="items-center">
             <View className="w-28 h-28 rounded-full bg-white/20 backdrop-blur items-center justify-center overflow-hidden border-4 border-white/30">
-              {userData?.avatar ? (
+              {user?.avatar ? (
                 <Text>user</Text>
               ) : (
                 <Ionicons name="person" size={48} color="white" />
@@ -195,40 +195,40 @@ export default function ProfileScreen() {
             </View>
 
             <Text className="text-3xl font-bold text-white text-center mt-4">
-              {userData?.name || "User"}
+              {user?.name || "User"}
             </Text>
 
             <View className="my-2 bg-white/20 px-4 py-1 rounded-full">
-              <Text className="text-indigo-100 font-bold">{userData?.role} @</Text>
+              <Text className="text-indigo-100 font-bold">{user?.role} @</Text>
             </View>
             <Text className="text-indigo-50 text-base text-center font-medium">
-              {userData?.college_name}
+              {user?.college_name}
             </Text>
           </View>
         </LinearGradient>
 
         {/* ACADEMIC */}
         <GlassCard title="Academic Information" icon="school-outline">
-          {userData?.role === "Student" ? (
+          {user?.role === "Student" ? (
             <>
-              <InfoRow label="Course" value={userData?.course_name} />
-              <InfoRow label="Branch" value={userData?.branch_id} />
-              <InfoRow label="Year" value={userData?.year} />
-              <InfoRow label="Semester" value={userData?.semester} />
-              <InfoRow label="Section" value={userData?.section} />
+              <InfoRow label="Course" value={user?.course_name} />
+              <InfoRow label="Branch" value={user?.branch_id} />
+              <InfoRow label="Year" value={user?.year} />
+              <InfoRow label="Semester" value={user?.semester} />
+              <InfoRow label="Section" value={user?.section} />
             </>
           ) : (
             <>
-              <InfoRow label="Teacher ID" value={userData?.teacher_id} />
+              <InfoRow label="Teacher ID" value={user?.teacher_id} />
             </>
           )}
         </GlassCard>
 
         {/* ACCOUNT */}
         <GlassCard title="Account Details" icon="person-circle-outline">
-          <InfoRow label="Role" value={userData?.role} />
-          <InfoRow label="ID" value={userData?.student_id || userData?.teacher_id} />
-          <InfoRow label="Email" value={userData?.email} />
+          <InfoRow label="Role" value={user?.role} />
+          <InfoRow label="ID" value={user?.student_id || user?.teacher_id} />
+          <InfoRow label="Email" value={user?.email} />
         </GlassCard>
 
         {/* SECURITY SETTINGS */}

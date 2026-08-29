@@ -7,7 +7,7 @@ import { Fetch } from "./api";
 const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
-    const [userData, setUserData] = useState({});
+    const [user, setUserData] = useState({});
     const [classes, setClasses] = useState([]);
     const [leaveHistory, setLeaveHistory] = useState([]);
     const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
@@ -36,7 +36,7 @@ export const GlobalProvider = ({ children }) => {
     }
 
     runAtWholeHour(() => {
-        loadTimetable(userData);
+        loadTimetable(user);
     });
 
     const loadTimetable = async (userCreds, selectedDay) => {
@@ -138,7 +138,7 @@ export const GlobalProvider = ({ children }) => {
     }
 
     const loadLeaves = async (filter) => {
-        if (!userData?.email) return;
+        if (!user?.email) return;
 
         try {
             // student leaves
@@ -177,7 +177,7 @@ export const GlobalProvider = ({ children }) => {
     }
 
     async function loadAnnouncements() {  
-        const endpoint = `/api/announcements?role=${userData?.role || "Student"}&teacher_id=${userData?.teacher_id || null}&college_id=${userData?.college_id}&course_id=${userData?.course_id}&branch=${userData.branch_id}&section=${userData.section}&year=${userData.year}&time=${encodeURIComponent(formatDate(new Date()))}`;
+        const endpoint = `/api/announcements?role=${user?.role || "Student"}&teacher_id=${user?.teacher_id || null}&college_id=${user?.college_id}&course_id=${user?.course_id}&branch=${user.branch_id}&section=${user.section}&year=${user.year}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
         const response = await Fetch(endpoint);
 
@@ -205,32 +205,32 @@ export const GlobalProvider = ({ children }) => {
     }, [])
 
     useEffect(() => {
-        if (!userData?.email) return;
-        loadTimetable(userData);
+        if (!user?.email) return;
+        loadTimetable(user);
 
         if (Notification.permission === "granted") {
-            SubscribePushNotification(userData)
+            SubscribePushNotification(user)
         };
 
         // load announcement
         loadAnnouncements();
-    }, [userData])
+    }, [user])
 
     // listen for incoming notification
     onMessage(messaging, (payload) => {
         console.log("Foreground push received", payload);
-        if (!userData?.email) return;
+        if (!user?.email) return;
 
         // load timetable
-        loadTimetable(userData);
+        loadTimetable(user);
         // load leaves
-        loadLeaves(userData?.role);
+        loadLeaves(user?.role);
         // load announcement
         loadAnnouncements();
     });
 
     const exports = {
-        userData, setUserData,
+        user, setUserData,
         classes, setClasses,
         loadTimetable,
         loadLeaves,

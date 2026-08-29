@@ -16,7 +16,7 @@ import { Fetch } from "../services/api";
 
 const StudentLeaveManagement = () => {
   const {
-    userData,
+    user,
     loadLeaves,
     leaveHistory,
     setLeaveHistory,
@@ -61,9 +61,9 @@ const StudentLeaveManagement = () => {
           action: action,
           application: application,
           verifier: {
-            role: userData.role,
-            teacher_id: userData.teacher_id,
-            teacher_name: userData.name
+            role: user.role,
+            teacher_id: user.teacher_id,
+            teacher_name: user.name
           },
         })
       });
@@ -85,7 +85,7 @@ const StudentLeaveManagement = () => {
   /* ---------------- effects ---------------- */
   useEffect(() => {
     loadLeaves("Teacher");
-  }, [userData]);
+  }, [user]);
 
   useEffect(() => {
     setCurrentClass(classes.classes?.find(c => c.isCurrentPeriod));
