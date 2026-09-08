@@ -82,23 +82,23 @@ async function loadMetadata2() {
   // console.log(metadata)
 
   if (metadata?.course) scope.course = {
-    "all": 0,
-    ...Object.fromEntries(metadata.course.split(",").map((c, index) => [clean(c), index + 1]))
+    "all": 1,
+    ...Object.fromEntries(metadata.course.split(",").map((c, index) => [clean(c), index + 2]))
   };
   if (metadata?.branch) scope.branch = {
-    "all": 0,
-    ...Object.fromEntries(metadata.branch.split(",").map((b, index) => [clean(b), index + 1]))
+    "all": 1,
+    ...Object.fromEntries(metadata.branch.split(",").map((b, index) => [clean(b), index + 2]))
   };
   if (metadata?.year) scope.year = {
-    "all": 0,
-    ...Object.fromEntries(metadata.year.split(",").map((y, index) => [y.trim(), Number(y)]))
+    "all": 1,
+    ...Object.fromEntries(metadata.year.split(",").map((y, index) => [y, Number(y)+1]))
   };
   if (metadata?.section) scope.section = {
-    "all": 0,
-    ...Object.fromEntries(metadata.section.split(",").map((s, index) => [s.trim(), index + 1]))
+    "all": 1,
+    ...Object.fromEntries(metadata.section.split(",").map((s, index) => [s.trim(), index + 2]))
   };
   if (metadata?.day) scope.day = {
-    ...Object.fromEntries(metadata.day.split(",").map((d, index) => [d.trim(), index]))
+    ...Object.fromEntries(metadata.day.split(",").map((d, index) => [d.trim(), index + 1]))
   };
 
   // console.log(scope)

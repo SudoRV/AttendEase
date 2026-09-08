@@ -116,7 +116,8 @@ exports.setSubstitution = async (req, res) => {
             status: action === "acquired" ? "1" : "0",
             period_id: substitutedClass[0].period_id,
             substitutor: substitutor.teacher_id
-          })
+          }),
+          timestamp: new Date().getTime()
         },
           substitutedClass[0].college_id,
           substitutedClass[0].course_id,
@@ -138,7 +139,8 @@ exports.setSubstitution = async (req, res) => {
             type: "CLASS_SUBSTITUTION",
             title: `Substitution ${action === "acquired" ? "acquired" : "cancelled"}`,
             body: action === "acquired" ? `Your class ${substitutedClass[0].subject_name} acquired by ${substitutor.name}` : `Your class ${substitutedClass[0].subject_name}'s substitution cancelled by ${substitutor.name}`,
-            scope: "INDIVIDUAL"
+            scope: "INDIVIDUAL",
+            timestamp: new Date().getTime()
           },
           tokens: tokens,
 

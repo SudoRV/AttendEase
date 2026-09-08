@@ -20,7 +20,8 @@ exports.postAnnouncement = async (req, res) => {
         scope,
         target_college, target_course,
         target_branch, target_year, target_section,
-      })
+      }),
+      timestamp: new Date().getTime()
     }, target_college, target_course, target_branch, target_year, target_section, scope);
 
   } catch (err) {

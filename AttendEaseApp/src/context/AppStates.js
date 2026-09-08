@@ -9,7 +9,7 @@ import { getCurrentTab } from "../navigation/navigationRef";
 // import BleDataPropagation from "../utils/BleDataPropagation";
 import BleAdvertiser from "../utils/BleAdvertiser";
 // import { startMeshScannerLoop } from "../utils/BleDataScanning";
-import { getDBConnection, saveNotification } from "../database/database";
+import { getDBConnection } from "../database/database";
 
 // import { initializeScannerCallbacks } from '../utils/BleDataScanning';
 
@@ -307,54 +307,68 @@ export const GlobalProvider = ({ children }) => {
     // 1. Get the modular messaging instance
     const messagingInstance = getMessaging();
 
-    BleAdvertiser(database, {
-      "originalPriority": 1,
-      "priority": 1,
-      "sentTime": 1781611965387,
-      "data": {
-        "scope": "BTECH_CSE_4_A",
-        "body": "Period 1 of Dr. Jagat Pal Singh cancelled, on leave for 16 Jun 2026",
-        "title": "Class Cancelled",
-        "type": "CLASS_CANCELLED",
-        "metadata": "{\"leave_type\":\"period\",\"status\":\"1\",\"teacher_id\":\"T_AHT016\",\"period_id\":[1],\"on\":\"1970-01-01T00:00:00.000Z\",\"from\":\"2026-06-15T18:35:00.000Z\",\"to\":\"2026-06-16T18:25:00.000Z\"}"
-      },
-      "from": "/topics/CSE_4_A",
-      "messageId": "0:1781611965391503%3c69d815f9fd7ecd",
-      "ttl": 2419200
-    });
+    // class cancellation
 
     // BleAdvertiser(database, {
     //   "originalPriority": 1,
     //   "priority": 1,
-    //   "sentTime": 1787725747441,
+    //   "sentTime": 1781611965387,
     //   "data": {
-    //     "body": "hey",
-    //     "metadata": "{\"scope\":\"students\",\"target_college\":1001,\"target_course\":[\"B.TECH\"],\"target_branch\":[\"AI/ML\",\"CSE\"],\"target_year\":[4],\"target_section\":[\"all\"]}",
-    //     "scope": "{\"courses\":[\"B.TECH\"],\"branches\":[\"AI/ML\",\"CSE\"],\"years\":[4],\"sections\":[\"all\"]}",
-    //     "title": "hi",
-    //     "type": "ANNOUNCEMENT"
+    //     "scope": "BTECH_CSE_4_A",
+    //     "body": "Period 6 of Mr. Rishabh, on leave for 29 Aug 2026",
+    //     "title": "Class Cancelled",
+    //     "type": "CLASS_CANCELLED",
+    //     "metadata": "{\"leave_type\":\"period\",\"status\":\"1\",\"teacher_id\":\"T_RISHABH\",\"period_id\":[6],\"on\":\"1970-01-01T00:00:00.000Z\",\"from\":\"2026-08-29T18:35:00.000Z\",\"to\":\"2026-08-29T18:25:00.000Z\"}",
+    //      "timestamp": 1787725747440
     //   },
-    //   "from": "959032391778",
-    //   "messageId": "0:1787725747446195%3c69d815f9fd7ecd",
+    //   "from": "/topics/CSE_4_A",
+    //   "messageId": "0:1781611965391503%3c69d815f9fd7ecd",
     //   "ttl": 2419200
     // });
 
 
+    // class substitution
+
+    // BleAdvertiser(database, {
+    //   "originalPriority": 1,
+    //   "priority": 1,
+    //   "sentTime": 1788021652581,
+    //   "data": {
+    //     "body": "Class Major Project of Mr. Rishabh Kushwaha is substituted by Komal Gahtori",
+    //     "metadata": "{\"status\":\"1\",\"period_id\":6,\"substitutor\":\"T_CST043\"}",
+    //     "scope": "BTECH_CSE_4_A",
+    //     "title": "Class Substitution",
+    //     "type": "CLASS_SUBSTITUTION",
+    //     "timestamp": 1787725747444
+    //   },
+    //   "from": "/topics/COLLEGE_1001_BTECH_CSE_4_A",
+    //   "messageId": "0:1788021652594483%3c69d815f9fd7ecd",
+    //   "ttl": 2419200
+    // });
+
+
+    // announcement
+
+    BleAdvertiser(database, {
+      "originalPriority": 1,
+      "priority": 1,
+      "sentTime": 1787725747441,
+      "data": {
+        "body": "hey hello whatsup dude what are u doing today something fun...",
+        "metadata": "{\"scope\":\"students\",\"target_college\":1001,\"target_course\":[\"B.TECH\"],\"target_branch\":[\"AI/ML\",\"CSE\"],\"target_year\":[4],\"target_section\":[\"all\"]}",
+        "scope": "{\"courses\":[\"B.TECH\"],\"branches\":[\"AI/ML\",\"CSE\"],\"years\":[4],\"sections\":[\"all\"]}",
+        "title": "greeting from rahul",
+        "type": "ANNOUNCEMENT",
+        "timestamp": 1787725747440
+      },
+      "from": "959032391778",
+      "messageId": "0:1787725747446195%3c69d815f9fd7ecd",
+      "ttl": 2419200
+    });
+
+
     // 2. Set up the foreground listener
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
-      // save to local database
-      const notification_id = (sHash(remoteMessage.messageId) >>> 0)
-        .toString(16).toUpperCase()
-        .padStart(8, "0");
-      saveNotification(database, {
-        notification_id: notification_id,
-        scope: remoteMessage.data.scope,
-        source: "FCM",
-        type: remoteMessage.data.type,
-        title: remoteMessage.data.title,
-        body: remoteMessage.data.body
-      });
-
       // propagate notification
       // BleDataPropagation(database, remoteMessage);
       // BleAdvertiser(database, remoteMessage);
@@ -377,7 +391,6 @@ export const GlobalProvider = ({ children }) => {
 
     // download college metadata/scopes for ble encoding
     async function loadMetadata() {
-      console.log("loading metadata")
       if (!user?.id) return;
       // load saved metadata
       const today = new Date();
@@ -385,10 +398,10 @@ export const GlobalProvider = ({ children }) => {
       let metadata = JSON.parse(savedMetadata || "{}");
 
       if (!metadata?.exp || new Date(metadata?.exp) < today.getTime()) {
-        console.log("fetching metadata")
+        // console.log("fetching metadata")
         const res = await Fetch("/college/metadata/all");
         const response = await res.json();
-        console.log(response)
+        // console.log(response)
         if (response?.data) metadata = response.data;
       }
 

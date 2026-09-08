@@ -64,7 +64,8 @@ async function notifyTimetable(day) {
                 body: message,
                 classes: JSON.stringify(classes),
                 schedule_image: scheduleImageUrl,
-                scope: clean(`${topic.course_id}_${topic.branch_id}_${topic.year}_${topic.section}`)
+                scope: clean(`${topic.course_id}_${topic.branch_id}_${topic.year}_${topic.section}`),
+                timestamp: new Date().getTime()
             },
 
             android: {

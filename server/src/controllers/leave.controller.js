@@ -258,6 +258,7 @@ exports.submitTeacherLeaves = async (req, res) => {
                     }),
                     body: message,
                     scope: clean(key),
+                    timestamp: new Date().getTime()
                 },
 
                 android: {
@@ -361,7 +362,8 @@ async function notify(tokens, title, body, dataType, data) {
             type: dataType,
             title,
             body,
-            ...data
+            ...data,
+            timestamp: new Date().getTime()
         },
 
         android: {
