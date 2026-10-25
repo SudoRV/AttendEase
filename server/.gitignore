@@ -1,6 +1,0 @@
-# dependencies
-node_modules/
-
-# local env files
-.env*.local
-server/fcm-service-account.json
