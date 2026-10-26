@@ -16,8 +16,3 @@ export async function requestFCMToken() {
     console.error(err);
   }
 }
-
-
-// 2Toc2esq2YnHB7kcGQRb-BmpqFBGbblVBKNzBwvm8nE
-
-// BEoaY1sCmF2Ma2WpV9VJsNfb4sude2ASe2ZOk5lgm2SR6YpJeDFoo28wFBwzuEwKQuc8i9AmHz0LB6wtAsP5xhg

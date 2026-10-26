@@ -14,11 +14,10 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useColorScheme } from "nativewind";
 import { AppStates } from "../context/AppStates";
+import { Fetch } from "../services/api";
 
 const StudentLeaveManagement = () => {
   const {
-    userData,
-    BASE_URL,
     loadLeaves,
     leaveHistory,
     setLeaveHistory,
@@ -66,7 +65,7 @@ const StudentLeaveManagement = () => {
 
   async function verifyLeave(action, applicant) {
     try {
-      const response = await fetch(`${BASE_URL}/verify-leave`, {
+      const response = await Fetch("/api/leaves/students/verify", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -75,11 +74,6 @@ const StudentLeaveManagement = () => {
           {
             action: action,
             applicant: applicant,
-            verifier: {
-              role: userData.role,
-              teacher_id: userData.teacher_id,
-              teacher_name: userData.name
-            },
           }
         )
       });
@@ -97,10 +91,6 @@ const StudentLeaveManagement = () => {
       loadLeaves();
     }
   }
-
-  useEffect(() => {
-    loadLeaves();
-  }, [userData]);
 
   useEffect(() => {
     setCurrentClass(classes.classes?.find(c => c.isCurrentPeriod));

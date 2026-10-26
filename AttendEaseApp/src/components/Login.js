@@ -12,11 +12,15 @@ import {
 } from "react-native";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import notifee from '@notifee/react-native';
+import requestFcmToken from "../utils/requestFcmToken";
 import { useColorScheme } from 'nativewind';
 import { AppStates } from "../context/AppStates";
 
+import { Fetch } from "../services/api";
+
 export default function LoginPage({ onSwitch }) {
-  const { setUserData, buildUrl } = AppStates();
+  const { setUserData } = AppStates();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === 'dark';
 
@@ -28,6 +32,58 @@ export default function LoginPage({ onSwitch }) {
   const [showPassword, setShowPassword] = useState(false);
   const [resetPassModalVisible, setResetPassModalVisible] = useState(false);
 
+  const saveFcmToken = async (user) => {
+    if (!user || !user?.email) return false;
+
+    try {
+      // 1. Get the token (This triggers the permission prompt if needed)
+      const token = await requestFcmToken();
+
+      // If user denied permission or token failed, exit cleanly
+      if (!token) return false;
+
+      await AsyncStorage.setItem("fcm_token", token);
+
+      // 3. Save to your database
+      const response = await Fetch("/save-fcm-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: token,
+        })
+      });
+
+      if (!response.ok) {
+        console.error("Backend refused token save:", response.status);
+        return false;
+      }
+
+      console.log("✅ FCM Token saved & Topics subscribed successfully!");
+      return true;
+
+    } catch (error) {
+      console.error("Crash inside saveFcmToken:", error);
+      return false;
+    }
+  };
+
+  const checkBattery = async () => {
+    const settings = await notifee.getNotificationSettings();
+
+    // If the user hasn't ignored battery optimizations
+    if (settings.android.alarm === 0) {
+      // You can open the system settings page directly for them:
+      await notifee.openBatteryOptimizationSettings();
+    }
+  };
+
+  async function askBasicPermissions(user) {
+    console.log("asking perms")
+    await notifee.requestPermission();
+    saveFcmToken(user);
+    checkBattery();
+  }
+
   /* =====================
         LOGIN SUBMIT
   ===================== */
@@ -37,20 +93,28 @@ export default function LoginPage({ onSwitch }) {
     setIsLoggingIn(true);
 
     try {
-      const response = await fetch(buildUrl("/login"), {
+      const response = await Fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, clientType: "mobile" }),
       });
 
       const data = await response.json();
 
       if (data?.user_creds) {
+        console.log(data?.user_creds)
         await AsyncStorage.setItem("user_creds", JSON.stringify(data.user_creds));
+        await AsyncStorage.setItem("session_token", data.token);
 
         setTimeout(() => {
           setUserData(data.user_creds);
           setIsLoggingIn(false);
+
+          // ask for notification permission
+          // save fcm token
+          // ask for battery optimization
+          askBasicPermissions(data.user_creds);
+
         }, 1800);
       } else {
         setIsLoggingIn(false);
@@ -72,7 +136,7 @@ export default function LoginPage({ onSwitch }) {
     }
 
     try {
-      const response = await fetch(buildUrl("/validate-creds"), {
+      const response = await Fetch("/api/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: value }),
@@ -177,7 +241,6 @@ export default function LoginPage({ onSwitch }) {
           visible={resetPassModalVisible}
           onClose={() => setResetPassModalVisible(false)}
           initialEmail={email}
-          buildUrl={buildUrl}
           setUserData={setUserData}
           isDark={isDark}
         />
@@ -191,7 +254,7 @@ export default function LoginPage({ onSwitch }) {
               <ActivityIndicator size="large" color={isDark ? "#60a5fa" : "#18181b"} />
               <View className="gap-y-1">
                 <Text className="text-zinc-900 dark:text-neutral-50 font-bold text-lg text-center tracking-tight">Authenticating</Text>
-                <Text className="text-zinc-400 dark:text-neutral-400 text-xs text-center leading-relaxed">Synchronizing security profile context...</Text>
+                <Text className="text-zinc-400 dark:text-neutral-400 text-sm text-center leading-relaxed">Synchronizing security profile context...</Text>
               </View>
             </View>
           </View>
@@ -204,7 +267,7 @@ export default function LoginPage({ onSwitch }) {
 /* ==========================================================================
    INLINE SUB-COMPONENT: RESET PASSWORD MODAL (DELAY OPTIMIZED)
    ========================================================================== */
-function ResetPasswordModal({ visible, onClose, initialEmail, buildUrl, setUserData, isDark }) {
+function ResetPasswordModal({ visible, onClose, initialEmail, setUserData, isDark }) {
   const [resetStep, setResetStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -246,7 +309,7 @@ function ResetPasswordModal({ visible, onClose, initialEmail, buildUrl, setUserD
 
     try {
       if (resetStep === 1) {
-        const response = await fetch(buildUrl("/reset-password"), {
+        const response = await Fetch("/reset-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: form?.email, type: "request_otp" }),
@@ -262,7 +325,7 @@ function ResetPasswordModal({ visible, onClose, initialEmail, buildUrl, setUserD
           Alert.alert("Error", data.message);
         }
       } else {
-        const response = await fetch(buildUrl("/reset-password"), {
+        const response = await Fetch("/reset-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

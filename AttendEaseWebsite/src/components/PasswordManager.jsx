@@ -13,8 +13,12 @@ import {
   FiEyeOff,
 } from "react-icons/fi";
 import {AppStates} from "../services/states";
+import { Fetch } from "../services/api";
+import logout from "../utils/logout";
+
+
 export default function PasswordSettings() {
-  const { buildUrl, userData } = AppStates();
+  const { user } = AppStates();
   const [modalVisible, setModalVisible] = useState(false);
   const [authMode, setAuthMode] = useState(""); // "change" or "reset"
   const [loading, setLoading] = useState(false);
@@ -26,10 +30,6 @@ export default function PasswordSettings() {
     confirmPassword: "",
     otp: "",
   });
-
-  // Replace this with your backend API URL
-  
-  const API_URL = buildUrl("/reset-password");
 
   const handlePasswordAction = async (e) => {
     e.preventDefault();
@@ -53,13 +53,13 @@ export default function PasswordSettings() {
     try {
       // ---------------- CHANGE PASSWORD ----------------
       if (authMode === "change") {
-        const response = await fetch(API_URL, {
-          method: "POST",
+        const response = await Fetch("/api/auth/password", {
+          method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            email: userData.email,
+            email: user.email,
             old_password: form.oldPassword,
             new_password: form.newPassword,
             type: "change",
@@ -70,9 +70,8 @@ export default function PasswordSettings() {
 
         if (response.ok) {
           alert("Password changed successfully. Please log in again.");
-          localStorage.removeItem("user_creds");
           closeModal();
-          setTimeout(() => {window.location.href = "/login";}, 1000);
+          logout();
         } else {
           alert(result.message || "Failed to change password.");
         }
@@ -82,13 +81,13 @@ export default function PasswordSettings() {
       else if (authMode === "reset") {
         // STEP 1 → Send OTP
         if (resetStep === 1) {
-          const response = await fetch(API_URL, {
+          const response = await Fetch("/api/auth/password/reset/request-otp", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              email: userData?.email,
+              email: user?.email,
               type: "request_otp",
             }),
           });
@@ -103,13 +102,13 @@ export default function PasswordSettings() {
 
         // STEP 2 → Verify OTP + Reset Password
         else {
-          const response = await fetch(API_URL, {
+          const response = await Fetch("/api/auth/password/reset/otp-verification", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              email: userData.email,
+              email: user.email,
               otp: form.otp,
               new_password: form.newPassword,
               type: "verify_reset"
@@ -118,9 +117,8 @@ export default function PasswordSettings() {
 
           if (response.ok) {
             alert("Password reset successful. Please log in with your new password.");
-            localStorage.removeItem("user_creds");
             closeModal();
-            setTimeout(() => {window.location.href = "/login";}, 1000);
+            logout();
           } else {
             alert("Invalid OTP or reset failed.");
           }
@@ -150,7 +148,7 @@ export default function PasswordSettings() {
   return (
     <div className="flex items-center justify-center mt-2">
       {/* SETTINGS CARD */}
-      <div className="w-full bg-slate-100 dark:bg-neutral-900 rounded-3xl shadow-lg p-6">
+      <div className="w-full bg-slate-100 dark:bg-neutral-950/40 rounded-3xl shadow-lg p-6">
         <div className="flex items-center gap-2 mb-6">
           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">
             Manage Password
@@ -165,7 +163,7 @@ export default function PasswordSettings() {
               setAuthMode("change");
               setModalVisible(true);
             }}
-            className="w-full bg-slate-100 dark:bg-neutral-800 flex justify-between items-center p-4 rounded-2xl border border-slate-200 dark:border-neutral-600 hover:border-indigo-500 transition"
+            className="w-full bg-slate-100 dark:bg-neutral-900/40 flex justify-between items-center p-4 rounded-2xl border border-slate-200 dark:border-neutral-600 hover:border-indigo-500 transition"
           >
             <span className="font-semibold text-slate-800/80 dark:text-slate-200">
               Change Password
@@ -183,7 +181,7 @@ export default function PasswordSettings() {
               setAuthMode("reset");
               setModalVisible(true);
             }}
-            className="w-full bg-slate-100 dark:bg-neutral-800 flex justify-between items-center p-4 rounded-2xl border border-slate-200 dark:border-neutral-600 hover:border-indigo-500 transition"
+            className="w-full bg-slate-100 dark:bg-neutral-900/40 flex justify-between items-center p-4 rounded-2xl border border-slate-200 dark:border-neutral-600 hover:border-indigo-500 transition"
           >
             <span className="font-semibold text-slate-700 dark:text-slate-300">
               Reset Password

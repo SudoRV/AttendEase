@@ -2,33 +2,22 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { requestFCMToken } from "./requestToken";
 import { messaging } from "./firebase";
 import { onMessage } from "firebase/messaging";
+import { Fetch } from "./api";
 
 const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
-
-    const isProduction = true;
-
-    // ⚠️ IMPORTANT:
-    // Replace this with your computer’s local IP
-    // Example: http://192.168.1.5:8000
-    const BASE_URL = isProduction
-        ? "https://attendease-nivr.onrender.com"
-        : `http://${window.location.hostname}:8000`;
-
-    const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
+    const [user, setUserData] = useState({});
+    const [classes, setClasses] = useState([]);
+    const [leaveHistory, setLeaveHistory] = useState([]);
+    const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
+    const [announcements, setAnnouncements] = useState([]);
 
     const formatDate = (date) => {
         if (!date) return "Select Date";
         return new Date(date)
             .toISOString()
     };
-
-    const [userData, setUserData] = useState({});
-    const [classes, setClasses] = useState([]);
-    const [leaveHistory, setLeaveHistory] = useState([]);
-    const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
-    const [announcements, setAnnouncements] = useState([]);
 
     // highlight current period
     function runAtWholeHour(fn) {
@@ -47,7 +36,7 @@ export const GlobalProvider = ({ children }) => {
     }
 
     runAtWholeHour(() => {
-        loadTimetable(userData);
+        loadTimetable(user);
     });
 
     const loadTimetable = async (userCreds, selectedDay) => {
@@ -66,17 +55,15 @@ export const GlobalProvider = ({ children }) => {
         let endpoint = "";
 
         if (role === "student") {
-            endpoint = `/get-timetable?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
+            endpoint = `/api/timetable/student?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
         } else if (role === "teacher") {
-            endpoint = `/get-timetable?teacher_name=${encodeURIComponent(
-                userCreds?.name || ""
-            )}&teacher_id=${userCreds?.teacher_id}&day=${day}`;
+            endpoint = `/api/timetable/teacher?teacher_id=${userCreds?.teacher_id}&day=${day}`;
         } else {
             return;
         }
 
         try {
-            const response = await fetch(buildUrl(endpoint));
+            const response = await Fetch(endpoint);
             const json = await response.json();
             const data = json?.data;
 
@@ -110,8 +97,6 @@ export const GlobalProvider = ({ children }) => {
                 );
             }
 
-            // console.log(timetable)
-
             if (!!selectedDay) {
                 return { day, classes: timetable }
             }
@@ -126,56 +111,25 @@ export const GlobalProvider = ({ children }) => {
         }
     }
 
-    async function requestNotification() {
-        return new Promise((resolve, reject) => {
-            if (!("Notification" in window)) {
-                alert("This browser does not support notifications.");
-                reject();
-            } else {
-                Notification.requestPermission().then(permission => {
-                    if (permission === "granted") {
-                        console.log("Notification permission granted!");
-                        resolve(true);
-                    } else if (permission === "denied") {
-                        console.log("Permission denied.");
-                        resolve(false);
-                    } else {
-                        console.log("Permission dismissed.");
-                        reject(true);
-                    }
-                });
-            }
-        })
-    }
-
     async function SubscribePushNotification(userCreds) {
-        const granted = await requestNotification();
-        if (!granted) return false;
-
         try {
             const token = await requestFCMToken();
             if (!token) return false;
+            await window.localStorage.setItem("fcm_token", token);
 
-            const response = await fetch(buildUrl("/save-fcm-token"), {
+            const res = await Fetch("/save-fcm-token", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    email: userCreds?.email,
-                    token,
-                    topics: userCreds?.role === "Student"
-                        ? [
-                            `year_${userCreds?.year}`,
-                            `branch_${userCreds?.branch_id}`,
-                            `${userCreds?.branch_id}_${userCreds?.year}_${userCreds?.section}`
-                        ]
-                        : ["teachers"]
+                    token
                 })
             });
 
-            const res_data = await response.json();
-            return !!res_data.success;
+            const response = await res.json();
+            
+            return !!response.success;
 
         } catch (err) {
             console.error("Push subscription failed:", err);
@@ -184,53 +138,50 @@ export const GlobalProvider = ({ children }) => {
     }
 
     const loadLeaves = async (filter) => {
-        if (!userData?.email) return;
+        if (!user?.email) return;
 
         try {
-            const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
-                JSON.stringify(userData)
-            )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+            // student leaves
+            const studentLeavesEndpoint = `/api/leaves/students?${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
-            const response = await fetch(buildUrl(endpoint));
-            const json = await response.json();
+            const studentLeavesResponse = await Fetch(studentLeavesEndpoint);
+            const studentLeaves = studentLeavesResponse.ok ? await studentLeavesResponse.json() : {};
 
-            // console.log(json)
+            // teacher leaves
+            const teacherLeavesEndpoint = `/api/leaves/teachers?${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
-            if (filter?.month) {
-                return {
-                    month: filter?.month,
-                    ...json
-                };
+            const teacherLeavesResponse = await Fetch(teacherLeavesEndpoint);
+            const teacherLeaves = teacherLeavesResponse.ok ? await teacherLeavesResponse.json() : {};
+
+            // console.log(studentLeaves, filter.month, !!filter, filter?.return, filter?.set)
+
+            if(!!filter && filter?.set) {
+                setLeaveHistory(studentLeaves?.leaves || []);
+                setTeacherLeaveHistory(teacherLeaves?.leaves || []);
             }
             else {
-                setLeaveHistory(json?.data || []);
-                setTeacherLeaveHistory(json?.teacher_leaves || []);
+                setLeaveHistory(studentLeaves?.leaves || []);
+                setTeacherLeaveHistory(teacherLeaves?.leaves || []);
+            }
+
+            if (!!filter && filter?.return) {
+                return {
+                    month: filter?.month,
+                    student_leaves: studentLeaves?.leaves || [],
+                    teacher_leaves: teacherLeaves?.leaves || []
+                };
             }
         } catch (err) {
             console.log("Leaves error:", err);
         }
-    };
-
-    // functions
-    async function doFetch(url, method = "GET", headers = {}, body = null) {
-        try {
-            const response = await fetch(buildUrl(url), {
-                method,
-                headers,
-                body
-            });
-
-            return { data: response, error: null };
-        } catch (err) {
-            return { data: null, error: err };
-        }
     }
 
-    async function loadAnnouncements() {
-        const endpoint = `/announcements?role=${userData?.role || "Student"}&teacher_id=${userData?.teacher_id || null}&year=${userData.year}&branch=${userData.branch_id}&section=${userData.section}&time=${encodeURIComponent(formatDate(new Date()))}`;
+    async function loadAnnouncements() {  
+        const endpoint = `/api/announcements?role=${user?.role || "Student"}&teacher_id=${user?.teacher_id || null}&college_id=${user?.college_id}&course_id=${user?.course_id}&branch=${user.branch_id}&section=${user.section}&year=${user.year}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
-        const response = await doFetch(endpoint, "GET");
-        const res_data = await response.data.json();
+        const response = await Fetch(endpoint);
+
+        const res_data = await response.json();
 
         const announcements = res_data.data;
         if (announcements.length > 0) {
@@ -238,54 +189,54 @@ export const GlobalProvider = ({ children }) => {
         }
     }
 
+    useEffect(() => {
+        // fetch user data
+        const fetchUser = async () => {
+            if(window.location.pathname === "/login" || window.location.pathname === "/signup") return;
+            const res = await Fetch("/api/auth/me");
+            const response = await res.json();
+            const user = response.user;
+
+            if(user) {
+                setUserData(user);
+            } else setUserData(null);
+        }
+        fetchUser();
+    }, [])
+
+    useEffect(() => {
+        if (!user?.email) return;
+        loadTimetable(user);
+
+        if (Notification.permission === "granted") {
+            SubscribePushNotification(user)
+        };
+
+        // load announcement
+        loadAnnouncements();
+    }, [user])
 
     // listen for incoming notification
     onMessage(messaging, (payload) => {
         console.log("Foreground push received", payload);
-        if (!userData?.email) return;
+        if (!user?.email) return;
 
         // load timetable
-        loadTimetable(userData);
+        loadTimetable(user);
         // load leaves
-        loadLeaves(userData?.role);
-
+        loadLeaves(user?.role);
         // load announcement
         loadAnnouncements();
     });
 
-
-    useEffect(() => {
-        const user_creds = localStorage.getItem("user_creds");
-        const userCreds = user_creds ? JSON.parse(user_creds) : undefined;
-
-        if (userCreds?.email !== undefined) {
-            setUserData(userCreds);
-        }
-    }, [])
-
-    useEffect(() => {
-        if (!userData?.email) return;
-        loadTimetable(userData);
-        if (Notification.permission === "granted") SubscribePushNotification(userData);
-
-        // load announcement
-        loadAnnouncements();
-    }, [userData])
-
-
     const exports = {
-        BASE_URL,
-        buildUrl,
-        doFetch,
-        userData, setUserData,
+        user, setUserData,
         classes, setClasses,
         loadTimetable,
         loadLeaves,
         announcements, loadAnnouncements,
         leaveHistory, setLeaveHistory,
         teacherLeaveHistory,
-        requestNotification,
-        SubscribePushNotification,
         formatDate
     }
 

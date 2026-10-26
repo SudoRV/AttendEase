@@ -10,13 +10,31 @@ import {
   Modal,
   TouchableOpacity,
 } from 'react-native';
+<<<<<<< HEAD
 import NetInfo from '@react-native-community/netinfo';
+=======
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import NetInfo from '@react-native-community/netinfo';
+import notifee from '@notifee/react-native';
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
 import { BleManager } from 'react-native-ble-plx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { startMeshScannerLoop, stopMeshScannerLoop } from '../utils/BleDataScanning';
 import { AppStates } from '../context/AppStates'; 
 
 const plxManager = new BleManager();
+<<<<<<< HEAD
+=======
+
+const checkBattery = async () => {
+  const settings = await notifee.getNotificationSettings();
+  // If the user hasn't ignored battery optimizations
+  if (settings.android.alarm === 0) {
+    // You can open the system settings page directly for them:
+    await notifee.openBatteryOptimizationSettings();
+  }
+};
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
 
 async function requestBLEPermissions() {
   if (Platform.OS !== 'android') return true;
@@ -85,9 +103,17 @@ export async function enableBluetooth() {
 const DeviceItem = memo(({ item }) => (
   <View className="p-4 py-3 border-b border-zinc-100 dark:border-neutral-700 bg-white dark:bg-neutral-800">
     <Text className="font-bold text-zinc-900 dark:text-white">
+<<<<<<< HEAD
       {item.device?.name || 'Unknown Device'}
     </Text>
     <Text className="text-sm text-zinc-500 font-mono mt-0.5">service data: {JSON.stringify(item?.service_data, null, "\t")}</Text>
+=======
+      {item.device?.id || 'Unknown Device'}
+    </Text>
+    <Text className="font-bold text-zinc-900 dark:text-white">
+      {item.device?.name || 'Unknown Device'}
+    </Text>
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
     <Text className="text-sm text-zinc-500 font-mono mt-0.5">uuid: {item?.uuid || 'N/A'}</Text>
     <Text className="text-sm text-neutral-600 dark:text-neutral-300">RSSI: {item.device?.rssi}</Text>
   </View>
@@ -101,7 +127,11 @@ export default function BleToggle({ bleOn, setBleOn }) {
   // Filter state
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'general', 'attendease_native'
 
+<<<<<<< HEAD
   const { bleDevices, bleError } = AppStates();
+=======
+  const { bleDevices } = AppStates();
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -132,13 +162,21 @@ export default function BleToggle({ bleOn, setBleOn }) {
       await stopMeshScannerLoop();
       return;
     }
+<<<<<<< HEAD
     await hasInternetAccess();
+=======
+
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
     const permissionGranted = await requestBLEPermissions();
     if (!permissionGranted) {
       Alert.alert('Permissions Required', 'Bluetooth permissions are required.');
       setBleOn(false);
       return;
     }
+<<<<<<< HEAD
+=======
+    checkBattery();
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
     const bluetoothEnabled = await enableBluetooth();
     await AsyncStorage.setItem("ble_state", JSON.stringify(!bluetoothEnabled ? bluetoothEnabled : value));
     setBleOn(!bluetoothEnabled ? bluetoothEnabled : value);
@@ -192,10 +230,17 @@ export default function BleToggle({ bleOn, setBleOn }) {
             
             <View className="flex-row justify-between items-center mb-4 pb-2 border-b border-zinc-100 dark:border-neutral-800">
               <Text className="text-xl font-bold text-zinc-900 dark:text-white">
+<<<<<<< HEAD
                 Discovered Devices ({filteredDevices.length})
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Text className="text-sky-500 font-bold text-base px-2 py-1">Close</Text>
+=======
+                NearBy Devices: {filteredDevices.length}
+              </Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="chevron-down" size={20} />
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
               </TouchableOpacity>
             </View>
 
@@ -209,9 +254,15 @@ export default function BleToggle({ bleOn, setBleOn }) {
                 <TouchableOpacity
                   key={filter.key}
                   onPress={() => setActiveFilter(filter.key)}
+<<<<<<< HEAD
                   className={`px-4 py-2 rounded-full border ${
                     activeFilter === filter.key 
                       ? 'bg-sky-500 border-sky-500' 
+=======
+                  className={`px-4 py-1.5 rounded-full ${
+                    activeFilter === filter.key 
+                      ? 'bg-indigo-500' 
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
                       : 'bg-white border-zinc-300 dark:bg-neutral-800'
                   }`}
                 >
@@ -222,7 +273,11 @@ export default function BleToggle({ bleOn, setBleOn }) {
               ))}
             </View>
 
+<<<<<<< HEAD
             <View style={{ flex: 0.6 }}>
+=======
+            <View style={{ flex: 1 }}>
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
               <FlatList
                 data={filteredDevices}
                 keyExtractor={(item) => item.device.id}
@@ -236,6 +291,7 @@ export default function BleToggle({ bleOn, setBleOn }) {
               />
             </View>
 
+<<<<<<< HEAD
             <View style={{ flex: 0.4 }} className="border-t border-zinc-200 dark:border-neutral-700 mt-4 pt-4">
               <Text className="font-bold text-red-500 mb-2 text-base">System Scan Logs / Errors</Text>
               <View className="bg-red-50 dark:bg-red-950/20 p-3 rounded-lg flex-1 border border-red-100 dark:border-red-900/30">
@@ -245,6 +301,8 @@ export default function BleToggle({ bleOn, setBleOn }) {
               </View>
             </View>
 
+=======
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
           </View>
         </View>
       </Modal>
@@ -265,7 +323,11 @@ export default function BleToggle({ bleOn, setBleOn }) {
       </View>
 
       <TouchableOpacity onPress={() => setModalVisible(true)} className="mt-4">
+<<<<<<< HEAD
         <Text className="text-base text-sky-600 font-semibold dark:text-neutral-300">View Advertising Devices</Text>
+=======
+        <Text className="text-base text-neutral-800 font-semibold dark:text-neutral-300 underline">AttendEase BLE Network</Text>
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
       </TouchableOpacity>
     </View>
   );

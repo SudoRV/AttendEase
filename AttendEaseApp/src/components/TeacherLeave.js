@@ -14,9 +14,10 @@ import dayjs from 'dayjs';
 
 import { AppStates } from "../context/AppStates";
 import PullToRefresh from "./ui/PullToRefresh";
+import { Fetch } from "../services/api";
 
 const TeacherLeave = () => {
-    const { userData, classes, loadTimetable, loadLeaves, buildUrl, teacherLeaveHistory, formatDate } = AppStates();
+    const { user, classes, loadTimetable, loadLeaves, teacherLeaveHistory, formatDate } = AppStates();
 
     const [leaveType, setLeaveType] = useState("period");
     const [periods, setPeriods] = useState([]);
@@ -63,20 +64,15 @@ const TeacherLeave = () => {
             
             const payload = {
                 leave_type: leaveType,
-                applicant: userData,
                 classes: periods,
-
                 from: formatDate(fromDate?.setHours(0, 5, 0, 0) || (onDate ? onDate.setHours(0, 5, 0, 0) : new Date().setHours(0, 5, 0, 0))),
-
                 to: formatDate(toDate?.setHours(23, 55, 0, 0) || (onDate ? new Date(onDate).setHours(23, 55, 0, 0) : new Date().setHours(23, 55, 0, 0))),
-
                 on: onDate ? formatDate(onDate?.setHours(0, 5, 0, 0)) : onDate,
             };
 
-            const response = await fetch(
-                buildUrl("/teacher-availability"),
+            const response = await Fetch("/api/leaves/teachers",
                 {
-                    method: "POST",
+                    method: "PUT",
                     headers: {
                         "Content-Type": "application/json",
                     },
@@ -90,7 +86,7 @@ const TeacherLeave = () => {
                 throw new Error(res_data?.message || "Something went wrong");
             }
 
-            loadTimetable(userData);
+            loadTimetable(user);
             loadLeaves();
             setPeriods([]);
             Alert.alert("Leave status", res_data.message);
@@ -229,7 +225,7 @@ const TeacherLeave = () => {
                 {/* teacher leaves */}
                 {renderTeacherLeaves(
                     teacherLeaveHistory,
-                    userData,
+                    user,
                     filter,
                     setFilter,
                     loadLeaves
@@ -352,24 +348,22 @@ const DateField = ({ label, value, onPress }) => (
 
 const renderTeacherLeaves = (
     teacherLeaveHistory = [],
-    userData,
+    user,
     filter,
     setFilter,
     loadLeaves
 ) => {
 
-    const { buildUrl } = AppStates();
-
     const filteredLeaves = (() => {
         switch (filter) {
             case "Mine":
                 return teacherLeaveHistory.filter(
-                    (leave) => leave.teacher_id === userData?.teacher_id
+                    (leave) => leave.teacher_id === user?.teacher_id
                 );
 
             default:
                 return teacherLeaveHistory.filter(
-                    (leave) => leave.teacher_id !== userData?.teacher_id
+                    (leave) => leave.teacher_id !== user?.teacher_id
                 );
         }
     })();
@@ -385,7 +379,7 @@ const renderTeacherLeaves = (
 
     useEffect(() => {
         if (isSubstitutorVisible?.visible && isSubstitutorVisible.teacher_id) {
-            fetch(buildUrl(`/get-timetable?day=${new Date().toLocaleDateString("en-Gb", { weekday: "long" })}&teacher_id=${isSubstitutorVisible.teacher_id}`))
+            Fetch(`/api/timetable/teacher?day=${new Date().toLocaleDateString("en-Gb", { weekday: "long" })}&teacher_id=${isSubstitutorVisible.teacher_id}`)
                 .then(response => response.json())
                 .then(timetable => {
                     setAbsentTeacherClasses(timetable?.data?.classes);
@@ -395,8 +389,8 @@ const renderTeacherLeaves = (
 
     const processSubstitution = async (clas, action) => {
 
-        const response = await fetch(buildUrl("/set-substitutor"), {
-            method: "POST",
+        const response = await Fetch("/api/timetable/class/substitution", {
+            method: "PUT",
             headers: {
                 "Content-Type": "application/json"
             },
@@ -406,7 +400,7 @@ const renderTeacherLeaves = (
                     teacher_id: clas?.teacher_id
                 },
                 substitutor: {
-                    teacher_name: userData?.name, teacher_id: userData?.teacher_id, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss')
+                    teacher_name: user?.name, teacher_id: user?.teacher_id, substituted_till: dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss')
                 },
                 action: action
             })
@@ -420,8 +414,8 @@ const renderTeacherLeaves = (
                     if (item.id === clas.id) {
                         return {
                             ...item,
-                            substitute_teacher_id: action === "acquired" ? userData?.teacher_id : null,
-                            substitute_teacher_name: action === "acquired" ? userData?.name : null,
+                            substitute_teacher_id: action === "acquired" ? user?.teacher_id : null,
+                            substitute_teacher_name: action === "acquired" ? user?.name : null,
                             substituted_till: action === "acquired"
                                 ? dayjs().endOf('day').format('YYYY-MM-DD HH:mm:ss')
                                 : null,
@@ -608,7 +602,7 @@ const renderTeacherLeaves = (
                                                 </View>
 
                                                 {
-                                                    userData?.teacher_id === clas.substitute_teacher_id && (
+                                                    user?.teacher_id === clas.substitute_teacher_id && (
                                                         <TouchableOpacity activeOpacity={0.6}
                                                             onPress={() => handleSelectClass(clas, "cancel")}>
                                                             <Text className="p-2 px-3 bg-red-500 rounded-lg text-white text-sm">Cancel</Text>
@@ -616,9 +610,9 @@ const renderTeacherLeaves = (
                                                     )
                                                 }
                                             </View>
-                                        ) : clas.teacher_id !== userData?.teacher_id && (
+                                        ) : clas.teacher_id !== user?.teacher_id && (
                                             <TouchableOpacity
-                                                disabled={!!clas.substitute_teacher_id || clas.teacher_id === userData?.teacher_id}
+                                                disabled={!!clas.substitute_teacher_id || clas.teacher_id === user?.teacher_id}
                                                 onPress={() => handleSelectClass(clas, "acquired")}
                                                 className="bg-blue-600 dark:bg-blue-400 rounded-xl py-2.5 mt-4"
                                             >

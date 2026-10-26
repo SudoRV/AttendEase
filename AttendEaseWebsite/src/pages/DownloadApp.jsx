@@ -10,14 +10,11 @@ import { FaAndroid, FaApple } from "react-icons/fa";
 import { QrCode } from "lucide-react";
 import { QRCodeSVG } from 'qrcode.react';
 import { QRCode } from 'react-qrcode-logo';
-import { AppStates } from "../services/states";
-
+import { buildUrl } from "../services/api";
 import LandingHeader from "../components/LandingHeader";
 import LandingFooter from "../components/LandingFooter";
 
 export default function DownloadApp() {
-    const { buildUrl } = AppStates();
-
     return (
         <div className="min-h-screen bg-[#f5f7fb] dark:bg-neutral-900 text-neutral-900 dark:text-white transition-colors duration-300">
 
@@ -78,7 +75,7 @@ export default function DownloadApp() {
 
                                     <QRCode
                                         size={150}
-                                        value={buildUrl("/download-app")}
+                                        value={buildUrl("/download/app")}
                                         ecLevel="H"
                                         qrStyle="squares"
 
@@ -115,7 +112,7 @@ export default function DownloadApp() {
                                     Scan the QR code with your device camera or tap the button below to download safely from the Google Play Store.
                                 </p>
                                 <a
-                                    href={buildUrl("/download-app?latest")}
+                                    href={buildUrl("/download/app?latest")}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     download="AttendEase.apk"

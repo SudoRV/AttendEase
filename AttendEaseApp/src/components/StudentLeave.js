@@ -15,9 +15,10 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import CustomButton from "./ui/CustomButton";
 import Selector from "./ui/Selector";
 import PullToRefresh from "./ui/PullToRefresh";
+import { Fetch } from "../services/api";
 
 const StudentLeave = () => {
-  const { userData, leaveHistory, loadLeaves, BASE_URL, buildUrl, formatDate } = AppStates();
+  const { user, leaveHistory, loadLeaves, formatDate } = AppStates();
 
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
@@ -30,15 +31,14 @@ const StudentLeave = () => {
 
   const [latestLeaveModal, setLatestLeaveModal] = useState(false);
   const [latestLeaveCollapsed, setLatestLeaveCollapsed] = useState({ collapsed: false, index: 0 });
-  const [leavesFilter, setLeavesFilter] = useState({ month: new Date().getMonth(), set: true });
+  const [leavesFilter, setLeavesFilter] = useState({ month: new Date().getMonth(), set: false });
   const [leavesByMonth, setLeavesByMonth] = useState({});
 
   async function fetchLeaves() {
-    if (!userData?.email) return;
+    if (!user?.email) return;
     const leaves_by_month = await loadLeaves(leavesFilter);
 
-    // console.log(leavesFilter, leaves_by_month)
-    if (leaves_by_month?.data?.length > 0) {
+    if (leaves_by_month?.student_leaves?.length > 0) {
       setLeavesByMonth(leaves_by_month);
     } else {
       setLeavesByMonth([]);
@@ -47,7 +47,7 @@ const StudentLeave = () => {
 
   useEffect(() => {
     fetchLeaves();
-  }, [userData, leavesFilter]);
+  }, [user, leavesFilter]);
 
   async function submitLeave() {
     if (!application.trim() || !fromDate || !toDate) {
@@ -66,7 +66,6 @@ const StudentLeave = () => {
       : "Leave Application";
 
     const leave = {
-      applicant: userData,
       subject,
       application,
       applicable_from: formatDate(fromDate),
@@ -76,8 +75,8 @@ const StudentLeave = () => {
     try {
       setLoading(true);
 
-      const response = await fetch(buildUrl("/upload-leave"), {
-        method: "POST",
+      const response = await Fetch("/api/leaves/students", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(leave)
       });
@@ -112,9 +111,11 @@ const StudentLeave = () => {
   }
 
   const latestLeaveSource =
-    leavesByMonth?.data?.length > 0
+    leavesByMonth?.student_leaves?.length > 0
       ? leavesByMonth
-      : { data: leaveHistory };
+      : { student_leaves: leaveHistory };
+
+  
 
   return (
     <PullToRefresh onRefresh={loadLeaves}>
@@ -233,20 +234,20 @@ const StudentLeave = () => {
 
                         <View className="flex-row justify-between">
                           <Text className="bg-blue-200 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 p-1 px-2 mb-1 rounded-md self-start text-sm font-medium">
-                            From: {new Date(latestLeaveSource?.data[latestLeaveCollapsed.index]?.applicable_from).toLocaleDateString()}</Text>
+                            From: {new Date(latestLeaveSource?.student_leaves[latestLeaveCollapsed.index]?.applicable_from).toLocaleDateString()}</Text>
 
                           <Text className="bg-rose-200 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 p-1 px-2 mb-1 rounded-md self-start text-sm font-medium">
-                            To: {new Date(latestLeaveSource?.data[latestLeaveCollapsed.index]?.applicable_to).toLocaleDateString()}
+                            To: {new Date(latestLeaveSource?.student_leaves[latestLeaveCollapsed.index]?.applicable_to).toLocaleDateString()}
                           </Text>
                         </View>
 
-                        <Text className="bg-green-200 dark:bg-green-950/60 text-green-800 dark:text-green-300 p-1 px-2 my-1 rounded-md self-start text-sm font-medium">Subject: {latestLeaveSource?.data[latestLeaveCollapsed.index]?.subject}</Text>
+                        <Text className="bg-green-200 dark:bg-green-950/60 text-green-800 dark:text-green-300 p-1 px-2 my-1 rounded-md self-start text-sm font-medium">Subject: {latestLeaveSource?.student_leaves[latestLeaveCollapsed.index]?.subject}</Text>
 
                         <Text className="text-lg font-bold text-neutral-700 dark:text-neutral-300 mt-2">Application</Text>
 
                         <ScrollView className="max-h-60" showsVerticalScrollIndicator={false}>
                           <Text className="bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 p-2 rounded-xl mt-2 text-slate-800 dark:text-neutral-200">
-                            {latestLeaveSource?.data[latestLeaveCollapsed.index]?.application}
+                            {latestLeaveSource?.student_leaves[latestLeaveCollapsed.index]?.application}
                           </Text>
                         </ScrollView>
                       </View>
@@ -266,8 +267,8 @@ const StudentLeave = () => {
 
                       <View className="flex-col gap-4">
                         {
-                          leavesByMonth?.data?.length > 0 ? (
-                            leavesByMonth?.data?.map((leave, index) => (
+                          leavesByMonth?.student_leaves?.length > 0 ? (
+                            leavesByMonth?.student_leaves?.map((leave, index) => (
                               <CustomButton
                                 key={index}
                                 onPress={() => {

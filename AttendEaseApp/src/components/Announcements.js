@@ -11,10 +11,11 @@ import {
 
 import GradientWrapper from "./ui/LinearGradient";
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { AppStates, database } from "../context/AppStates";
+import { AppStates } from "../context/AppStates";
+import clean from "../utils/cleanCollegeMetadata";
 
 const Announcements = ({ type, announcements, loadAnnouncements }) => {
-  const { userData, database } = AppStates();
+  const { user, database } = AppStates();
 
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
 
@@ -35,23 +36,35 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
         []
       );
 
+      console.log(results)
+
       // Extracts the native array from inside your specific object structure
       let rows = [];
 
+      // "{"type":"announcement","scope":"students","branches":["AI/ML","CSE"],"years":["4"],"sections":["all"]}"
+
       if (results?.rows?._array) {
-        // 1. Fastest extraction method if _array contains your objects
         rows = results.rows._array;
         rows = rows.filter(r => {
-          if(r.type === "announcement") {
-            const scope = JSON.parse(r.scope);
-            if (scope.branches.some(b => b === userData.branch_id || b === "all") && scope.years.some(y => y === `${userData.year}` || y === "all") && scope.sections.some(s => s === userData.section || s === "all")) return r;
+          if (r.type.toLowerCase() === "announcement") {
+            const scope = JSON.parse(r.scope || "{}");
+            
+            if (scope?.branches?.some(b => b === clean(user?.branch_id) || b === "all")
+              && scope?.years?.some(y => Number(y) === Number(user.year) || y === "all")
+              && scope?.sections?.some(s => s === user.section || s === "all")) return r;
           } else {
-            const scope = r.scope.split("_");
-            if((scope[0] === userData?.branch_id || scope[0] === "all") && (scope[1] === `${userData?.year}` || scope[1] === "all") && (scope[2] === userData?.section || scope[2] === "all")) return r;
+            let scope = r?.scope?.split("_").slice(2);
+            if (scope?.includes("Individual")) return r;
+
+            if (scope.length < 3) return;
+
+            if (((scope[0] === clean(user?.course_id) || scope[0] === "all") || r.source === "BLE")
+              && (scope[1] === clean(user?.branch_id) || scope[1] === "all")
+              && (scope[2] === `${user?.year}` || scope[2] === "all")
+              && (scope[3] === user?.section || scope[3] === "all")) return r;
           }
         })
       } else if (results?.rows?.length > 0) {
-        // 2. Safe fallback loop utilizing the .item() function mapped in your log
         for (let i = 0; i < results.rows.length; i++) {
           rows.push(results.rows.item(i));
         }
@@ -145,7 +158,7 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
             </View>
           )}
 
-          {item?.created_by?.id === userData?.teacher_id && (
+          {item?.created_by?.id === user?.teacher_id && (
             <View className="bg-green-500/80 px-2 py-0.5 rounded-full">
               <Text className="text-[10px] text-white font-bold uppercase">by you</Text>
             </View>
@@ -195,13 +208,14 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
         )}
 
         {/* NOTIFICATION BUTTON TOGGLE TRIGGER */}
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => setNotificationModalVisible(true)}
-          className="ml-auto bg-white p-2 rounded-xl border border-slate-200/60 shadow-sm"
-        >
-          <Ionicons name="chatbubble-ellipses-outline" size={22} color="#4F46E5" />
-        </TouchableOpacity>
+        <View className="ml-auto p-2 w-11 h-11 items-center justify-center rounded-full bg-indigo-50 elevation-md">
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setNotificationModalVisible(true)}
+          >
+            <Ionicons name="notifications" size={22} color="#4F46E5" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -222,7 +236,7 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
           <RefreshControl
             refreshing={loadingAnnouncements}
             onRefresh={async () => {
-              await loadAnnouncements(userData);
+              await loadAnnouncements(user);
             }}
             // 🌟 Change this numeric value to push the loader down to your exact desired position
             progressViewOffset={-30}
@@ -253,7 +267,7 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
 
               <View className="flex-row items-center gap-2.5">
                 <TouchableOpacity onPress={() => setNotificationModalVisible(false)} className="p-1 active:opacity-80">
-                  <Ionicons name="close-circle" size={32}  color={"#ccc"} className="dark:!text-neutral-300" />
+                  <Ionicons name="close-circle" size={32} color={"#ccc"} className="dark:!text-neutral-300" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -309,8 +323,8 @@ const Announcements = ({ type, announcements, loadAnnouncements }) => {
                     return (
                       <View
                         className={`p-4 rounded-2xl mb-3 border flex-row items-start gap-3 ${item.is_read === 0
-                            ? "bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100/80 dark:border-indigo-900/40"
-                            : "bg-slate-50/60 dark:bg-neutral-950/40 border-slate-100/80 dark:border-neutral-800/60"
+                          ? "bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100/80 dark:border-indigo-900/40"
+                          : "bg-slate-50/60 dark:bg-neutral-950/40 border-slate-100/80 dark:border-neutral-800/60"
                           }`}
                       >
                         {/* Status Source Badge Circle */}

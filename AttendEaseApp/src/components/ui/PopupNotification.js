@@ -11,8 +11,6 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 export default function PopupNotification({ title, body, onClose }) {
-  const { width } = useWindowDimensions();
-  
   // Reanimated shared values for dynamic touch Tracking
   const translateY = useSharedValue(-150); // Start off-screen height
   const opacity = useSharedValue(0);
@@ -25,7 +23,7 @@ export default function PopupNotification({ title, body, onClose }) {
     // Auto-dismiss safety callback fallbacks after 6 seconds
     const timer = setTimeout(() => {
       dismissNotification();
-    }, 10000);
+    }, 2000000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -64,8 +62,8 @@ export default function PopupNotification({ title, body, onClose }) {
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View
-        style={[animatedStyle, { elevation: 12 }]}
-        className="absolute top-14 left-4 right-4 bg-white/95 dark:bg-neutral-900/95 rounded-3xl p-4 elevation-lg border border-slate-100/80 dark:border-neutral-800/60 flex-row items-center z-50 overflow-hidden backdrop-blur-md"
+        style={[animatedStyle, { elevation: 8 }]}
+        className="absolute top-14 left-4 right-4 bg-neutral-50 blur-md dark:bg-neutral-800 rounded-3xl p-4 border border-neutral-200 dark:border-neutral-700/40 flex-row items-center z-50 overflow-hidden"
       >
         {/* Decorative Top Pull Drag Indicator Handle */}
         <View className="absolute top-1.5 left-0 right-0 items-center justify-center">
@@ -73,8 +71,8 @@ export default function PopupNotification({ title, body, onClose }) {
         </View>
 
         {/* Catchy Left Accent Gradient Icon Ring */}
-        <View className="w-12 h-12 bg-indigo-50 dark:bg-blue-950/40 rounded-2xl items-center justify-center mr-3.5 border border-indigo-100/40 dark:border-blue-900/40">
-          <Ionicons name="notifications-sharp" size={22} className="text-indigo-600 dark:text-blue-400" />
+        <View className="w-12 h-full mr-2 pt-3.5 justify-start items-center">
+          <Ionicons name="notifications-sharp" size={24} color={"#6366f1"} />
         </View>
 
         {/* Main Context Text Frame Layout */}
@@ -82,7 +80,7 @@ export default function PopupNotification({ title, body, onClose }) {
           <Text className="text-slate-900 dark:text-neutral-50 font-extrabold text-base tracking-wide" numberOfLines={1}>
             {title}
           </Text>
-          <Text className="text-slate-500 dark:text-neutral-400 text-sm font-medium mt-0.5 leading-4" numberOfLines={2}>
+          <Text className="text-slate-500 dark:text-neutral-400 text-sm font-medium mt-0.5 leading-4" numberOfLines={10}>
             {body}
           </Text>
         </View>

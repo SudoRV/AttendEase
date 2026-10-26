@@ -1,10 +1,16 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import clean from "../utils/cleanCollegeMetadata";
+
+let isScopeUpdated = false;
+let loadPromise = null;
+
 const scope = {
   "notification_type": {
     "class_cancelled": 0,
     "class_substitution": 1,
     "announcement": 2
   },
-  "scope": {"students": 0, "teachers": 1},
+  "scope": { "students": 0, "teachers": 1 },
   "branch": {
     "all": 0, "CSE": 1, "AI": 2, "RA": 3, "ME": 4, "CE": 5, "BCA": 6,
   },
@@ -19,11 +25,99 @@ const scope = {
   }
 };
 
-export function scopes(attr, val) {
-  return scope[attr][val];
+async function isLoadingMetadata() {
+  if(isScopeUpdated) return Promise.resolve(true);
+  
+  if(!loadPromise) {
+    loadPromise = loadMetadata2()
+    .then(() => {
+      isScopeUpdated = true;
+    })
+    .catch((err) => {
+      loadPromise = null;
+      throw err;
+    })
+  }
+
+  return loadPromise;
 }
 
-export function reverseScopes(attr, val) {
+// download college metadata
+async function loadMetadata() {
+  // load saved metadata
+  const savedMetadata = await AsyncStorage.getItem("college_metadata");
+  let metadata = JSON.parse(savedMetadata || "{}");
+
+  // console.log(metadata)
+
+  if (metadata?.course) scope.course = {
+    "all": 0,
+    ...Object.fromEntries(metadata.course.split(",").map((c, index) => [c.trim(), index + 1]))
+  };
+  if (metadata?.branch) scope.branch = {
+    "all": 0,
+    ...Object.fromEntries(metadata.branch.split(",").map((b, index) => [b.trim(), index + 1]))
+  };
+  if (metadata?.year) scope.year = {
+    "all": 0,
+    ...Object.fromEntries(metadata.year.split(",").map((y, index) => [y.trim(), Number(y)]))
+  };
+  if (metadata?.section) scope.section = {
+    "all": 0,
+    ...Object.fromEntries(metadata.section.split(",").map((s, index) => [s.trim(), index + 1]))
+  };
+  if (metadata?.day) scope.day = {
+    ...Object.fromEntries(metadata.day.split(",").map((d, index) => [d.trim(), index]))
+  };
+
+  // console.log(scope)
+  return true;
+}
+
+async function loadMetadata2() {
+  // load saved metadata
+  const savedMetadata = await AsyncStorage.getItem("college_metadata");
+  let metadata = JSON.parse(savedMetadata || "{}");
+
+  // console.log(metadata)
+
+  if (metadata?.course) scope.course = {
+    "all": 1,
+    ...Object.fromEntries(metadata.course.split(",").map((c, index) => [clean(c), index + 2]))
+  };
+  if (metadata?.branch) scope.branch = {
+    "all": 1,
+    ...Object.fromEntries(metadata.branch.split(",").map((b, index) => [clean(b), index + 2]))
+  };
+  if (metadata?.year) scope.year = {
+    "all": 1,
+    ...Object.fromEntries(metadata.year.split(",").map((y, index) => [y, Number(y)+1]))
+  };
+  if (metadata?.section) scope.section = {
+    "all": 1,
+    ...Object.fromEntries(metadata.section.split(",").map((s, index) => [s.trim(), index + 2]))
+  };
+  if (metadata?.day) scope.day = {
+    ...Object.fromEntries(metadata.day.split(",").map((d, index) => [d.trim(), index + 1]))
+  };
+
+  // console.log(scope)
+  return true;
+}
+
+export async function scopeAll(key) {
+  await isLoadingMetadata();
+  return scope[key];
+}
+
+export async function scopes(attr, val) {
+  await isLoadingMetadata();
+  return scope[attr]?.[val];
+}
+
+export async function reverseScopes(attr, val) {
+  await isLoadingMetadata();
+  if (!scope[attr]) return undefined;
   return Object.keys(scope[attr]).find(key => scope[attr][key] === val);
 }
 

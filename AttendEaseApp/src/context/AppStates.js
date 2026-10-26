@@ -1,29 +1,32 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import requestFcmToken from "../utils/requestFcmToken";
 import { getMessaging, onMessage } from '@react-native-firebase/messaging';
-import BleDataPropagation from "../utils/BleDataPropagation";
-import { startMeshScannerLoop } from "../utils/BleDataScanning";
-import { getDBConnection, saveNotification } from "../database/database";
 import { useColorScheme } from 'nativewind';
 import { enableBluetooth } from "../components/BleToggle";
 import changeNavigationBarColor from 'react-native-navigation-bar-color';
+import { getCurrentTab } from "../navigation/navigationRef";
 
+// import BleDataPropagation from "../utils/BleDataPropagation";
+import BleAdvertiser from "../utils/BleAdvertiser";
+// import { startMeshScannerLoop } from "../utils/BleDataScanning";
+import { getDBConnection } from "../database/database";
+
+// import { initializeScannerCallbacks } from '../utils/BleDataScanning';
+
+// custom fetch api
+import { Fetch } from "../services/api";
+import popNotification from "../services/pop_notification";
+
+<<<<<<< HEAD
 import { initializeScannerCallbacks } from '../utils/BleDataScanning';
 
 /* =====================
    ENV CONFIG
 ===================== */
 const isProduction = true;
+=======
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
 const THEME_STORAGE_KEY = '@user_theme_preference';
-
-// ⚠️ IMPORTANT:
-// Replace this with your computer’s local IP
-const BASE_URL = isProduction
-  ? "https://attendease-nivr.onrender.com"
-  : "http://10.221.217.208:8000";
-
-const buildUrl = (endpoint) => `${BASE_URL}${endpoint}`;
 
 const formatDate = (date) => {
   if (!date) return "Select Date";
@@ -33,10 +36,8 @@ const formatDate = (date) => {
 
 function sHash(str) {
   let hash = 0x811c9dc5;
-
   for (let i = 0; i < str.length; i++) {
     hash ^= str.charCodeAt(i);
-
     hash = Math.imul(hash, 0x01000193);
   }
   return hash >>> 0;
@@ -45,7 +46,7 @@ function sHash(str) {
 const GlobalContext = createContext();
 
 export const GlobalProvider = ({ children }) => {
-  const [userData, setUserData] = useState({});
+  const [user, setUserData] = useState({});
   const [classes, setClasses] = useState([]);
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [teacherLeaveHistory, setTeacherLeaveHistory] = useState([]);
@@ -57,6 +58,7 @@ export const GlobalProvider = ({ children }) => {
   const [themePreference, setThemePreference] = useState('system');
   const [loadingTheme, setLoadingTheme] = useState(true);
   const [isDark, setIsDark] = useState(null);
+<<<<<<< HEAD
 
   // ble dev states
   const [bleDevices, setBleDevices] = useState([]);
@@ -107,6 +109,12 @@ export const GlobalProvider = ({ children }) => {
     }
     setNavColor();
   }, [colorScheme])
+=======
+  const database = getDBConnection();
+
+  // ble dev states
+  const [bleDevices, setBleDevices] = useState([]);
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
 
   const updateTheme = async (newMode) => {
     setThemePreference(newMode);
@@ -114,36 +122,29 @@ export const GlobalProvider = ({ children }) => {
     await AsyncStorage.setItem(THEME_STORAGE_KEY, newMode);
   };
 
-  // highlight current period
-  function runAtWholeHour(fn) {
-    const now = new Date();
+  // load whole week timetable and save it in database
+  async function saveTimetable() {
+    const timetable = await loadTimetable(user, "null");
+    if (!timetable) return;
 
-    const msToNextHour =
-      (60 - now.getMinutes()) * 60 * 1000 -
-      now.getSeconds() * 1000 -
-      now.getMilliseconds();
-
-    setTimeout(() => {
-      fn(); // runs exactly at HH:00
-
-      setInterval(fn, 60 * 60 * 1000); // every whole hour
-    }, msToNextHour);
+    if (Object.keys(timetable)?.length > 1) {
+      Object.keys(timetable)?.forEach(day => {
+        const items = timetable[day];
+        items?.forEach(item => {
+          database.execute(`insert or replace into timetable (id,branch_id,branch_name,year,semester,section,day,period_id,subject_id,subject_name,room_number,teacher_id,teacher_name,cancelled,cancelled_from,cancelled_to,substitute_teacher_id,substitute_teacher_name,substituted_till
+          )
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+            item.id, item.branch_id, item.branch_name, item.year, item.semester, item.section, item.day, item.period_id, item.subject_id, item.subject_name, item.room_number, item.teacher_id, item.teacher_name, item.cancelled ? 1 : 0, item.cancelled_from, item.cancelled_to, item.substitute_teacher_id, item.substitute_teacher_name, item.substituted_till
+          ])
+        })
+      })
+    }
   }
-
-  runAtWholeHour(() => {
-    loadTimetable(userData);
-  });
 
   /* =====================
      TIMETABLE
   ===================== */
   const loadTimetable = async (userCreds, selectedDay) => {
-    // set saved classes
-    const savedClasses = await AsyncStorage.getItem("classes");
-    if (!!savedClasses) {
-      setClasses(JSON.parse(savedClasses));
-    }
-
     if (!userCreds) return;
 
     const date = new Date();
@@ -151,25 +152,35 @@ export const GlobalProvider = ({ children }) => {
     const role = userCreds?.role?.toLowerCase();
     const section = userCreds?.section || "A";
 
+    // load local timetable 
+    const rawSavedClasses = database.execute("select * from timetable where day = ?", [day]);
+    const savedClasses = rawSavedClasses?.rows?._array;
+
     let endpoint = "";
 
     if (role === "student") {
-      endpoint = `/get-timetable?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
+      endpoint = `/api/timetable/student?year=${userCreds.year}&semester=${userCreds.semester}&branch=${userCreds.branch_id}&section=${section}&day=${day}`;
     } else if (role === "teacher") {
-      endpoint = `/get-timetable?teacher_name=${encodeURIComponent(
-        userCreds?.name || ""
-      )}&teacher_id=${userCreds?.teacher_id}&day=${day}`;
+      endpoint = `/api/timetable/teacher?teacher_id=${userCreds?.teacher_id}&day=${day}`;
     } else {
       return;
     }
 
     try {
-      const response = await fetch(buildUrl(endpoint));
-      const json = await response.json();
-      const data = json?.data;
+      const response = await Fetch(endpoint);
+      let data;
 
-      if (json?.timetable) {
-        return json.timetable;
+      if (response?.status === 503) {
+        data = {
+          classes: savedClasses
+        };
+      } else {
+        const json = await response.json();
+        data = json?.data;
+
+        if (json?.timetable) {
+          return json.timetable;
+        }
       }
 
       data.classes = data?.classes?.map(d => {
@@ -209,54 +220,95 @@ export const GlobalProvider = ({ children }) => {
         setClasses({ day, classes: timetable })
       };
 
-      // console.log(timetable)
-      AsyncStorage.setItem("classes", JSON.stringify({ day, classes: timetable }));
-
     } catch (err) {
       console.log("Timetable error:", err);
     }
   };
 
-  /* =====================
-     LEAVES
-  ===================== */
+
   const loadLeaves = async (filter) => {
-    if (!userData?.email) return;
+    if (!user?.email) return;
 
     try {
-      const endpoint = `/fetch-leaves?user_data=${encodeURIComponent(
-        JSON.stringify(userData)
-      )}${filter?.month ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+      // student leaves
+      const studentLeavesEndpoint = `/api/leaves/students?${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
 
-      const response = await fetch(buildUrl(endpoint));
-      const json = await response.json();
+      const studentLeavesResponse = await Fetch(studentLeavesEndpoint);
+      const studentLeaves = studentLeavesResponse.ok ? await studentLeavesResponse.json() : {};
+
+      // teacher leaves
+      const teacherLeavesEndpoint = `/api/leaves/teachers?${filter?.label ? `&filter=${encodeURIComponent(JSON.stringify(filter))}` : ""}&time=${encodeURIComponent(formatDate(new Date()))}`;
+
+      const teacherLeavesResponse = await Fetch(teacherLeavesEndpoint);
+      const teacherLeaves = teacherLeavesResponse.ok ? await teacherLeavesResponse.json() : {};
 
       if (!!filter && !filter?.set) {
         return {
           month: filter?.month,
-          ...json
+          student_leaves: studentLeaves?.leaves || [],
+          teacher_leaves: teacherLeaves?.leaves || []
         };
       }
       else {
-        setLeaveHistory(json?.data || []);
-        setTeacherLeaveHistory(json?.teacher_leaves || []);
+        setLeaveHistory(studentLeaves?.leaves || []);
+        setTeacherLeaveHistory(teacherLeaves?.leaves || []);
       }
     } catch (err) {
       console.log("Leaves error:", err);
     }
-  };
+  }
 
-  /* =====================
-     INIT USER (AsyncStorage)
-  ===================== */
   useEffect(() => {
-    const loadStoredUser = async () => {
-      const stored = await AsyncStorage.getItem("user_creds");
-      if (stored) {
-        setUserData(JSON.parse(stored));
+    // Load saved theme from storage on app bootup
+    async function loadSavedTheme() {
+      try {
+        const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+        if (!!savedTheme) {
+          setThemePreference(savedTheme);
+          setColorScheme(savedTheme);
+        } else {
+          setThemePreference('system');
+          setColorScheme('system');
+        }
+      } catch (e) {
+        console.error("Failed to load theme preference", e);
+      } finally {
+        setLoadingTheme(false);
       }
-    };
-    loadStoredUser();
+    }
+    loadSavedTheme();
+
+
+    // fetch user data
+    const fetchUser = async () => {
+      const tab = getCurrentTab();
+      if (tab === "Login") return;
+
+      const res = await Fetch("/api/auth/me");
+
+      let user;
+
+      if (!res.ok && res?.status === 503) {
+        const rawSavedUser = await AsyncStorage.getItem("user_creds");
+        const savedUser = JSON.parse(rawSavedUser || "{}");
+
+        if (savedUser?.id) {
+          user = savedUser;
+        };
+      }
+      else {
+        const response = await res.json();
+        if (response?.user) {
+          user = response.user
+        };
+      }
+
+      if (user) {
+        setUserData(user);
+      } else setUserData(null);
+    }
+    fetchUser();
+
 
     // load ble state
     async function checkBleState() {
@@ -269,7 +321,8 @@ export const GlobalProvider = ({ children }) => {
           if (!!parsedValue) {
             await enableBluetooth();
             // start scanning
-            await startMeshScannerLoop();
+            // await startMeshScannerLoop();
+            console.log('🟢 BLE Core Scanner Started');
           };
           return parsedValue;
         } catch (e) {
@@ -279,70 +332,44 @@ export const GlobalProvider = ({ children }) => {
       }
     }
     checkBleState();
+
+
+    // Bind context state modifiers directly to the scanning engine reference pointers
+    // initializeScannerCallbacks(setBleDevices, loadTimetable);
   }, []);
 
-  /* =====================
-     AUTO LOAD DATA
-  ===================== */
+  useEffect(() => {
+    const is_dark = colorScheme === "dark";
+    setIsDark(is_dark);
 
-  const saveFcmToken = async (userCreds) => {
-    if (!userCreds || !userCreds.email) return false;
-
-    try {
-      // 1. Get the token (This triggers the permission prompt if needed)
-      const token = await requestFcmToken();
-
-      // If user denied permission or token failed, exit cleanly
-      if (!token) return false;
-
-      // 2. Determine topics
-      const topics = userCreds.role?.toLowerCase() === "student"
-        ? [
-          `year_${userCreds.year}`,
-          `branch_${userCreds.branch_id}`,
-          `${userCreds.branch_id}_${userCreds.year}_${userCreds.section}`
-        ]
-        : ["teachers"];
-
-      // 3. Save to your database
-      const response = await fetch(buildUrl("/save-fcm-token"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_data: { ...userData, device_info: {} },
-          token: token,
-          topics: topics
-        })
-      });
-
-      if (!response.ok) {
-        console.error("Backend refused token save:", response.status);
-        return false;
+    async function setNavColor() {
+      try {
+        await changeNavigationBarColor(
+          is_dark ? '#171717' : '#ffffff',
+          !is_dark,
+          false
+        );
+      } catch (e) {
+        console.log(e);
       }
-
-      // console.log("✅ FCM Token & Topics saved successfully!");
-      return true;
-
-    } catch (error) {
-      console.error("Crash inside saveFcmToken:", error);
-      return false;
     }
-  };
+    setNavColor();
+  }, [colorScheme])
+
 
   useEffect(() => {
-    if (!userData?.email) return;
+    if (!user?.email) return;
     setLogout(false);
 
-    loadTimetable(userData);
+    loadTimetable(user);
+    if (user.role === "Student") saveTimetable();
     loadLeaves();
-
-    // save fcm token
-    saveFcmToken(userData);
 
     // listen for new message
     // 1. Get the modular messaging instance
     const messagingInstance = getMessaging();
 
+<<<<<<< HEAD
     // BleDataPropagation(database, {
     //   "originalPriority": 1,
     //   "priority": 1,
@@ -364,56 +391,152 @@ export const GlobalProvider = ({ children }) => {
     const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
       console.log('A new FCM message arrived!', JSON.stringify(remoteMessage));
       // save to local database
+=======
+    // class cancellation
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
 
-      const notification_id = (sHash(remoteMessage.messageId) >>> 0)
-        .toString(16).toUpperCase()
-        .padStart(8, "0");
+    // BleAdvertiser(database, {
+    //   "originalPriority": 1,
+    //   "priority": 1,
+    //   "sentTime": 1781611965387,
+    //   "data": {
+    //     "scope": "BTECH_CSE_4_A",
+    //     "body": "Period 6 of Mr. Rishabh, on leave for 29 Aug 2026",
+    //     "title": "Class Cancelled",
+    //     "type": "CLASS_CANCELLED",
+    //     "metadata": "{\"leave_type\":\"period\",\"status\":\"1\",\"teacher_id\":\"T_RISHABH\",\"period_id\":[6],\"on\":\"1970-01-01T00:00:00.000Z\",\"from\":\"2026-08-29T18:35:00.000Z\",\"to\":\"2026-08-29T18:25:00.000Z\"}",
+    //      "timestamp": 1787725747440
+    //   },
+    //   "from": "/topics/CSE_4_A",
+    //   "messageId": "0:1781611965391503%3c69d815f9fd7ecd",
+    //   "ttl": 2419200
+    // });
 
-      saveNotification(database, { notification_id: notification_id, scope: remoteMessage.data.scope, source: "FCM", type: remoteMessage.data.type, title: remoteMessage.data.title, body: remoteMessage.data.body });
 
-      // propagate notification
-      BleDataPropagation(database, remoteMessage);
+    // class substitution
 
-      // Refresh data silently!
-      loadTimetable(userData);
-      loadLeaves();
+    // BleAdvertiser(database, {
+    //   "originalPriority": 1,
+    //   "priority": 1,
+    //   "sentTime": 1788021652581,
+    //   "data": {
+    //     "body": "Class Major Project of Mr. Rishabh Kushwaha is substituted by Komal Gahtori",
+    //     "metadata": "{\"status\":\"1\",\"period_id\":6,\"substitutor\":\"T_CST043\"}",
+    //     "scope": "BTECH_CSE_4_A",
+    //     "title": "Class Substitution",
+    //     "type": "CLASS_SUBSTITUTION",
+    //     "timestamp": 1787725747444
+    //   },
+    //   "from": "/topics/COLLEGE_1001_BTECH_CSE_4_A",
+    //   "messageId": "0:1788021652594483%3c69d815f9fd7ecd",
+    //   "ttl": 2419200
+    // });
+
+
+    // announcement
+
+    BleAdvertiser(database, {
+      "originalPriority": 1,
+      "priority": 1,
+      "sentTime": 1787725747441,
+      "data": {
+        "body": "hey hello whatsup dude what are u doing today something fun...",
+        "metadata": "{\"scope\":\"students\",\"target_college\":1001,\"target_course\":[\"B.TECH\"],\"target_branch\":[\"AI/ML\",\"CSE\"],\"target_year\":[4],\"target_section\":[\"all\"]}",
+        "scope": "{\"courses\":[\"B.TECH\"],\"branches\":[\"AI/ML\",\"CSE\"],\"years\":[4],\"sections\":[\"all\"]}",
+        "title": "greeting from rahul",
+        "type": "ANNOUNCEMENT",
+        "timestamp": 1787725747440
+      },
+      "from": "959032391778",
+      "messageId": "0:1787725747446195%3c69d815f9fd7ecd",
+      "ttl": 2419200
     });
 
-    if (userData.role === "Student") saveTimetable();
+
+    // 2. Set up the foreground listener
+    const unsubscribe = onMessage(messagingInstance, async (remoteMessage) => {
+      // propagate notification
+      // BleDataPropagation(database, remoteMessage);
+      // BleAdvertiser(database, remoteMessage);
+
+      try {
+        // pop notification
+        popNotification(remoteMessage);
+      } catch (error) {
+        console.warn(error)
+      }
+
+      // Refresh data silently!
+      if (remoteMessage?.data?.type !== "ANNOUNCEMENTS") {
+        loadTimetable(user);
+        loadLeaves();
+      }
+    });
+
+
+
+    // download college metadata/scopes for ble encoding
+    async function loadMetadata() {
+      if (!user?.id) return;
+      // load saved metadata
+      const today = new Date();
+      const savedMetadata = await AsyncStorage.getItem("college_metadata");
+      let metadata = JSON.parse(savedMetadata || "{}");
+
+      if (!metadata?.exp || new Date(metadata?.exp) < today.getTime()) {
+        // console.log("fetching metadata")
+        const res = await Fetch("/college/metadata/all");
+        const response = await res.json();
+        // console.log(response)
+        if (response?.data) metadata = response.data;
+      }
+
+      if (!metadata?.exp || new Date(metadata?.exp) < today) {
+        metadata.exp = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).getTime();
+        await AsyncStorage.setItem("college_metadata", JSON.stringify(metadata))
+      };
+    }
+    loadMetadata();
+
 
     // 3. Clean up the listener when the component unmounts
     return () => {
       unsubscribe();
     };
-  }, [userData]);
+  }, [user]);
 
-  // load whole week timetable and save it in database
-  async function saveTimetable() {
-    const timetable = await loadTimetable(userData, "null");
-    if (!timetable) return;
+  // highlight current period
+  useEffect(() => {
+    if (!user?.email) return;
 
-    if (Object.keys(timetable).length > 1) {
-      Object.keys(timetable).forEach(day => {
-        const items = timetable[day];
-        items.forEach(item => {
-          database.execute(`insert or replace into timetable (id,branch_id,branch_name,year,semester,section,day,period_id,subject_id,subject_name,room_number,teacher_id,teacher_name,cancelled,cancelled_from,cancelled_to,substitute_teacher_id,substitute_teacher_name,substituted_till
-          )
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-            item.id, item.branch_id, item.branch_name, item.year, item.semester, item.section, item.day, item.period_id, item.subject_id, item.subject_name, item.room_number, item.teacher_id, item.teacher_name, item.cancelled ? 1 : 0, item.cancelled_from, item.cancelled_to, item.substitute_teacher_id, item.substitute_teacher_name, item.substituted_till
-          ])
-        })
-      })
-    }
-  }
+    const runAtWholeHour = (fn) => {
+      const now = new Date();
+      const msToNextHour =
+        (60 - now.getMinutes()) * 60 * 1000 -
+        now.getSeconds() * 1000 -
+        now.getMilliseconds();
+
+      const timeoutId = setTimeout(() => {
+        fn();
+        const intervalId = setInterval(fn, 60 * 60 * 1000);
+        return () => clearInterval(intervalId);
+      }, msToNextHour);
+
+      return () => clearTimeout(timeoutId);
+    };
+
+    const cleanup = runAtWholeHour(() => {
+      loadTimetable(user);
+    });
+
+    return () => cleanup && cleanup();
+  }, [user, loadTimetable]);
 
   return (
     <GlobalContext.Provider
       value={{
         activeTab, setActiveTab,
-        isProduction,
-        BASE_URL,
-        buildUrl,
-        userData, setUserData,
+        user, setUserData,
         classes,
         leaveHistory,
         loadTimetable,
@@ -426,7 +549,10 @@ export const GlobalProvider = ({ children }) => {
         colorScheme,
         themePreference, updateTheme,
 
+<<<<<<< HEAD
         bleError, setBleError,
+=======
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
         bleDevices, setBleDevices,
       }}
     >
@@ -435,10 +561,34 @@ export const GlobalProvider = ({ children }) => {
   );
 };
 
+const defaultGlobalContext = {
+  activeTab: 0,
+  setActiveTab: () => { },
+  user: null,
+  setUserData: () => { },
+  classes: [],
+  leaveHistory: [],
+  loadTimetable: async () => undefined,
+  database: null,
+  loadLeaves: async () => undefined,
+  teacherLeaveHistory: [],
+  logout: false,
+  setLogout: () => { },
+  formatDate,
+  bleOn: false,
+  setBleOn: () => { },
+  colorScheme: 'light',
+  themePreference: 'system',
+  updateTheme: async () => { },
+  bleDevices: [],
+  setBleDevices: () => { },
+};
+
 export const AppStates = () => {
   const ctx = useContext(GlobalContext);
   if (!ctx) {
-    throw new Error("AppStates must be used inside GlobalProvider");
+    console.warn("AppStates was used outside GlobalProvider; using a safe fallback context.");
+    return defaultGlobalContext;
   }
   return ctx;
 };

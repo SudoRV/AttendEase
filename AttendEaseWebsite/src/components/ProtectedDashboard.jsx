@@ -1,35 +1,44 @@
-import { Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import TeacherDashboard from "../pages/Teacher_Dashboard";
-import StudentDashboard from "../pages/Student_Dashboard"; import RequestNotification from "./RequestNotification";
+import StudentDashboard from "../pages/Student_Dashboard"; 
+import RequestNotification from "./RequestNotification";
+import { AppStates } from "../services/states";
 
 export default function ProtectedDashboard() {
-  const user_data = localStorage.getItem("user_creds");
-  const userCreds = user_data ? JSON.parse(user_data) : undefined;
+  const { user } = AppStates();
+  const [loginScreen, setLoginScreen] = useState(0);
 
-  // No login → go to login page
-  if (!userCreds) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Role-based switching
-  if (userCreds?.role === "Teacher") {
+  // initial
+  if (loginScreen !== 0) {
     return (
-      <>
-        <RequestNotification />
-        <TeacherDashboard />
-      </>
+      <div className="bg-neutral-100 dark:bg-neutral-900 w-full min-h-screen flex justify-center items-center">
+        {
+          loginScreen === 2 ? (
+            <p className="text-2xl">Redirecting to login page...</p>
+          ) : (
+            <p className="text-2xl">Please login first to access dashboard.</p>
+          )
+        } 
+      </div>
     )
   }
-
-  if (userCreds?.role === "Student") {
-    return (
-      <>
-        <RequestNotification />
-        <StudentDashboard />
-      </>
-    );
+  
+  if(!user && user === null) {
+    return <div className="w-full min-h-screen bg-neutral-100 dark:bg-neutral-900 flex justify-center items-center">
+      <p className="text-3xl font-light">loading...</p>
+    </div>
   }
 
-  // Unknown role → redirect or show error
-  return <Navigate to="/unauthorized" replace />;
+  if (user) return (
+    <div>
+      <RequestNotification />
+      {
+        user?.role === "Student" ? (
+          <StudentDashboard />
+        ) : (
+          <TeacherDashboard />
+        )
+      }
+    </div>
+  )
 }

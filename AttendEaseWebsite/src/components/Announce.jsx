@@ -9,44 +9,94 @@ import {
   FiArrowRight
 } from "react-icons/fi";
 import { useTheme } from '../context/ThemeContext';
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { Fetch } from "../services/api";
 
-const YEAR_OPTIONS = [
-  { value: "all", label: "All Years" },
-  { value: "1", label: "1st Year" },
-  { value: "2", label: "2nd Year" },
-  { value: "3", label: "3rd Year" },
-  { value: "4", label: "4th Year" },
-];
-
-const BRANCH_OPTIONS = [
-  { value: "all", label: "All Branches" },
-  { value: "CSE", label: "CSE" },
-  { value: "AI", label: "AI / ML" },
-  { value: "RA", label: "Robotics" },
-  { value: "ME", label: "ME" },
-  { value: "CE", label: "Civil" },
-  { value: "BCA", label: "BCA" },
-];
-
-const SECTION_OPTIONS = [
-  { value: "all", label: "All Sections" },
-  { value: "A", label: "A" },
-  { value: "B", label: "B" },
-  { value: "C", label: "C" },
-];
 
 export default function Announce() {
-  const { userData, buildUrl, formatDate, loadAnnouncements } = AppStates();
+  const { user, formatDate, loadAnnouncements } = AppStates();
   const { isDark } = useTheme();
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ title: "", body: "", expires_at: "" });
+  const [targetCourses, setTargetCourses] = useState([]);
   const [targetYears, setTargetYears] = useState([]);
   const [targetBranches, setTargetBranches] = useState([]);
   const [targetSections, setTargetSections] = useState([]);
-
   const [scope, setScope] = useState("students");
+
+
+
+
+  // load colleges, courses, branches, year, semester
+  const [metadata, setMetadata] = useState({
+    courses: [
+      // { value: "all", label: "All Courses" }
+    ],
+    branches: [
+      // { value: "all", label: "All Branches" }
+    ],
+    years: [
+      // { value: "all", label: "All Years" }
+    ],
+    sections: [
+      // { value: "all", label: "All Sections" }
+    ]
+  });
+
+  const queryRef = useRef({
+    query: "courses",
+    added: true
+  });
+
+  let queryTimeout;
+
+  useEffect(() => {
+    if (!user?.email || scope === "teachers") return;
+
+    const query = queryRef.current?.query;
+
+    if (!queryRef.current.added) return;
+    if (query === "courses" && !user?.college_id) return;
+    if (query === "branches" && targetCourses.length == 0) return;
+    if (query === "years" && targetBranches.length == 0) return;
+    if (query === "sections" && targetYears.length == 0) return;
+
+    const payload = {
+      college_id: user?.college_id,
+      course_id: targetCourses.map(c => c.value).filter(c => (c !== "all" && c !== "null")),
+      branch_id: targetBranches.map(b => b.value).filter(b => (b !== "all" && b !== "null")),
+      year: targetYears.map(y => y.value).filter(y => (y !== "all" && y !== "null"))
+    }
+
+    async function fetchMetadata() {
+      const response = await Fetch(`/college/metadata?query=${query}`, {
+        method: "QUERY",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+
+      if (data.courses) setMetadata(prev => ({ ...prev, courses: [{ value: "all", label: "All courses" }, ...data.courses.map(c => ({ value: c.id, label: c.course_id }))] }));
+
+      if (data.branches) setMetadata(prev => ({ ...prev, branches: [{ value: "all", label: "All branches" }, , ...data.branches.map(b => ({ value: b.branch_id, label: b.branch_id }))] }));
+
+      if (data.years) setMetadata(prev => ({ ...prev, years: [{ value: "all", label: "All years" }, , ...data.years.map(y => ({ value: y.year, label: y.year }))] }));
+
+      if (data.sections) setMetadata(prev => ({ ...prev, sections: [{ value: "all", label: "All sections" }, , ...data.sections.map(s => ({ value: s.section, label: s.section }))] }));
+    }
+
+    if (queryTimeout) clearTimeout(queryTimeout);
+    queryTimeout = setTimeout(() => {
+      fetchMetadata();
+    }, 1000);
+
+  }, [user, targetCourses, targetBranches, targetYears])
+
+
+
 
   useEffect(() => {
     setTargetYears([]);
@@ -61,19 +111,24 @@ export default function Announce() {
 
   const handleAnnounce = async (e) => {
     e.preventDefault();
+
+    if((targetCourses.length === 0 || targetBranches.length === 0 || targetYears.length === 0 || targetSections.length === 0 || !formData?.expires_at) && (scope === "teachers" && !formData?.expires_at)) return alert("Select correct target(s)")
+    
     setLoading(true);
 
     const payload = {
       ...formData,
       created_by: {
-        name: userData?.name,
-        id: userData?.teacher_id,
-        user_id: userData?.user_id
+        name: user?.name,
+        id: user?.teacher_id,
+
       },
+      target_college: user?.college_id,
       scope,
-      target_year: targetYears.map((o) => o.value),
-      target_branch: targetBranches.map((o) => o.value),
-      target_section: targetSections.map((o) => o.value),
+      target_course: targetCourses.find(c => c?.value === "all") ? ["all"] : targetCourses.map((o) => o.value),
+      target_branch: targetBranches.find(b => b?.value === "all") ? ["all"] : targetBranches.map((o) => o.value),
+      target_year: targetYears.find(y => y?.value === "all") ? ["all"] : targetYears.map((o) => o.value),
+      target_section: targetSections.find(s => s?.value === "all") ? ["all"] : targetSections.map((o) => o.value),
       status: "Active",
       expires_at: formData.expires_at
         ? formatDate(formData.expires_at)
@@ -81,7 +136,7 @@ export default function Announce() {
     };
 
     try {
-      const response = await fetch(buildUrl("/announce"), {
+      const response = await Fetch("/api/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -90,8 +145,9 @@ export default function Announce() {
       const resData = await response.json();
       if (resData.success) {
         loadAnnouncements();
-        setTargetYears([]);
+        setTargetCourses([])
         setTargetBranches([]);
+        setTargetYears([]);
         setTargetSections([]);
         alert("Announcement posted successfully!");
       }
@@ -120,7 +176,8 @@ export default function Announce() {
       ...base,
       borderRadius: '12px',
       overflow: 'hidden',
-      padding: '4px'
+      padding: '4px',
+      zIndex: 100
     }),
     option: (base, state) => ({
       ...base,
@@ -137,13 +194,27 @@ export default function Announce() {
         backgroundColor: '#4f46e5'
       }
     }),
-    multiValue: (base) => ({
-      ...base,
-      backgroundColor: 'rgba(99, 102, 241, 0.08)',
-      borderRadius: '6px',
-      fontWeight: '600',
-      color: '#4f46e5'
-    }),
+    multiValue: (base, state) => {
+      // state.selectProps.value contains the entire array of currently selected items
+      const isAllSelected = state.selectProps.value?.some(item => item.value === 'all');
+    
+      // If "all" is active and this current pill is NOT "all", hide it
+      if (isAllSelected && state.data.value !== 'all') {
+        return {
+          ...base,
+          display: 'none'
+        };
+      }
+    
+      // Normal styling for "all" (or for everything when "all" is not chosen)
+      return {
+        ...base,
+        backgroundColor: 'rgba(99, 102, 241, 0.08)',
+        borderRadius: '6px',
+        fontWeight: '600',
+        color: '#4f46e5'
+      };
+    },
     multiValueLabel: (base) => ({
       ...base,
       color: '#4f46e5',
@@ -245,26 +316,65 @@ export default function Announce() {
               <div className="grid gap-3">
                 <Select
                   isMulti
-                  placeholder="Filter Target Year(s)"
-                  options={YEAR_OPTIONS}
-                  value={targetYears}
-                  onChange={setTargetYears}
+                  placeholder="Filter Target Course(s)"
+                  options={metadata?.courses}
+                  value={targetCourses}
+                  onChange={(selectedOption, actionMeta) => {
+                    queryRef.current = {
+                      query: "branches",
+                      added: actionMeta.option ? true : false
+                    };
+                    if (actionMeta?.option?.value === "all") setTargetCourses(metadata?.courses);
+                    else if(actionMeta?.removedValue?.value === "all") setTargetCourses([]);
+                    else setTargetCourses(selectedOption);
+                  }}
                   styles={selectStyles}
                 />
+
                 <Select
                   isMulti
                   placeholder="Filter Target Branch(es)"
-                  options={BRANCH_OPTIONS}
+                  options={metadata?.branches}
                   value={targetBranches}
-                  onChange={setTargetBranches}
+                  onChange={(selectedOption, actionMeta) => {
+                    queryRef.current = {
+                      query: "years",
+                      added: actionMeta.option ? true : false
+                    };
+                    if (actionMeta?.option?.value === "all") setTargetBranches(metadata?.branches);
+                    else if(actionMeta?.removedValue?.value === "all") setTargetBranches([]);
+                    else setTargetBranches(selectedOption);
+                  }}
                   styles={selectStyles}
                 />
+
+                <Select
+                  isMulti
+                  placeholder="Filter Target Year(s)"
+                  options={metadata?.years}
+                  value={targetYears}
+                  onChange={(selectedOption, actionMeta) => {
+                    queryRef.current = {
+                      query: "sections",
+                      added: actionMeta.option ? true : false
+                    };
+                    if (actionMeta?.option?.value === "all") setTargetYears(metadata?.years);
+                    else if(actionMeta?.removedValue?.value === "all") setTargetYears([]);
+                    else setTargetYears(selectedOption);
+                  }}
+                  styles={selectStyles}
+                />
+
                 <Select
                   isMulti
                   placeholder="Filter Target Section(s)"
-                  options={SECTION_OPTIONS}
+                  options={metadata?.sections}
                   value={targetSections}
-                  onChange={setTargetSections}
+                  onChange={(selectedOption, actionMeta) => {                   
+                    if (actionMeta?.option?.value === "all") setTargetSections(metadata?.sections);
+                    else if(actionMeta?.removedValue?.value === "all") setTargetSections([]);
+                    else setTargetSections(selectedOption);
+                  }}
                   styles={selectStyles}
                 />
               </div>

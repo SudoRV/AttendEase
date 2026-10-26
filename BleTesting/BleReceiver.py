@@ -411,6 +411,8 @@ async def packet_processing_worker():
                     uuid_hex = uuid_bytes.hex().upper()
                     formatted_uuid = f"{uuid_hex[0:8]}-{uuid_hex[8:12]}-{uuid_hex[12:16]}-{uuid_hex[16:20]}-{uuid_hex[20:32]}"
                     
+                    print("uuid: ", formatted_uuid, major, minor)
+                    
                     # Direct processing engine execution
                     parse_uuid_payload(formatted_uuid, major, minor)
         except Exception as e:
@@ -423,7 +425,11 @@ def advertisement_callback(device, advertisement_data):
     High-speed callback. Instantly fields hardware advertisements 
     and drops elements directly onto the consumer queue.
     """
+<<<<<<< HEAD
     # print(f"Advertisement received from {device.address} with data: {advertisement_data}")
+=======
+    # print(f"Advertisement received from {device.name} with data: {advertisement_data}\n")
+>>>>>>> 1fa71a41be916b06753d934546128a577bf1a41a
     
     if TARGET_COMPANY_ID in advertisement_data.manufacturer_data:
         packet_processing_queue.put_nowait((device, advertisement_data))

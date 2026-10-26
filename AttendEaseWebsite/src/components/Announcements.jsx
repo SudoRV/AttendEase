@@ -2,7 +2,7 @@ import { AppStates } from "../services/states";
 import { FiBell, FiUser, FiClock, FiInbox, FiCheckCircle } from "react-icons/fi";
 
 const Announcements = () => {
-  const { announcements, userData } = AppStates();
+  const { announcements, user } = AppStates();
 
   return (
     <div className="h-full flex flex-col bg-transparent">
@@ -48,7 +48,7 @@ const Announcements = () => {
                   }
 
                   {
-                    announcement?.created_by?.id === userData?.teacher_id && (
+                    announcement?.created_by?.id === user?.teacher_id && (
                       <p className="text-xs bg-green-500 p-1 px-2 rounded-full">by you</p>
                     )
                   }
