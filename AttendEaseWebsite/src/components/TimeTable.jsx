@@ -488,7 +488,7 @@ const TimeTable = () => {
                         <option>Select course</option>
                         {
                           metadata?.courses?.map(c => (
-                            <option key={c.id} value={c.course_id}>{c.course_name}</option>
+                            <option key={c.id} value={parseInt(c.id)}>{c.course_id}</option>
                           ))
                         }
                       </select>
@@ -507,7 +507,7 @@ const TimeTable = () => {
                         <option>Select branch</option>
                         {
                           metadata?.branches?.map(b => (
-                            <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>
+                            <option key={b.branch_id} value={parseInt(b.id)}>{b.branch_id}</option>
                           ))
                         }
                       </select>

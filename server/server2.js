@@ -141,7 +141,7 @@ app.query("/college/metadata", async (req, res) => {
 
   else if (query === "years") {
     const [years] = await pool.query("select distinct year from schedule where college_id in (?) and course_id in (?) and branch_id in (?) order by year", [collegeId, courseId, branchId]);
-    // console.log(years);
+    console.log(years, collegeId, courseId, branchId);
 
     if (years.length > 0) return res.status(200).json({success: true, years, message: "Successfully fetched years."});
     else res.status(200).json({success: false, years: [], message: "No year found for the selected college, course and branch!"});
